@@ -1,6 +1,7 @@
 /* ============================================================
-   Cord Tycoon — an idle game about plugging in cords.
-   Pure vanilla JS, no dependencies. Saves to localStorage.
+   Cord Tycoon — a retro CRT idle game about plugging in cords.
+   Pure vanilla JS, no dependencies.
+   Durable saves: localStorage (sync) + IndexedDB (eviction-resistant).
    ============================================================ */
 (() => {
   'use strict';
@@ -48,14 +49,12 @@
     { id: 'u_glob4',  icon: '🛸', name: 'Self-Plugging Drones',cost: 1e11,   kind: 'global', mult: 3,    desc: 'All cords x3.' },
   ];
 
-  // Every CORD_MILESTONE owned of a cord doubles that cord's output — AdVenture
-  // Capitalist-style milestone bonuses that give near-term goals and bump the
-  // player past cost walls.
+  // Every CORD_MILESTONE owned of a cord doubles that cord's output — milestone
+  // bonuses that give near-term goals and bump the player past cost walls.
   const CORD_MILESTONE = 25;
 
   /* ---------- Content: achievements ----------
-     A steady stream of small, mostly near-reach goals. `cond` decides when one
-     unlocks; optional `prog` returns [current, target] for a progress bar. */
+     `cond` decides when one unlocks; optional `prog` returns [current, target]. */
   const ACHIEVEMENTS = [
     { id: 'plug1',    icon: '🔌', name: 'First Contact',   desc: 'Plug in your first cord by hand.',        cond: () => state.clicks >= 1 },
     { id: 'plug100',  icon: '👆', name: 'Button Masher',   desc: 'Hand-plug 100 cords.',                    cond: () => state.clicks >= 100,   prog: () => [state.clicks, 100] },
@@ -63,10 +62,14 @@
     { id: 'auto1',    icon: '🤖', name: 'Going Automatic', desc: 'Own your first auto-plugging cord.',      cond: () => totalGenerators() >= 1 },
     { id: 'own25',    icon: '📦', name: 'Bulk Buyer',      desc: 'Own 25 of a single cord (a ×2 milestone!).', cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 25) },
     { id: 'own50',    icon: '🏗️', name: 'Mass Production',  desc: 'Own 50 of a single cord.',                cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 50) },
+    { id: 'own100',   icon: '🏰', name: 'Cord Tycoon',     desc: 'Own 100 of a single cord.',               cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 100) },
     { id: 'w1k',      icon: '💡', name: 'Kilowatt Club',   desc: 'Earn 1,000 total watts.',                 cond: () => state.totalEarned >= 1e3,  prog: () => [state.totalEarned, 1e3] },
     { id: 'w1m',      icon: '⚡', name: 'Megawatt Mogul',  desc: 'Earn 1 million total watts.',             cond: () => state.totalEarned >= 1e6,  prog: () => [state.totalEarned, 1e6] },
     { id: 'w1b',      icon: '🔆', name: 'Gigawatt Giant',  desc: 'Earn 1 billion total watts.',             cond: () => state.totalEarned >= 1e9,  prog: () => [state.totalEarned, 1e9] },
     { id: 'w1t',      icon: '🌟', name: 'Terawatt Tycoon', desc: 'Earn 1 trillion total watts.',            cond: () => state.totalEarned >= 1e12, prog: () => [state.totalEarned, 1e12] },
+    { id: 'wps1k',    icon: '🚗', name: 'Auto Pilot',      desc: 'Reach 1,000 watts/sec.',                  cond: () => totalWps() >= 1e3,  prog: () => [totalWps(), 1e3] },
+    { id: 'wps1m',    icon: '🏭', name: 'Power Plant',     desc: 'Reach 1 million watts/sec.',              cond: () => totalWps() >= 1e6,  prog: () => [totalWps(), 1e6] },
+    { id: 'wps1b',    icon: '☢️', name: 'Reactor Online',  desc: 'Reach 1 billion watts/sec.',              cond: () => totalWps() >= 1e9,  prog: () => [totalWps(), 1e9] },
     { id: 'up1',      icon: '🧰', name: 'Tinkerer',        desc: 'Buy your first upgrade.',                 cond: () => Object.keys(state.upgrades).length >= 1 },
     { id: 'up5',      icon: '🔧', name: 'Engineer',        desc: 'Buy 5 upgrades.',                         cond: () => Object.keys(state.upgrades).length >= 5, prog: () => [Object.keys(state.upgrades).length, 5] },
     { id: 'allcord',  icon: '🧳', name: 'Full Toolkit',    desc: 'Own at least one of every cord type.',    cond: () => CORDS.every(c => (state.owned[c.id] || 0) >= 1), prog: () => [CORDS.filter(c => (state.owned[c.id] || 0) >= 1).length, CORDS.length] },
@@ -103,6 +106,9 @@
     return 1 + 0.05 * (state.cores || 0);
   }
 
+  // An upgrade's multiplier applies to a cord's WHOLE output — every unit you
+  // already own and every one you buy later — because output = n × per-unit ×
+  // multiplier. Buying an upgrade therefore boosts your existing fleet too.
   function cordMultiplier(cordId) {
     let m = 1;
     for (const u of UPGRADES) {
@@ -190,8 +196,8 @@
   /* ---------- Number formatting ---------- */
   const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
   function fmt(n) {
+    if (!isFinite(n)) return '∞';
     if (n < 1000) return (Math.floor(n * 10) / 10).toString().replace(/\.0$/, '');
-    // Scientific notation mode (settings toggle): e.g. 1.23e6
     if (state.settings.sci) return n.toExponential(2).replace('e+', 'e');
     const tier = Math.floor(Math.log10(n) / 3);
     if (tier >= SUFFIXES.length) return n.toExponential(2).replace('e+', 'e');
@@ -204,10 +210,7 @@
      Saves are written to two client-side stores for durability:
        • localStorage — synchronous, so it survives `pagehide`/`beforeunload`
        • IndexedDB    — larger quota and far more eviction-resistant; the primary
-     On load we reconcile the two by `lastSeen` and keep the freshest, so if one
-     layer is wiped (e.g. iOS Safari evicts localStorage after ~7 idle days) the
-     other restores it. We also request persistent-storage permission to opt out
-     of eviction entirely where the browser supports it. */
+     On load we reconcile the two by `lastSeen` and keep the freshest. */
 
   const DB_NAME = 'cordTycoon';
   const DB_STORE = 'saves';
@@ -283,43 +286,37 @@
   }
 
   async function storageInfo() {
-    let persisted = false, usage = 0, quota = 0;
+    let persisted = false;
     try {
       if (navigator.storage?.persisted) persisted = await navigator.storage.persisted();
-      if (navigator.storage?.estimate) {
-        const est = await navigator.storage.estimate();
-        usage = est.usage || 0; quota = est.quota || 0;
-      }
     } catch (e) { /* unsupported */ }
-    return { persisted, idb: 'indexedDB' in window, usage, quota };
+    return { persisted, idb: 'indexedDB' in window };
   }
 
   /* ---------- DOM refs ---------- */
   const $ = (s) => document.querySelector(s);
   const el = {
-    watts: $('#watts'), wps: $('#wps'), perClick: $('#perClick'),
-    socket: $('#socket'), socketIcon: $('#socketIcon'), floaters: $('#floaters'),
-    surgeLayer: $('#surgeLayer'), buffBar: $('#buffBar'),
-    cords: $('#cords'), upgrades: $('#upgrades'), awards: $('#awards'),
+    watts: $('#watts'), wps: $('#wps'), tapval: $('#tapval'), coresline: $('#coresline'),
+    socket: $('#socket'), socketSvg: $('#socketSvg'),
+    buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
+    cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
     statTotal: $('#statTotal'), statClicks: $('#statClicks'), statWps: $('#statWps'),
-    statGens: $('#statGens'), statTime: $('#statTime'), statCores: $('#statCores'),
-    statSurges: $('#statSurges'), statAch: $('#statAch'),
-    prestigeGain: $('#prestigeGain'), prestigeBtn: $('#prestigeBtn'),
-    toast: $('#toast'),
-    offlineModal: $('#offlineModal'), offlineAmount: $('#offlineAmount'), offlineClose: $('#offlineClose'),
-    menuModal: $('#menuModal'), menuBtn: $('#menuBtn'), menuClose: $('#menuClose'),
-    soundToggle: $('#soundToggle'), floatToggle: $('#floatToggle'), sciToggle: $('#sciToggle'),
-    exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), resetBtn: $('#resetBtn'),
+    statGens: $('#statGens'), statSurges: $('#statSurges'), statAch: $('#statAch'),
+    statTime: $('#statTime'), statCores: $('#statCores'),
+    coregain: $('#coregain'), corecount: $('#corecount'), prestigemult: $('#prestigemult'),
+    prestigeBtn: $('#prestigeBtn'),
+    toast: $('#toast'), modal: $('#modal'), mbox: $('#mbox'),
+    savebox: $('#savebox'), exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), wipeBtn: $('#wipeBtn'),
     storageStatus: $('#storageStatus'),
   };
 
-  /* ---------- Toast ---------- */
-  let toastTimer;
-  function toast(msg) {
-    el.toast.textContent = msg;
-    el.toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.toast.classList.remove('show'), 1800);
+  /* ---------- Toast (stacked) ---------- */
+  function toast(msg, gold) {
+    const t = document.createElement('div');
+    t.className = 'toast' + (gold ? ' gold' : '');
+    t.textContent = msg;
+    el.toast.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
   }
 
   /* ---------- Sound (tiny WebAudio blips) ---------- */
@@ -343,14 +340,14 @@
   /* ---------- Floating numbers ---------- */
   function spawnFloater(amount) {
     if (!state.settings.floats) return;
+    const r = el.socket.getBoundingClientRect();
     const f = document.createElement('div');
-    f.className = 'floater';
+    f.className = 'float';
     f.textContent = '+' + fmt(amount);
-    const x = 40 + Math.random() * 90; // px from left within tap zone
-    f.style.left = x + 'px';
-    f.style.top = '55%';
+    f.style.left = (r.left + r.width / 2 - 20 + (Math.random() * 60 - 30)) + 'px';
+    f.style.top = (r.top + 40) + 'px';
     el.floaters.appendChild(f);
-    setTimeout(() => f.remove(), 900);
+    setTimeout(() => f.remove(), 1000);
   }
 
   /* ---------- Juice: subtle screenshake ---------- */
@@ -370,10 +367,7 @@
     ], { duration: 180, easing: 'ease-out' });
   }
 
-  /* ---------- Power surges (Golden-Cookie style bonus events) ----------
-     A spark randomly appears during play; tapping it grants instant watts or a
-     short production/click frenzy. Pure upside that rewards being present —
-     never punishes absence. */
+  /* ---------- Power surges (Golden-Cookie style bonus events) ---------- */
   let surgeActive = false;
   let surgeHideTimer = null;
 
@@ -393,7 +387,7 @@
     node.setAttribute('aria-label', 'Tap the power surge for a bonus!');
     node.textContent = '⚡';
     node.style.left = (12 + Math.random() * 70) + '%';
-    node.style.top = (8 + Math.random() * 72) + '%';
+    node.style.top = (16 + Math.random() * 60) + '%';
     node.addEventListener('click', () => collectSurge(node));
     el.surgeLayer.appendChild(node);
     blip(880, 0.16, 'sine', 0.045); // gentle chime to draw the eye
@@ -413,13 +407,13 @@
       state.watts += bonus;
       state.totalEarned += bonus;
       spawnFloater(bonus);
-      toast('⚡ Power Overload! +' + fmt(bonus) + ' watts');
+      toast('⚡ OVERLOAD! +' + fmt(bonus) + ' W', true);
     } else if (roll < 0.75) {
-      buffs.push({ kind: 'prod', mult: 7, until: now + 15000, icon: '🔥', label: 'Frenzy ×7' });
-      toast('🔥 Production Frenzy! ×7 for 15s');
+      buffs.push({ kind: 'prod', mult: 7, until: now + 15000, icon: '🔥', label: 'FRENZY ×7' });
+      toast('🔥 PRODUCTION FRENZY ×7!', true);
     } else {
-      buffs.push({ kind: 'click', mult: 10, until: now + 12000, icon: '👆', label: 'Click Frenzy ×10' });
-      toast('👆 Click Frenzy! ×10 taps for 12s');
+      buffs.push({ kind: 'click', mult: 10, until: now + 12000, icon: '👆', label: 'CLICK ×10' });
+      toast('👆 CLICK FRENZY ×10!', true);
     }
     state.surgesCollected = (state.surgesCollected || 0) + 1;
     blip(1200, 0.18, 'square', 0.06);
@@ -450,40 +444,41 @@
       if (ok) {
         state.achievements[a.id] = true;
         earnedNew = true;
-        toast('🏆 ' + a.name);
+        toast('🏆 ' + a.name, true);
         blip(1320, 0.2, 'triangle', 0.06);
         screenShake(0.8);
       }
     }
-    if (earnedNew && el.awards.parentElement && document.getElementById('awards').classList.contains('active')) {
-      renderAchievements();
+    if (earnedNew && document.getElementById('p-goals').classList.contains('active')) {
+      renderGoals();
     }
   }
 
-  function renderAchievements() {
-    const earned = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length;
-    let html = `<p class="awards-head">${earned} / ${ACHIEVEMENTS.length} unlocked</p>`;
+  function renderGoals() {
+    const done = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length;
+    el.goalcount.textContent = `(${done}/${ACHIEVEMENTS.length})`;
+    let html = '';
     for (const a of ACHIEVEMENTS) {
       const got = !!state.achievements[a.id];
       let prog = '';
       if (!got && a.prog) {
         const [cur, max] = a.prog();
         const pct = Math.max(0, Math.min(100, (cur / max) * 100));
-        prog = `<div class="ach-prog"><div style="width:${pct}%"></div></div>` +
+        prog = `<div class="ach-prog"><i style="width:${pct}%"></i></div>` +
                `<div class="ach-progtext">${fmt(Math.min(cur, max))} / ${fmt(max)}</div>`;
       }
       html += `
-        <div class="item ach ${got ? 'got' : 'locked'}">
-          <div class="item-icon">${got ? a.icon : '🔒'}</div>
-          <div class="item-body">
-            <div class="item-name">${a.name}</div>
-            <div class="item-desc">${a.desc}</div>
+        <div class="goal ${got ? 'done' : 'locked'}">
+          <div class="gi">${got ? a.icon : '🔒'}</div>
+          <div class="gbody">
+            <div class="gn">${a.name}</div>
+            <div class="gd">${a.desc}</div>
             ${prog}
           </div>
-          ${got ? '<div class="item-right ach-check">✓</div>' : ''}
+          ${got ? '<div class="gcheck">✓</div>' : ''}
         </div>`;
     }
-    el.awards.innerHTML = html;
+    el.goallist.innerHTML = html;
   }
 
   /* ---------- Core actions ---------- */
@@ -494,11 +489,14 @@
     state.clicks++;
     spawnFloater(gain);
     blip(660 + Math.random() * 80, 0.04, 'triangle');
-    // pulse the socket icon
-    el.socketIcon.animate(
-      [{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }],
-      { duration: 160, easing: 'ease-out' }
-    );
+    if (state.settings.floats) {
+      el.socket.classList.add('tapping');
+      setTimeout(() => el.socket.classList.remove('tapping'), 200);
+      el.socketSvg.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }],
+        { duration: 160, easing: 'ease-out' }
+      );
+    }
     checkAchievements();
     renderStatsLite();
   }
@@ -507,7 +505,7 @@
     const count = buyCount(cord);
     if (count <= 0) return;
     const cost = cordCost(cord, count);
-    if (state.watts < cost) { toast('Not enough watts'); return; }
+    if (state.watts < cost) { toast('Not enough watts'); blip(120, 0.06); return; }
     const before = state.owned[cord.id] || 0;
     state.watts -= cost;
     const after = before + count;
@@ -516,22 +514,22 @@
     // Celebrate crossing a ×2 ownership milestone.
     if (Math.floor(after / CORD_MILESTONE) > Math.floor(before / CORD_MILESTONE)) {
       const tier = Math.pow(2, Math.floor(after / CORD_MILESTONE));
-      toast(`✖️ ${cord.name} milestone! Now ×${tier}`);
+      toast(`✖️ ${cord.name} milestone! Now ×${tier}`, true);
       blip(990, 0.18, 'sawtooth', 0.05);
       screenShake(1);
     }
     checkAchievements();
-    renderShop();
+    renderCords();
     renderStatsLite();
   }
 
   function buyUpgrade(u) {
     if (state.upgrades[u.id]) return;
-    if (state.watts < u.cost) { toast('Not enough watts'); return; }
+    if (state.watts < u.cost) { toast('Not enough watts'); blip(120, 0.06); return; }
     state.watts -= u.cost;
     state.upgrades[u.id] = true;
     blip(880, 0.12, 'sawtooth', 0.05);
-    toast('Upgrade: ' + u.name);
+    toast('⬆ ' + u.name + ' purchased!');
     checkAchievements();
     renderShop();
     renderStatsLite();
@@ -540,28 +538,6 @@
   function upgradeUnlocked(u) {
     if (!u.req) return true;
     return (state.owned[u.req.cord] || 0) >= u.req.n;
-  }
-
-  function doPrestige() {
-    const gain = prestigeGain();
-    if (gain <= 0) { toast('Earn more before recycling'); return; }
-    if (!confirm(`Recycle everything for ${gain} prestige core(s)? Your watts, cords, and upgrades reset.`)) return;
-    // Carry over meta-progress that should survive a reset.
-    const carry = {
-      cores: (state.cores || 0) + gain,
-      settings: state.settings,
-      achievements: state.achievements,
-      surgesCollected: state.surgesCollected,
-      startedAt: state.startedAt,
-    };
-    state = Object.assign(defaultState(), carry);
-    buffs = [];
-    save();
-    blip(220, 0.3, 'sawtooth', 0.06);
-    screenShake(1.5);
-    toast(`+${gain} prestige core(s)! All earnings boosted.`);
-    checkAchievements();
-    renderAll();
   }
 
   /* ---------- Rendering ---------- */
@@ -592,66 +568,71 @@
       const can = state.watts >= cost;
       const each = cord.wps * cordMultiplier(cord.id) * prestigeMult() * PROD_MULT;
       const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
-      const msNote = owned > 0 ? ` · ✖️ next ×2 at ${nextMs}` : '';
+      const msPct = (owned % CORD_MILESTONE) / CORD_MILESTONE * 100;
       html += `
-        <button class="item ${can ? 'affordable' : ''}" data-cord="${cord.id}">
-          <div class="item-icon">${cord.icon}</div>
-          <div class="item-body">
-            <div class="item-name">${cord.name}</div>
-            <div class="item-desc">${fmt(each)} W/s each · ${cord.desc}</div>
+        <button class="card buyable" data-cord="${cord.id}">
+          <div class="ico">${cord.icon}</div>
+          <div class="body">
+            <div class="nm">${cord.name}</div>
+            <div class="meta"><span class="pos">${fmt(each)} W/s each</span> · ${cord.desc}</div>
+            <div class="milestone"><i style="width:${msPct}%"></i></div>
           </div>
-          <div class="item-right">
-            <div class="item-cost ${can ? 'cheap' : 'pricey'}">${fmt(cost)}</div>
-            <div class="item-owned">own ${owned}${count > 1 ? ' · +' + count : ''}${msNote}</div>
+          <div class="right">
+            <div class="owned">own ${fmtInt(owned)}${count > 1 ? `<small> +${count}</small>` : ''}</div>
+            <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} W</div>
+            ${owned > 0 ? `<div class="mnote">×2 @ ${nextMs}</div>` : ''}
           </div>
         </button>`;
     });
     if (!anyUnlocked) html += `<p class="empty-note">Tap the socket to earn your first watts!</p>`;
-    el.cords.innerHTML = html;
+    el.cordlist.innerHTML = html;
   }
 
   function renderUpgrades() {
-    const available = UPGRADES.filter(u => !state.upgrades[u.id] && upgradeUnlocked(u));
-    if (available.length === 0) {
-      el.upgrades.innerHTML = `<p class="empty-note">No upgrades available right now.<br/>Buy more cords to unlock upgrades!</p>`;
+    // Show every unlocked upgrade; purchased ones stay visible but greyed.
+    const list = UPGRADES
+      .filter(u => state.upgrades[u.id] || upgradeUnlocked(u))
+      .sort((a, b) => a.cost - b.cost);
+    if (list.length === 0) {
+      el.uplist.innerHTML = `<p class="empty-note">Buy more cords to unlock upgrades…</p>`;
       return;
     }
     let html = '';
-    available
-      .sort((a, b) => a.cost - b.cost)
-      .forEach(u => {
-        const can = state.watts >= u.cost;
-        html += `
-          <button class="item ${can ? 'affordable' : ''}" data-upgrade="${u.id}">
-            <div class="item-icon">${u.icon}</div>
-            <div class="item-body">
-              <div class="item-name">${u.name}</div>
-              <div class="item-desc">${u.desc}</div>
-            </div>
-            <div class="item-right">
-              <div class="item-cost ${can ? 'cheap' : 'pricey'}">${fmt(u.cost)}</div>
-            </div>
-          </button>`;
-      });
-    el.upgrades.innerHTML = html;
+    for (const u of list) {
+      const bought = !!state.upgrades[u.id];
+      const can = !bought && state.watts >= u.cost;
+      const cls = bought ? 'bought' : can ? 'ok' : 'no';
+      html += `
+        <button class="upg ${cls}" data-upgrade="${u.id}">
+          <div class="un">${u.name}</div>
+          <div class="ud">${u.desc}</div>
+          <div class="uc">${bought ? '✓ OWNED' : fmt(u.cost) + ' W'}</div>
+        </button>`;
+    }
+    el.uplist.innerHTML = html;
   }
 
   // lightweight per-frame updates (numbers only, no list rebuild)
   function renderStatsLite() {
+    const wps = totalWps();
     el.watts.textContent = fmt(state.watts);
-    el.wps.textContent = fmt(totalWps());
-    el.perClick.textContent = '+' + fmt(clickPower());
+    el.wps.textContent = fmt(wps);
+    el.tapval.textContent = fmt(clickPower());
+    el.coresline.textContent = (state.cores || 0) > 0
+      ? `◆ ${fmtInt(state.cores)} cores +${state.cores * 5}%` : '';
     el.statTotal.textContent = fmt(state.totalEarned);
     el.statClicks.textContent = fmtInt(state.clicks);
-    el.statWps.textContent = fmt(totalWps());
+    el.statWps.textContent = fmt(wps);
     el.statGens.textContent = fmtInt(totalGenerators());
     el.statSurges.textContent = fmtInt(state.surgesCollected || 0);
     el.statAch.textContent = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length + ' / ' + ACHIEVEMENTS.length;
     el.statCores.textContent = fmtInt(state.cores || 0);
     el.statTime.textContent = fmtDuration(Date.now() - state.startedAt);
     const pg = prestigeGain();
-    el.prestigeGain.textContent = fmtInt(pg);
-    el.prestigeBtn.disabled = pg <= 0;
+    el.coregain.textContent = fmtInt(pg);
+    el.corecount.textContent = fmtInt(state.cores || 0);
+    el.prestigemult.textContent = '+' + ((state.cores || 0) * 5) + '%';
+    el.prestigeBtn.classList.toggle('dis', pg < 1);
   }
 
   function fmtDuration(ms) {
@@ -666,33 +647,229 @@
     return `${sec}s`;
   }
 
+  function syncSettingsUI() {
+    document.querySelectorAll('.sw').forEach((b) => {
+      const v = b.dataset.set === 'sound' ? state.settings.sound
+              : b.dataset.set === 'anim' ? state.settings.floats
+              : state.settings.sci;
+      b.classList.toggle('on', !!v);
+      b.textContent = v ? 'ON' : 'OFF';
+    });
+    document.body.classList.toggle('noanim', !state.settings.floats);
+  }
+
   function renderAll() {
     renderShop();
-    renderAchievements();
+    renderGoals();
     renderBuffs();
     renderStatsLite();
+    syncSettingsUI();
   }
 
   /* ---------- Affordability refresh (cheap, runs each tick) ---------- */
   let lastSig = '';
   function refreshAffordability() {
-    // Rebuild shop only when affordability set changes, to keep DOM cheap.
     let sig = state.bulk + '|';
-    for (const c of CORDS) {
+    for (let i = 0; i < CORDS.length; i++) {
+      const c = CORDS[i];
       const owned = state.owned[c.id] || 0;
-      const prevOwned = c === CORDS[0] ? 1 : (state.owned[CORDS[CORDS.indexOf(c) - 1].id] || 0);
+      const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
       const visible = owned > 0 || prevOwned > 0;
       sig += (visible ? (state.watts >= cordCost(c, buyCount(c)) ? '1' : '0') : '-');
     }
     sig += '|';
     for (const u of UPGRADES) {
-      if (state.upgrades[u.id] || !upgradeUnlocked(u)) { sig += '-'; continue; }
+      if (state.upgrades[u.id]) { sig += 'b'; continue; }
+      if (!upgradeUnlocked(u)) { sig += '-'; continue; }
       sig += state.watts >= u.cost ? '1' : '0';
     }
     if (sig !== lastSig) {
       lastSig = sig;
       renderShop();
     }
+  }
+
+  /* ---------- Modal helpers ---------- */
+  function showModal(html) { el.mbox.innerHTML = html; el.modal.classList.add('show'); }
+  function hideModal() { el.modal.classList.remove('show'); }
+
+  /* ---------- Prestige ---------- */
+  function doPrestige() {
+    const gain = prestigeGain();
+    if (gain <= 0) { toast('Earn more before recycling'); return; }
+    const newPct = ((state.cores || 0) + gain) * 5;
+    showModal(`
+      <h2 class="danger">♻ RECYCLE?</h2>
+      <p class="dim">Reset all watts, cords &amp; upgrades.</p>
+      <p class="big">+${fmt(gain)} ◆ Cores</p>
+      <p>New bonus: <b style="color:var(--green)">+${newPct}%</b></p>
+      <div class="row2" style="margin-top:14px">
+        <button class="bigbtn" id="mYes">CONFIRM</button>
+        <button class="smbtn" id="mNo">CANCEL</button>
+      </div>`);
+    document.getElementById('mYes').addEventListener('click', () => {
+      const carry = {
+        cores: (state.cores || 0) + gain,
+        settings: state.settings,
+        achievements: state.achievements,
+        surgesCollected: state.surgesCollected,
+        startedAt: state.startedAt,
+      };
+      state = Object.assign(defaultState(), carry);
+      buffs = [];
+      save();
+      hideModal();
+      blip(220, 0.3, 'sawtooth', 0.06);
+      screenShake(1.5);
+      toast(`♻ Empire recycled. +${gain} cores`, true);
+      checkAchievements();
+      renderAll();
+    });
+    document.getElementById('mNo').addEventListener('click', hideModal);
+  }
+
+  /* ---------- Offline earnings ---------- */
+  function applyOffline() {
+    const now = Date.now();
+    const away = Math.min(now - (state.lastSeen || now), 1000 * 60 * 60 * 24); // cap 24h
+    if (away < 1000 * 30) return; // ignore < 30s
+    const rate = totalWps();
+    const earned = rate * (away / 1000) * 0.5; // 50% efficiency while away
+    if (earned <= 0) return;
+    state.watts += earned;
+    state.totalEarned += earned;
+    const h = Math.floor(away / 3600000), m = Math.floor((away % 3600000) / 60000);
+    showModal(`
+      <h2>⚡ WELCOME BACK</h2>
+      <p class="dim">Your cords ran for<br><b style="color:var(--cyan)">${h}h ${m}m</b> (50% rate)</p>
+      <p class="big">+${fmt(earned)} W</p>
+      <button class="bigbtn" id="wbOk" style="margin-top:12px">COLLECT</button>`);
+    document.getElementById('wbOk').addEventListener('click', hideModal);
+  }
+
+  /* ---------- Save / load UI ---------- */
+  function exportSave() {
+    save();
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+    el.savebox.value = code;
+    try { navigator.clipboard?.writeText(code); } catch (e) { /* ignore */ }
+    toast('📤 Save exported to box');
+  }
+  function importSave() {
+    const code = (el.savebox.value || '').trim();
+    if (!code) { toast('Paste a save code first'); return; }
+    try {
+      const obj = JSON.parse(decodeURIComponent(escape(atob(code))));
+      if (typeof obj !== 'object' || obj.watts === undefined) throw new Error('bad');
+      state = Object.assign(defaultState(), obj);
+      state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
+      save();
+      toast('📥 Save imported!');
+      renderAll();
+    } catch (e) { toast('⚠ Invalid save code'); }
+  }
+  function hardReset() {
+    showModal(`
+      <h2 class="danger">⚠ HARD RESET</h2>
+      <p class="dim">Erase everything permanently?</p>
+      <div class="row2" style="margin-top:14px">
+        <button class="bigbtn danger" id="wY">ERASE</button>
+        <button class="smbtn" id="wN">CANCEL</button>
+      </div>`);
+    document.getElementById('wY').addEventListener('click', () => {
+      try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+      idbDel(SAVE_KEY);
+      state = defaultState();
+      buffs = [];
+      save();
+      hideModal();
+      toast('Reset complete');
+      renderAll();
+    });
+    document.getElementById('wN').addEventListener('click', hideModal);
+  }
+
+  /* ---------- Event wiring ---------- */
+  el.socket.addEventListener('click', plug);
+
+  // tabs (bottom nav)
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('p-' + tab.dataset.tab).classList.add('active');
+      blip(520, 0.03);
+      if (tab.dataset.tab === 'goals') renderGoals();
+      else if (tab.dataset.tab === 'up') renderUpgrades();
+      else if (tab.dataset.tab === 'plug') renderCords();
+      else if (tab.dataset.tab === 'more') { renderStatsLite(); syncSettingsUI(); }
+    });
+  });
+
+  // delegated shop clicks
+  el.cordlist.addEventListener('click', (e) => {
+    const bulkBtn = e.target.closest('[data-bulk]');
+    if (bulkBtn) {
+      const v = bulkBtn.dataset.bulk;
+      state.bulk = v === 'max' ? 'max' : parseInt(v, 10);
+      lastSig = '';
+      renderCords();
+      return;
+    }
+    const item = e.target.closest('[data-cord]');
+    if (item) buyCord(CORDS.find(c => c.id === item.dataset.cord));
+  });
+  el.uplist.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-upgrade]');
+    if (item) buyUpgrade(UPGRADES.find(u => u.id === item.dataset.upgrade));
+  });
+
+  // prestige + save buttons
+  el.prestigeBtn.addEventListener('click', doPrestige);
+  el.exportBtn.addEventListener('click', exportSave);
+  el.importBtn.addEventListener('click', importSave);
+  el.wipeBtn.addEventListener('click', hardReset);
+
+  // settings switches
+  document.querySelectorAll('.sw').forEach((b) => {
+    b.addEventListener('click', () => {
+      const k = b.dataset.set;
+      if (k === 'sound') state.settings.sound = !state.settings.sound;
+      else if (k === 'anim') state.settings.floats = !state.settings.floats;
+      else state.settings.sci = !state.settings.sci;
+      syncSettingsUI();
+      renderStatsLite();
+      renderShop();
+      save();
+    });
+  });
+
+  // close modal by tapping the backdrop
+  el.modal.addEventListener('click', (e) => { if (e.target === el.modal) hideModal(); });
+
+  // keyboard: space/enter to plug
+  window.addEventListener('keydown', (e) => {
+    if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat &&
+        document.activeElement?.tagName !== 'TEXTAREA' &&
+        document.activeElement?.tagName !== 'INPUT') {
+      e.preventDefault();
+      plug();
+    }
+  });
+
+  // save on hide / unload
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+  window.addEventListener('pagehide', save);
+  window.addEventListener('beforeunload', save);
+
+  // Reflect where/how the save is stored, shown in the settings panel.
+  async function updateStorageStatus() {
+    if (!el.storageStatus) return;
+    const info = await storageInfo();
+    const stores = ['localStorage', info.idb ? 'IndexedDB' : null].filter(Boolean).join(' + ');
+    const lock = info.persisted ? ' · persistent' : '';
+    el.storageStatus.textContent = `Saved on this device via ${stores}${lock}.`;
   }
 
   /* ---------- Main loop ---------- */
@@ -713,142 +890,18 @@
     renderStatsLite();
     refreshAffordability();
     // Live-refresh the Goals tab's progress bars while it's open (~2x/sec).
-    if (tickCount % 5 === 0 && document.getElementById('awards').classList.contains('active')) {
-      renderAchievements();
+    if (tickCount % 5 === 0 && document.getElementById('p-goals').classList.contains('active')) {
+      renderGoals();
     }
-  }
-
-  /* ---------- Offline earnings ---------- */
-  function applyOffline() {
-    const now = Date.now();
-    const away = Math.min(now - (state.lastSeen || now), 1000 * 60 * 60 * 24); // cap 24h
-    if (away < 1000 * 30) return; // ignore < 30s
-    const rate = totalWps();
-    const earned = rate * (away / 1000) * 0.5; // 50% efficiency while away
-    if (earned <= 0) return;
-    state.watts += earned;
-    state.totalEarned += earned;
-    el.offlineAmount.textContent = fmt(earned);
-    el.offlineModal.classList.remove('hidden');
-  }
-
-  /* ---------- Save / load UI ---------- */
-  function exportSave() {
-    save();
-    const data = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
-    navigator.clipboard?.writeText(data).then(
-      () => toast('Save copied to clipboard'),
-      () => prompt('Copy your save code:', data)
-    );
-    if (!navigator.clipboard) prompt('Copy your save code:', data);
-  }
-  function importSave() {
-    const code = prompt('Paste your save code:');
-    if (!code) return;
-    try {
-      const obj = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-      if (typeof obj !== 'object' || obj.watts === undefined) throw new Error('bad');
-      state = Object.assign(defaultState(), obj);
-      state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
-      save();
-      toast('Save imported!');
-      renderAll();
-    } catch (e) { toast('Invalid save code'); }
-  }
-  function hardReset() {
-    if (!confirm('Erase ALL progress permanently? This cannot be undone.')) return;
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
-    idbDel(SAVE_KEY);
-    state = defaultState();
-    save();
-    toast('Game reset');
-    renderAll();
-  }
-
-  /* ---------- Event wiring ---------- */
-  el.socket.addEventListener('click', plug);
-
-  // tabs
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      document.getElementById(tab.dataset.tab).classList.add('active');
-      if (tab.dataset.tab === 'awards') renderAchievements();
-    });
-  });
-
-  // delegated shop clicks
-  el.cords.addEventListener('click', (e) => {
-    const bulkBtn = e.target.closest('[data-bulk]');
-    if (bulkBtn) {
-      const v = bulkBtn.dataset.bulk;
-      state.bulk = v === 'max' ? 'max' : parseInt(v, 10);
-      lastSig = '';
-      renderCords();
-      return;
-    }
-    const item = e.target.closest('[data-cord]');
-    if (item) buyCord(CORDS.find(c => c.id === item.dataset.cord));
-  });
-  el.upgrades.addEventListener('click', (e) => {
-    const item = e.target.closest('[data-upgrade]');
-    if (item) buyUpgrade(UPGRADES.find(u => u.id === item.dataset.upgrade));
-  });
-
-  // prestige + save buttons
-  el.prestigeBtn.addEventListener('click', doPrestige);
-  el.exportBtn.addEventListener('click', exportSave);
-  el.importBtn.addEventListener('click', importSave);
-  el.resetBtn.addEventListener('click', hardReset);
-
-  // modals
-  el.offlineClose.addEventListener('click', () => el.offlineModal.classList.add('hidden'));
-  el.menuBtn.addEventListener('click', () => { el.menuModal.classList.remove('hidden'); updateStorageStatus(); });
-  el.menuClose.addEventListener('click', () => el.menuModal.classList.add('hidden'));
-  el.soundToggle.checked = state.settings.sound;
-  el.floatToggle.checked = state.settings.floats;
-  el.sciToggle.checked = state.settings.sci;
-  el.soundToggle.addEventListener('change', () => { state.settings.sound = el.soundToggle.checked; save(); });
-  el.floatToggle.addEventListener('change', () => { state.settings.floats = el.floatToggle.checked; save(); });
-  el.sciToggle.addEventListener('change', () => { state.settings.sci = el.sciToggle.checked; renderAll(); save(); });
-
-  // keyboard: space/enter to plug
-  window.addEventListener('keydown', (e) => {
-    if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat &&
-        document.activeElement?.tagName !== 'INPUT') {
-      e.preventDefault();
-      plug();
-    }
-  });
-
-  // save on hide / unload
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
-  window.addEventListener('pagehide', save);
-  window.addEventListener('beforeunload', save);
-
-  // Reflect where/how the save is stored, shown in the settings panel.
-  async function updateStorageStatus() {
-    if (!el.storageStatus) return;
-    const info = await storageInfo();
-    const stores = ['localStorage', info.idb ? 'IndexedDB' : null].filter(Boolean).join(' + ');
-    const lock = info.persisted ? ' · persistent (won’t be evicted)' : '';
-    el.storageStatus.textContent = `Saved on this device via ${stores}${lock}.`;
   }
 
   /* ---------- Boot ---------- */
   (async function boot() {
-    // Reconcile with the durable IndexedDB copy before anything accrues. If
-    // localStorage was evicted but IndexedDB survived (or vice versa), this
-    // restores the freshest save instead of starting over.
+    // Reconcile with the durable IndexedDB copy before anything accrues.
     const durable = await loadDurable();
     if (durable) {
       state = Object.assign(defaultState(), durable);
       state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
-      el.soundToggle.checked = state.settings.sound;
-      el.floatToggle.checked = state.settings.floats;
-      el.sciToggle.checked = state.settings.sci;
     }
     await requestPersistence();
     applyOffline();

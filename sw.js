@@ -1,5 +1,5 @@
 /* Cord Tycoon service worker — offline-first caching. */
-const CACHE = 'cord-tycoon-v3';
+const CACHE = 'cord-tycoon-v4';
 const ASSETS = [
   './',
   './index.html',

@@ -2,121 +2,130 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#0e1726" />
-  <meta name="description" content="Cord Tycoon — an idle game about plugging in every type of cord imaginable." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#070a0f" />
+  <meta name="description" content="Cord Tycoon — a retro CRT idle game about plugging in every type of cord imaginable." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Cord Tycoon" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" />
   <link rel="stylesheet" href="css/style.css" />
   <title>Cord Tycoon</title>
 </head>
-<body>
+<body class="crt">
+  <div id="flicker"></div>
+
   <div id="app">
     <header class="topbar">
-      <div class="brand">
-        <span class="plug-emoji">🔌</span>
-        <span class="brand-name">Cord Tycoon</span>
+      <div class="logo">CORD <span class="b">TYCOON</span></div>
+      <div class="stats">
+        <div class="watts"><span id="watts">0</span> <small>W</small></div>
+        <div class="rate">
+          <div class="wps"><b id="wps">0</b> W/s</div>
+          <div class="taprate">+<span id="tapval">1</span> / plug</div>
+          <div class="coresline" id="coresline"></div>
+        </div>
       </div>
-      <button id="menuBtn" class="icon-btn" aria-label="Menu">⚙️</button>
     </header>
 
-    <section class="stats">
-      <div class="watts-display">
-        <span id="watts" class="watts-value">0</span>
-        <span class="watts-unit">watts</span>
-      </div>
-      <div class="rate-display">
-        <span id="wps">0</span> W/s
-        <span class="rate-sep">·</span>
-        <span id="perClick">+1</span> / plug
-      </div>
-    </section>
-
+    <!-- Active power-surge buffs (counts down across all tabs) -->
     <div id="buffBar" class="buff-bar" aria-live="polite"></div>
 
-    <main class="tap-zone">
-      <button id="socket" class="socket" aria-label="Plug in a cord">
-        <div class="socket-face">
-          <span id="socketIcon" class="socket-icon">🔌</span>
+    <main>
+      <!-- PLUG: socket + cord generators -->
+      <section class="panel active" id="p-plug">
+        <div class="socket-wrap">
+          <button class="socket-btn" id="socket" aria-label="Plug in a cord">
+            <div class="socket-ring"></div>
+            <div class="pulse"></div>
+            <svg class="socket-svg" id="socketSvg" viewBox="0 0 100 100" aria-hidden="true">
+              <rect x="22" y="16" width="56" height="68" rx="10" fill="#0c1810" stroke="#3dfc6b" stroke-width="3"/>
+              <rect x="38" y="30" width="7" height="22" rx="2" fill="#3dfc6b"/>
+              <rect x="55" y="30" width="7" height="22" rx="2" fill="#3dfc6b"/>
+              <circle cx="50" cy="66" r="6" fill="#ffc23d"/>
+            </svg>
+          </button>
+          <div class="taphint">▶ TAP TO PLUG ◀</div>
         </div>
-        <div class="socket-label">TAP TO PLUG</div>
-      </button>
-      <div id="floaters" class="floaters" aria-hidden="true"></div>
-      <div id="surgeLayer" class="surge-layer"></div>
+        <div class="sectitle">🔌 CORD GENERATORS</div>
+        <div id="cordlist"></div>
+      </section>
+
+      <!-- UPGRADES -->
+      <section class="panel" id="p-up">
+        <div class="sectitle">⬆️ UPGRADES</div>
+        <div class="ugrid" id="uplist"></div>
+      </section>
+
+      <!-- GOALS / ACHIEVEMENTS -->
+      <section class="panel" id="p-goals">
+        <div class="sectitle">🏆 ACHIEVEMENTS <span id="goalcount" class="dimcount"></span></div>
+        <div id="goallist"></div>
+      </section>
+
+      <!-- MORE: prestige + stats + settings + save -->
+      <section class="panel" id="p-more">
+        <div class="block">
+          <h3>♻️ RECYCLE PLANT</h3>
+          <p>Melt your whole operation into Prestige Cores. Each core grants a permanent <b class="hi">+5%</b> to all production. Achievements &amp; surge stats are kept.</p>
+          <div class="coregain">+<span id="coregain">0</span> ◆ Cores</div>
+          <button class="bigbtn danger" id="prestigeBtn">RECYCLE EMPIRE</button>
+          <p class="center">Owned: <b class="mag" id="corecount">0</b> ◆ &nbsp;(<span id="prestigemult">+0%</span>)</p>
+        </div>
+
+        <div class="block">
+          <h3>📊 SYSTEM STATS</h3>
+          <ul class="stat-list">
+            <li><span>Total watts earned</span><b id="statTotal">0</b></li>
+            <li><span>Cords plugged by hand</span><b id="statClicks">0</b></li>
+            <li><span>Watts per second</span><b id="statWps">0</b></li>
+            <li><span>Generators owned</span><b id="statGens">0</b></li>
+            <li><span>Power surges caught</span><b id="statSurges">0</b></li>
+            <li><span>Achievements unlocked</span><b id="statAch">0</b></li>
+            <li><span>Time played</span><b id="statTime">0s</b></li>
+            <li><span>Prestige cores</span><b id="statCores">0</b></li>
+          </ul>
+        </div>
+
+        <div class="block">
+          <h3>⚙ SETTINGS</h3>
+          <div class="toggle"><span>🔊 Sound</span><button class="sw" data-set="sound">ON</button></div>
+          <div class="toggle"><span>✨ Animations</span><button class="sw" data-set="anim">ON</button></div>
+          <div class="toggle"><span>🔬 Sci. Notation</span><button class="sw" data-set="sci">OFF</button></div>
+          <p class="muted" id="storageStatus">Checking storage…</p>
+        </div>
+
+        <div class="block">
+          <h3>💾 SAVE DATA</h3>
+          <p>Saves live on this device (localStorage + IndexedDB). Export a code to back up or transfer.</p>
+          <textarea id="savebox" placeholder="paste a save code here to import…"></textarea>
+          <div class="row2">
+            <button class="smbtn" id="exportBtn">EXPORT</button>
+            <button class="smbtn" id="importBtn">IMPORT</button>
+          </div>
+          <div class="row2"><button class="smbtn danger" id="wipeBtn" style="grid-column:1/3">HARD RESET</button></div>
+        </div>
+      </section>
     </main>
 
-    <nav class="tabs">
-      <button class="tab active" data-tab="cords">Cords</button>
-      <button class="tab" data-tab="upgrades">Upgrades</button>
-      <button class="tab" data-tab="awards">Goals</button>
-      <button class="tab" data-tab="stats">Stats</button>
+    <nav class="tabbar">
+      <button class="tab active" data-tab="plug"><span class="ti">⚡</span><span class="tl">PLUG</span></button>
+      <button class="tab" data-tab="up"><span class="ti">⬆️</span><span class="tl">UPGRADE</span></button>
+      <button class="tab" data-tab="goals"><span class="ti">🏆</span><span class="tl">GOALS</span></button>
+      <button class="tab" data-tab="more"><span class="ti">♻️</span><span class="tl">MORE</span></button>
     </nav>
-
-    <div class="panels">
-      <div id="cords" class="panel active"></div>
-      <div id="upgrades" class="panel"></div>
-      <div id="awards" class="panel"></div>
-      <div id="stats" class="panel">
-        <ul class="stat-list">
-          <li><span>Total watts earned</span><b id="statTotal">0</b></li>
-          <li><span>Cords plugged by hand</span><b id="statClicks">0</b></li>
-          <li><span>Watts per second</span><b id="statWps">0</b></li>
-          <li><span>Generators owned</span><b id="statGens">0</b></li>
-          <li><span>Power surges caught</span><b id="statSurges">0</b></li>
-          <li><span>Achievements unlocked</span><b id="statAch">0</b></li>
-          <li><span>Time played</span><b id="statTime">0s</b></li>
-          <li><span>Prestige cores</span><b id="statCores">0</b></li>
-        </ul>
-        <div class="prestige-box">
-          <h3>♻️ Recycle Plant</h3>
-          <p>Melt down your entire operation into <b>Prestige Cores</b>. Each core permanently boosts all earnings by <b>+5%</b>.</p>
-          <p>Recycling now yields: <b id="prestigeGain">0</b> cores</p>
-          <button id="prestigeBtn" class="big-btn danger">Recycle Everything</button>
-        </div>
-        <div class="save-box">
-          <button id="exportBtn" class="big-btn">Export Save</button>
-          <button id="importBtn" class="big-btn">Import Save</button>
-          <button id="resetBtn" class="big-btn danger">Hard Reset</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-    <div id="offlineModal" class="modal hidden">
-      <div class="modal-card">
-        <h2>⚡ Welcome back!</h2>
-        <p>While you were away, your cords kept working.</p>
-        <p class="offline-earn">You earned <b id="offlineAmount">0</b> watts</p>
-        <button id="offlineClose" class="big-btn">Collect</button>
-      </div>
-    </div>
-
-    <div id="menuModal" class="modal hidden">
-      <div class="modal-card">
-        <h2>⚙️ Settings</h2>
-        <label class="toggle-row">
-          <span>Sound effects</span>
-          <input type="checkbox" id="soundToggle" checked />
-        </label>
-        <label class="toggle-row">
-          <span>Number animations</span>
-          <input type="checkbox" id="floatToggle" checked />
-        </label>
-        <label class="toggle-row">
-          <span>Scientific notation <small style="color:var(--muted)">(1.23e6)</small></span>
-          <input type="checkbox" id="sciToggle" />
-        </label>
-        <p class="muted">Progress saves automatically every few seconds and is stored only on this device.</p>
-        <p class="muted" id="storageStatus">Checking storage…</p>
-        <button id="menuClose" class="big-btn">Close</button>
-      </div>
-    </div>
   </div>
+
+  <!-- Floating tap numbers, power surges, toasts, modal -->
+  <div id="floaters" class="floaters" aria-hidden="true"></div>
+  <div id="surgeLayer" class="surge-layer"></div>
+  <div id="toast" class="toast-wrap" role="status" aria-live="polite"></div>
+  <div id="modal" class="modal"><div class="mbox" id="mbox"></div></div>
 
   <script src="js/game.js"></script>
 </body>
