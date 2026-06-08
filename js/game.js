@@ -48,6 +48,35 @@
     { id: 'u_glob4',  icon: '🛸', name: 'Self-Plugging Drones',cost: 1e11,   kind: 'global', mult: 3,    desc: 'All cords x3.' },
   ];
 
+  // Every CORD_MILESTONE owned of a cord doubles that cord's output — AdVenture
+  // Capitalist-style milestone bonuses that give near-term goals and bump the
+  // player past cost walls.
+  const CORD_MILESTONE = 25;
+
+  /* ---------- Content: achievements ----------
+     A steady stream of small, mostly near-reach goals. `cond` decides when one
+     unlocks; optional `prog` returns [current, target] for a progress bar. */
+  const ACHIEVEMENTS = [
+    { id: 'plug1',    icon: '🔌', name: 'First Contact',   desc: 'Plug in your first cord by hand.',        cond: () => state.clicks >= 1 },
+    { id: 'plug100',  icon: '👆', name: 'Button Masher',   desc: 'Hand-plug 100 cords.',                    cond: () => state.clicks >= 100,   prog: () => [state.clicks, 100] },
+    { id: 'plug1000', icon: '✋', name: 'Thumb of Steel',  desc: 'Hand-plug 1,000 cords.',                  cond: () => state.clicks >= 1000,  prog: () => [state.clicks, 1000] },
+    { id: 'auto1',    icon: '🤖', name: 'Going Automatic', desc: 'Own your first auto-plugging cord.',      cond: () => totalGenerators() >= 1 },
+    { id: 'own25',    icon: '📦', name: 'Bulk Buyer',      desc: 'Own 25 of a single cord (a ×2 milestone!).', cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 25) },
+    { id: 'own50',    icon: '🏗️', name: 'Mass Production',  desc: 'Own 50 of a single cord.',                cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 50) },
+    { id: 'w1k',      icon: '💡', name: 'Kilowatt Club',   desc: 'Earn 1,000 total watts.',                 cond: () => state.totalEarned >= 1e3,  prog: () => [state.totalEarned, 1e3] },
+    { id: 'w1m',      icon: '⚡', name: 'Megawatt Mogul',  desc: 'Earn 1 million total watts.',             cond: () => state.totalEarned >= 1e6,  prog: () => [state.totalEarned, 1e6] },
+    { id: 'w1b',      icon: '🔆', name: 'Gigawatt Giant',  desc: 'Earn 1 billion total watts.',             cond: () => state.totalEarned >= 1e9,  prog: () => [state.totalEarned, 1e9] },
+    { id: 'w1t',      icon: '🌟', name: 'Terawatt Tycoon', desc: 'Earn 1 trillion total watts.',            cond: () => state.totalEarned >= 1e12, prog: () => [state.totalEarned, 1e12] },
+    { id: 'up1',      icon: '🧰', name: 'Tinkerer',        desc: 'Buy your first upgrade.',                 cond: () => Object.keys(state.upgrades).length >= 1 },
+    { id: 'up5',      icon: '🔧', name: 'Engineer',        desc: 'Buy 5 upgrades.',                         cond: () => Object.keys(state.upgrades).length >= 5, prog: () => [Object.keys(state.upgrades).length, 5] },
+    { id: 'allcord',  icon: '🧳', name: 'Full Toolkit',    desc: 'Own at least one of every cord type.',    cond: () => CORDS.every(c => (state.owned[c.id] || 0) >= 1), prog: () => [CORDS.filter(c => (state.owned[c.id] || 0) >= 1).length, CORDS.length] },
+    { id: 'surge1',   icon: '✨', name: 'Spark Catcher',   desc: 'Catch your first power surge.',           cond: () => (state.surgesCollected || 0) >= 1 },
+    { id: 'surge25',  icon: '🌩️', name: 'Storm Chaser',    desc: 'Catch 25 power surges.',                  cond: () => (state.surgesCollected || 0) >= 25, prog: () => [state.surgesCollected || 0, 25] },
+    { id: 'prest1',   icon: '♻️', name: 'Recycler',        desc: 'Recycle for your first prestige core.',   cond: () => (state.cores || 0) >= 1 },
+    { id: 'prest10',  icon: '💠', name: 'Core Collector',  desc: 'Hold 10 prestige cores.',                 cond: () => (state.cores || 0) >= 10, prog: () => [state.cores || 0, 10] },
+    { id: 'quantum',  icon: '⚛️', name: 'Quantum Leap',    desc: 'Own a Quantum Link.',                     cond: () => (state.owned.quantum || 0) >= 1 },
+  ];
+
   /* ---------- State ---------- */
   const defaultState = () => ({
     watts: 0,
@@ -56,6 +85,8 @@
     cores: 0,            // prestige currency
     owned: {},           // cordId -> count
     upgrades: {},        // upgradeId -> true
+    achievements: {},    // achievementId -> true (persists across prestige)
+    surgesCollected: 0,  // lifetime power surges caught
     startedAt: Date.now(),
     lastSeen: Date.now(),
     settings: { sound: true, floats: true, sci: false },
@@ -79,6 +110,17 @@
       if (u.kind === 'cord' && u.cord === cordId) m *= u.mult;
       if (u.kind === 'global') m *= u.mult;
     }
+    // Ownership milestones: ×2 for every CORD_MILESTONE owned.
+    m *= Math.pow(2, Math.floor((state.owned[cordId] || 0) / CORD_MILESTONE));
+    return m;
+  }
+
+  // Transient multipliers from power surges (not persisted; expire on their own).
+  let buffs = [];
+  function buffMult(kind) {
+    const now = Date.now();
+    let m = 1;
+    for (const b of buffs) if (b.kind === kind && b.until > now) m *= b.mult;
     return m;
   }
 
@@ -90,7 +132,7 @@
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
-    return sum * prestigeMult() * PROD_MULT;
+    return sum * prestigeMult() * PROD_MULT * buffMult('prod');
   }
 
   function clickPower() {
@@ -103,7 +145,7 @@
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'global') glob *= u.mult;
     }
-    return p * glob * prestigeMult() * PROD_MULT;
+    return p * glob * prestigeMult() * PROD_MULT * buffMult('click');
   }
 
   function cordCost(cord, count) {
@@ -257,9 +299,11 @@
   const el = {
     watts: $('#watts'), wps: $('#wps'), perClick: $('#perClick'),
     socket: $('#socket'), socketIcon: $('#socketIcon'), floaters: $('#floaters'),
-    cords: $('#cords'), upgrades: $('#upgrades'),
+    surgeLayer: $('#surgeLayer'), buffBar: $('#buffBar'),
+    cords: $('#cords'), upgrades: $('#upgrades'), awards: $('#awards'),
     statTotal: $('#statTotal'), statClicks: $('#statClicks'), statWps: $('#statWps'),
     statGens: $('#statGens'), statTime: $('#statTime'), statCores: $('#statCores'),
+    statSurges: $('#statSurges'), statAch: $('#statAch'),
     prestigeGain: $('#prestigeGain'), prestigeBtn: $('#prestigeBtn'),
     toast: $('#toast'),
     offlineModal: $('#offlineModal'), offlineAmount: $('#offlineAmount'), offlineClose: $('#offlineClose'),
@@ -309,6 +353,139 @@
     setTimeout(() => f.remove(), 900);
   }
 
+  /* ---------- Juice: subtle screenshake ---------- */
+  const reduceMotion = () =>
+    window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function screenShake(intensity = 1) {
+    if (!state.settings.floats || reduceMotion()) return; // respect the animations toggle
+    const app = document.getElementById('app');
+    if (!app || !app.animate) return;
+    const k = intensity;
+    app.animate([
+      { transform: 'translate(0,0)' },
+      { transform: `translate(${-5 * k}px, ${2 * k}px)` },
+      { transform: `translate(${4 * k}px, ${-3 * k}px)` },
+      { transform: `translate(${-2 * k}px, ${1 * k}px)` },
+      { transform: 'translate(0,0)' },
+    ], { duration: 180, easing: 'ease-out' });
+  }
+
+  /* ---------- Power surges (Golden-Cookie style bonus events) ----------
+     A spark randomly appears during play; tapping it grants instant watts or a
+     short production/click frenzy. Pure upside that rewards being present —
+     never punishes absence. */
+  let surgeActive = false;
+  let surgeHideTimer = null;
+
+  function scheduleSurge() {
+    const delay = 60000 + Math.random() * 90000; // 60–150s between surges
+    setTimeout(trySpawnSurge, delay);
+  }
+  function trySpawnSurge() {
+    if (document.hidden || surgeActive) { scheduleSurge(); return; }
+    spawnSurge();
+  }
+  function spawnSurge() {
+    surgeActive = true;
+    const node = document.createElement('button');
+    node.className = 'surge';
+    node.type = 'button';
+    node.setAttribute('aria-label', 'Tap the power surge for a bonus!');
+    node.textContent = '⚡';
+    node.style.left = (12 + Math.random() * 70) + '%';
+    node.style.top = (8 + Math.random() * 72) + '%';
+    node.addEventListener('click', () => collectSurge(node));
+    el.surgeLayer.appendChild(node);
+    blip(880, 0.16, 'sine', 0.045); // gentle chime to draw the eye
+    surgeHideTimer = setTimeout(() => { removeSurge(node); scheduleSurge(); }, 14000);
+  }
+  function removeSurge(node) {
+    surgeActive = false;
+    if (surgeHideTimer) { clearTimeout(surgeHideTimer); surgeHideTimer = null; }
+    if (node) node.remove();
+  }
+  function collectSurge(node) {
+    removeSurge(node);
+    const now = Date.now();
+    const roll = Math.random();
+    if (roll < 0.5) {
+      const bonus = Math.max(totalWps() * 90, clickPower() * 60, 50);
+      state.watts += bonus;
+      state.totalEarned += bonus;
+      spawnFloater(bonus);
+      toast('⚡ Power Overload! +' + fmt(bonus) + ' watts');
+    } else if (roll < 0.75) {
+      buffs.push({ kind: 'prod', mult: 7, until: now + 15000, icon: '🔥', label: 'Frenzy ×7' });
+      toast('🔥 Production Frenzy! ×7 for 15s');
+    } else {
+      buffs.push({ kind: 'click', mult: 10, until: now + 12000, icon: '👆', label: 'Click Frenzy ×10' });
+      toast('👆 Click Frenzy! ×10 taps for 12s');
+    }
+    state.surgesCollected = (state.surgesCollected || 0) + 1;
+    blip(1200, 0.18, 'square', 0.06);
+    screenShake(1.2);
+    checkAchievements();
+    renderBuffs();
+    renderStatsLite();
+    scheduleSurge();
+  }
+
+  function renderBuffs() {
+    const now = Date.now();
+    buffs = buffs.filter((b) => b.until > now);
+    if (!buffs.length) { el.buffBar.classList.remove('show'); el.buffBar.innerHTML = ''; return; }
+    el.buffBar.classList.add('show');
+    el.buffBar.innerHTML = buffs
+      .map((b) => `<span class="buff">${b.icon} ${b.label} · ${Math.ceil((b.until - now) / 1000)}s</span>`)
+      .join('');
+  }
+
+  /* ---------- Achievements ---------- */
+  function checkAchievements() {
+    let earnedNew = false;
+    for (const a of ACHIEVEMENTS) {
+      if (state.achievements[a.id]) continue;
+      let ok = false;
+      try { ok = a.cond(); } catch (e) { ok = false; }
+      if (ok) {
+        state.achievements[a.id] = true;
+        earnedNew = true;
+        toast('🏆 ' + a.name);
+        blip(1320, 0.2, 'triangle', 0.06);
+        screenShake(0.8);
+      }
+    }
+    if (earnedNew && el.awards.parentElement && document.getElementById('awards').classList.contains('active')) {
+      renderAchievements();
+    }
+  }
+
+  function renderAchievements() {
+    const earned = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length;
+    let html = `<p class="awards-head">${earned} / ${ACHIEVEMENTS.length} unlocked</p>`;
+    for (const a of ACHIEVEMENTS) {
+      const got = !!state.achievements[a.id];
+      let prog = '';
+      if (!got && a.prog) {
+        const [cur, max] = a.prog();
+        const pct = Math.max(0, Math.min(100, (cur / max) * 100));
+        prog = `<div class="ach-prog"><div style="width:${pct}%"></div></div>` +
+               `<div class="ach-progtext">${fmt(Math.min(cur, max))} / ${fmt(max)}</div>`;
+      }
+      html += `
+        <div class="item ach ${got ? 'got' : 'locked'}">
+          <div class="item-icon">${got ? a.icon : '🔒'}</div>
+          <div class="item-body">
+            <div class="item-name">${a.name}</div>
+            <div class="item-desc">${a.desc}</div>
+            ${prog}
+          </div>
+          ${got ? '<div class="item-right ach-check">✓</div>' : ''}
+        </div>`;
+    }
+    el.awards.innerHTML = html;
+  }
+
   /* ---------- Core actions ---------- */
   function plug() {
     const gain = clickPower();
@@ -322,6 +499,7 @@
       [{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }],
       { duration: 160, easing: 'ease-out' }
     );
+    checkAchievements();
     renderStatsLite();
   }
 
@@ -330,9 +508,19 @@
     if (count <= 0) return;
     const cost = cordCost(cord, count);
     if (state.watts < cost) { toast('Not enough watts'); return; }
+    const before = state.owned[cord.id] || 0;
     state.watts -= cost;
-    state.owned[cord.id] = (state.owned[cord.id] || 0) + count;
+    const after = before + count;
+    state.owned[cord.id] = after;
     blip(320, 0.06, 'square', 0.05);
+    // Celebrate crossing a ×2 ownership milestone.
+    if (Math.floor(after / CORD_MILESTONE) > Math.floor(before / CORD_MILESTONE)) {
+      const tier = Math.pow(2, Math.floor(after / CORD_MILESTONE));
+      toast(`✖️ ${cord.name} milestone! Now ×${tier}`);
+      blip(990, 0.18, 'sawtooth', 0.05);
+      screenShake(1);
+    }
+    checkAchievements();
     renderShop();
     renderStatsLite();
   }
@@ -344,6 +532,7 @@
     state.upgrades[u.id] = true;
     blip(880, 0.12, 'sawtooth', 0.05);
     toast('Upgrade: ' + u.name);
+    checkAchievements();
     renderShop();
     renderStatsLite();
   }
@@ -357,14 +546,21 @@
     const gain = prestigeGain();
     if (gain <= 0) { toast('Earn more before recycling'); return; }
     if (!confirm(`Recycle everything for ${gain} prestige core(s)? Your watts, cords, and upgrades reset.`)) return;
-    const keepCores = (state.cores || 0) + gain;
-    const settings = state.settings;
-    state = defaultState();
-    state.cores = keepCores;
-    state.settings = settings;
+    // Carry over meta-progress that should survive a reset.
+    const carry = {
+      cores: (state.cores || 0) + gain,
+      settings: state.settings,
+      achievements: state.achievements,
+      surgesCollected: state.surgesCollected,
+      startedAt: state.startedAt,
+    };
+    state = Object.assign(defaultState(), carry);
+    buffs = [];
     save();
     blip(220, 0.3, 'sawtooth', 0.06);
+    screenShake(1.5);
     toast(`+${gain} prestige core(s)! All earnings boosted.`);
+    checkAchievements();
     renderAll();
   }
 
@@ -395,6 +591,8 @@
       const cost = cordCost(cord, count);
       const can = state.watts >= cost;
       const each = cord.wps * cordMultiplier(cord.id) * prestigeMult() * PROD_MULT;
+      const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
+      const msNote = owned > 0 ? ` · ✖️ next ×2 at ${nextMs}` : '';
       html += `
         <button class="item ${can ? 'affordable' : ''}" data-cord="${cord.id}">
           <div class="item-icon">${cord.icon}</div>
@@ -404,7 +602,7 @@
           </div>
           <div class="item-right">
             <div class="item-cost ${can ? 'cheap' : 'pricey'}">${fmt(cost)}</div>
-            <div class="item-owned">own ${owned}${count > 1 ? ' · +' + count : ''}</div>
+            <div class="item-owned">own ${owned}${count > 1 ? ' · +' + count : ''}${msNote}</div>
           </div>
         </button>`;
     });
@@ -447,6 +645,8 @@
     el.statClicks.textContent = fmtInt(state.clicks);
     el.statWps.textContent = fmt(totalWps());
     el.statGens.textContent = fmtInt(totalGenerators());
+    el.statSurges.textContent = fmtInt(state.surgesCollected || 0);
+    el.statAch.textContent = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length + ' / ' + ACHIEVEMENTS.length;
     el.statCores.textContent = fmtInt(state.cores || 0);
     el.statTime.textContent = fmtDuration(Date.now() - state.startedAt);
     const pg = prestigeGain();
@@ -468,6 +668,8 @@
 
   function renderAll() {
     renderShop();
+    renderAchievements();
+    renderBuffs();
     renderStatsLite();
   }
 
@@ -495,6 +697,7 @@
 
   /* ---------- Main loop ---------- */
   let lastTick = Date.now();
+  let tickCount = 0;
   function tick() {
     const now = Date.now();
     const dt = (now - lastTick) / 1000;
@@ -504,8 +707,15 @@
       state.watts += gain;
       state.totalEarned += gain;
     }
+    tickCount++;
+    renderBuffs();            // count down / clear expired surge buffs
+    checkAchievements();      // catches threshold (watts/time) unlocks
     renderStatsLite();
     refreshAffordability();
+    // Live-refresh the Goals tab's progress bars while it's open (~2x/sec).
+    if (tickCount % 5 === 0 && document.getElementById('awards').classList.contains('active')) {
+      renderAchievements();
+    }
   }
 
   /* ---------- Offline earnings ---------- */
@@ -565,6 +775,7 @@
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById(tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'awards') renderAchievements();
     });
   });
 
@@ -644,9 +855,11 @@
     renderAll();
     save();              // re-mirror the reconciled state into both stores (self-heal)
     updateStorageStatus();
+    checkAchievements();  // award anything already satisfied by the loaded save
     lastTick = Date.now(); // don't count the async load time as idle earnings
     setInterval(tick, TICK_MS);
     setInterval(save, SAVE_EVERY_MS);
+    scheduleSurge();      // begin the power-surge cadence
   })();
 
   // register service worker for installability + offline

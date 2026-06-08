@@ -36,6 +36,8 @@
       </div>
     </section>
 
+    <div id="buffBar" class="buff-bar" aria-live="polite"></div>
+
     <main class="tap-zone">
       <button id="socket" class="socket" aria-label="Plug in a cord">
         <div class="socket-face">
@@ -44,23 +46,28 @@
         <div class="socket-label">TAP TO PLUG</div>
       </button>
       <div id="floaters" class="floaters" aria-hidden="true"></div>
+      <div id="surgeLayer" class="surge-layer"></div>
     </main>
 
     <nav class="tabs">
       <button class="tab active" data-tab="cords">Cords</button>
       <button class="tab" data-tab="upgrades">Upgrades</button>
+      <button class="tab" data-tab="awards">Goals</button>
       <button class="tab" data-tab="stats">Stats</button>
     </nav>
 
     <div class="panels">
       <div id="cords" class="panel active"></div>
       <div id="upgrades" class="panel"></div>
+      <div id="awards" class="panel"></div>
       <div id="stats" class="panel">
         <ul class="stat-list">
           <li><span>Total watts earned</span><b id="statTotal">0</b></li>
           <li><span>Cords plugged by hand</span><b id="statClicks">0</b></li>
           <li><span>Watts per second</span><b id="statWps">0</b></li>
           <li><span>Generators owned</span><b id="statGens">0</b></li>
+          <li><span>Power surges caught</span><b id="statSurges">0</b></li>
+          <li><span>Achievements unlocked</span><b id="statAch">0</b></li>
           <li><span>Time played</span><b id="statTime">0s</b></li>
           <li><span>Prestige cores</span><b id="statCores">0</b></li>
         </ul>
