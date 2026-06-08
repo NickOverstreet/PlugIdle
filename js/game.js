@@ -8,6 +8,7 @@
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
+  const PROD_MULT = 1.6;          // global pacing: scales all income (active, idle & clicks)
 
   /* ---------- Content: cord generators ----------
      Each generator produces watts/sec. Cost grows 1.15x per buy. */
@@ -57,14 +58,14 @@
     upgrades: {},        // upgradeId -> true
     startedAt: Date.now(),
     lastSeen: Date.now(),
-    settings: { sound: true, floats: true },
+    settings: { sound: true, floats: true, sci: false },
     bulk: 1,             // 1, 10, 100, or 'max'
   });
 
-  let state = load() || defaultState();
+  let state = loadLocal() || defaultState();
   // backfill any missing fields from older/partial saves
   state = Object.assign(defaultState(), state);
-  state.settings = Object.assign({ sound: true, floats: true }, state.settings || {});
+  state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
 
   /* ---------- Derived values ---------- */
   function prestigeMult() {
@@ -89,7 +90,7 @@
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
-    return sum * prestigeMult();
+    return sum * prestigeMult() * PROD_MULT;
   }
 
   function clickPower() {
@@ -102,7 +103,7 @@
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'global') glob *= u.mult;
     }
-    return p * glob * prestigeMult();
+    return p * glob * prestigeMult() * PROD_MULT;
   }
 
   function cordCost(cord, count) {
@@ -148,25 +149,107 @@
   const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
   function fmt(n) {
     if (n < 1000) return (Math.floor(n * 10) / 10).toString().replace(/\.0$/, '');
+    // Scientific notation mode (settings toggle): e.g. 1.23e6
+    if (state.settings.sci) return n.toExponential(2).replace('e+', 'e');
     const tier = Math.floor(Math.log10(n) / 3);
-    if (tier >= SUFFIXES.length) return n.toExponential(2);
+    if (tier >= SUFFIXES.length) return n.toExponential(2).replace('e+', 'e');
     const scaled = n / Math.pow(1000, tier);
     return scaled.toFixed(scaled < 10 ? 2 : scaled < 100 ? 1 : 0) + SUFFIXES[tier];
   }
   function fmtInt(n) { return Math.floor(n).toLocaleString('en-US'); }
 
-  /* ---------- Persistence ---------- */
+  /* ---------- Persistence ----------
+     Saves are written to two client-side stores for durability:
+       • localStorage — synchronous, so it survives `pagehide`/`beforeunload`
+       • IndexedDB    — larger quota and far more eviction-resistant; the primary
+     On load we reconcile the two by `lastSeen` and keep the freshest, so if one
+     layer is wiped (e.g. iOS Safari evicts localStorage after ~7 idle days) the
+     other restores it. We also request persistent-storage permission to opt out
+     of eviction entirely where the browser supports it. */
+
+  const DB_NAME = 'cordTycoon';
+  const DB_STORE = 'saves';
+
+  function idbOpen() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) return reject(new Error('no-idb'));
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  function idbGet(key) {
+    return idbOpen().then(db => new Promise((resolve, reject) => {
+      const r = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(key);
+      r.onsuccess = () => resolve(r.result ?? null);
+      r.onerror = () => reject(r.error);
+    })).catch(() => null);
+  }
+  function idbSet(key, value) {
+    return idbOpen().then(db => new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    })).catch(() => false);
+  }
+  function idbDel(key) {
+    return idbOpen().then(db => new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).delete(key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    })).catch(() => false);
+  }
+
+  // Ask the browser to exempt our data from automatic eviction.
+  async function requestPersistence() {
+    try {
+      if (navigator.storage && navigator.storage.persist) {
+        const already = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+        if (!already) await navigator.storage.persist();
+      }
+    } catch (e) { /* not supported */ }
+  }
+
   function save() {
     state.lastSeen = Date.now();
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-    } catch (e) { /* storage full / blocked */ }
+    const json = JSON.stringify(state);
+    try { localStorage.setItem(SAVE_KEY, json); } catch (e) { /* full/blocked */ }
+    idbSet(SAVE_KEY, json); // async durable mirror of the synchronous copy above
   }
-  function load() {
+
+  // Synchronous, localStorage-only — keeps `state` ready before the async boot.
+  function loadLocal() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
+  }
+
+  // Durable load: read both stores and return whichever save is newest.
+  async function loadDurable() {
+    const ls = loadLocal();
+    let idb = null;
+    try {
+      const raw = await idbGet(SAVE_KEY);
+      idb = raw ? JSON.parse(raw) : null;
+    } catch (e) { idb = null; }
+    if (ls && idb) return (idb.lastSeen || 0) >= (ls.lastSeen || 0) ? idb : ls;
+    return idb || ls;
+  }
+
+  async function storageInfo() {
+    let persisted = false, usage = 0, quota = 0;
+    try {
+      if (navigator.storage?.persisted) persisted = await navigator.storage.persisted();
+      if (navigator.storage?.estimate) {
+        const est = await navigator.storage.estimate();
+        usage = est.usage || 0; quota = est.quota || 0;
+      }
+    } catch (e) { /* unsupported */ }
+    return { persisted, idb: 'indexedDB' in window, usage, quota };
   }
 
   /* ---------- DOM refs ---------- */
@@ -181,8 +264,9 @@
     toast: $('#toast'),
     offlineModal: $('#offlineModal'), offlineAmount: $('#offlineAmount'), offlineClose: $('#offlineClose'),
     menuModal: $('#menuModal'), menuBtn: $('#menuBtn'), menuClose: $('#menuClose'),
-    soundToggle: $('#soundToggle'), floatToggle: $('#floatToggle'),
+    soundToggle: $('#soundToggle'), floatToggle: $('#floatToggle'), sciToggle: $('#sciToggle'),
     exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), resetBtn: $('#resetBtn'),
+    storageStatus: $('#storageStatus'),
   };
 
   /* ---------- Toast ---------- */
@@ -310,7 +394,7 @@
       const count = buyCount(cord);
       const cost = cordCost(cord, count);
       const can = state.watts >= cost;
-      const each = cord.wps * cordMultiplier(cord.id) * prestigeMult();
+      const each = cord.wps * cordMultiplier(cord.id) * prestigeMult() * PROD_MULT;
       html += `
         <button class="item ${can ? 'affordable' : ''}" data-cord="${cord.id}">
           <div class="item-icon">${cord.icon}</div>
@@ -455,7 +539,7 @@
       const obj = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
       if (typeof obj !== 'object' || obj.watts === undefined) throw new Error('bad');
       state = Object.assign(defaultState(), obj);
-      state.settings = Object.assign({ sound: true, floats: true }, state.settings || {});
+      state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
       save();
       toast('Save imported!');
       renderAll();
@@ -463,7 +547,8 @@
   }
   function hardReset() {
     if (!confirm('Erase ALL progress permanently? This cannot be undone.')) return;
-    localStorage.removeItem(SAVE_KEY);
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+    idbDel(SAVE_KEY);
     state = defaultState();
     save();
     toast('Game reset');
@@ -509,12 +594,14 @@
 
   // modals
   el.offlineClose.addEventListener('click', () => el.offlineModal.classList.add('hidden'));
-  el.menuBtn.addEventListener('click', () => el.menuModal.classList.remove('hidden'));
+  el.menuBtn.addEventListener('click', () => { el.menuModal.classList.remove('hidden'); updateStorageStatus(); });
   el.menuClose.addEventListener('click', () => el.menuModal.classList.add('hidden'));
   el.soundToggle.checked = state.settings.sound;
   el.floatToggle.checked = state.settings.floats;
-  el.soundToggle.addEventListener('change', () => { state.settings.sound = el.soundToggle.checked; });
-  el.floatToggle.addEventListener('change', () => { state.settings.floats = el.floatToggle.checked; });
+  el.sciToggle.checked = state.settings.sci;
+  el.soundToggle.addEventListener('change', () => { state.settings.sound = el.soundToggle.checked; save(); });
+  el.floatToggle.addEventListener('change', () => { state.settings.floats = el.floatToggle.checked; save(); });
+  el.sciToggle.addEventListener('change', () => { state.settings.sci = el.sciToggle.checked; renderAll(); save(); });
 
   // keyboard: space/enter to plug
   window.addEventListener('keydown', (e) => {
@@ -530,11 +617,37 @@
   window.addEventListener('pagehide', save);
   window.addEventListener('beforeunload', save);
 
+  // Reflect where/how the save is stored, shown in the settings panel.
+  async function updateStorageStatus() {
+    if (!el.storageStatus) return;
+    const info = await storageInfo();
+    const stores = ['localStorage', info.idb ? 'IndexedDB' : null].filter(Boolean).join(' + ');
+    const lock = info.persisted ? ' · persistent (won’t be evicted)' : '';
+    el.storageStatus.textContent = `Saved on this device via ${stores}${lock}.`;
+  }
+
   /* ---------- Boot ---------- */
-  applyOffline();
-  renderAll();
-  setInterval(tick, TICK_MS);
-  setInterval(save, SAVE_EVERY_MS);
+  (async function boot() {
+    // Reconcile with the durable IndexedDB copy before anything accrues. If
+    // localStorage was evicted but IndexedDB survived (or vice versa), this
+    // restores the freshest save instead of starting over.
+    const durable = await loadDurable();
+    if (durable) {
+      state = Object.assign(defaultState(), durable);
+      state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
+      el.soundToggle.checked = state.settings.sound;
+      el.floatToggle.checked = state.settings.floats;
+      el.sciToggle.checked = state.settings.sci;
+    }
+    await requestPersistence();
+    applyOffline();
+    renderAll();
+    save();              // re-mirror the reconciled state into both stores (self-heal)
+    updateStorageStatus();
+    lastTick = Date.now(); // don't count the async load time as idle earnings
+    setInterval(tick, TICK_MS);
+    setInterval(save, SAVE_EVERY_MS);
+  })();
 
   // register service worker for installability + offline
   if ('serviceWorker' in navigator) {
