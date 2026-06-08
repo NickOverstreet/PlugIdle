@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0e1726" />
+  <meta name="description" content="Cord Tycoon — an idle game about plugging in every type of cord imaginable." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Cord Tycoon" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <title>Cord Tycoon</title>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="plug-emoji">🔌</span>
+        <span class="brand-name">Cord Tycoon</span>
+      </div>
+      <button id="menuBtn" class="icon-btn" aria-label="Menu">⚙️</button>
+    </header>
+
+    <section class="stats">
+      <div class="watts-display">
+        <span id="watts" class="watts-value">0</span>
+        <span class="watts-unit">watts</span>
+      </div>
+      <div class="rate-display">
+        <span id="wps">0</span> W/s
+        <span class="rate-sep">·</span>
+        <span id="perClick">+1</span> / plug
+      </div>
+    </section>
+
+    <main class="tap-zone">
+      <button id="socket" class="socket" aria-label="Plug in a cord">
+        <div class="socket-face">
+          <span id="socketIcon" class="socket-icon">🔌</span>
+        </div>
+        <div class="socket-label">TAP TO PLUG</div>
+      </button>
+      <div id="floaters" class="floaters" aria-hidden="true"></div>
+    </main>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="cords">Cords</button>
+      <button class="tab" data-tab="upgrades">Upgrades</button>
+      <button class="tab" data-tab="stats">Stats</button>
+    </nav>
+
+    <div class="panels">
+      <div id="cords" class="panel active"></div>
+      <div id="upgrades" class="panel"></div>
+      <div id="stats" class="panel">
+        <ul class="stat-list">
+          <li><span>Total watts earned</span><b id="statTotal">0</b></li>
+          <li><span>Cords plugged by hand</span><b id="statClicks">0</b></li>
+          <li><span>Watts per second</span><b id="statWps">0</b></li>
+          <li><span>Generators owned</span><b id="statGens">0</b></li>
+          <li><span>Time played</span><b id="statTime">0s</b></li>
+          <li><span>Prestige cores</span><b id="statCores">0</b></li>
+        </ul>
+        <div class="prestige-box">
+          <h3>♻️ Recycle Plant</h3>
+          <p>Melt down your entire operation into <b>Prestige Cores</b>. Each core permanently boosts all earnings by <b>+5%</b>.</p>
+          <p>Recycling now yields: <b id="prestigeGain">0</b> cores</p>
+          <button id="prestigeBtn" class="big-btn danger">Recycle Everything</button>
+        </div>
+        <div class="save-box">
+          <button id="exportBtn" class="big-btn">Export Save</button>
+          <button id="importBtn" class="big-btn">Import Save</button>
+          <button id="resetBtn" class="big-btn danger">Hard Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div id="offlineModal" class="modal hidden">
+      <div class="modal-card">
+        <h2>⚡ Welcome back!</h2>
+        <p>While you were away, your cords kept working.</p>
+        <p class="offline-earn">You earned <b id="offlineAmount">0</b> watts</p>
+        <button id="offlineClose" class="big-btn">Collect</button>
+      </div>
+    </div>
+
+    <div id="menuModal" class="modal hidden">
+      <div class="modal-card">
+        <h2>⚙️ Settings</h2>
+        <label class="toggle-row">
+          <span>Sound effects</span>
+          <input type="checkbox" id="soundToggle" checked />
+        </label>
+        <label class="toggle-row">
+          <span>Number animations</span>
+          <input type="checkbox" id="floatToggle" checked />
+        </label>
+        <p class="muted">Progress saves automatically every few seconds and is stored only on this device.</p>
+        <button id="menuClose" class="big-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>
