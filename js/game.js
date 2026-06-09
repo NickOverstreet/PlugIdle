@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.9.1';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.9.2';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -185,13 +185,21 @@
     bulk: 1,             // 1, 10, 100, or 'max'
   });
 
-  let state = loadLocal() || defaultState();
-  // backfill any missing fields from older/partial saves
-  state = Object.assign(defaultState(), state);
-  state.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, state.settings || {});
-  // Older saves had `cores` double as the lifetime bonus source; seed coresEarned from it.
-  if (state.coresEarned == null) state.coresEarned = state.cores || 0;
-  if (state.coreUpgrades == null) state.coreUpgrades = {};
+  // Normalize any save (fresh boot, legacy, or imported) into a complete state:
+  // backfill missing fields, merge settings, and reconstruct prestige fields
+  // (older saves used `cores` as the lifetime-bonus source, with no coresEarned).
+  function normalizeState(s) {
+    s = s || {};
+    // Detect legacy saves (no coresEarned field) BEFORE defaults overwrite it.
+    const hadCoresEarned = s.coresEarned != null;
+    s = Object.assign(defaultState(), s);
+    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, s.settings || {});
+    if (!hadCoresEarned) s.coresEarned = s.cores || 0;
+    if (s.coreUpgrades == null) s.coreUpgrades = {};
+    return s;
+  }
+
+  let state = normalizeState(loadLocal());
 
   /* ---------- Derived values ---------- */
   const co = (id) => !!(state.coreUpgrades && state.coreUpgrades[id]);
@@ -437,7 +445,7 @@
   const $ = (s) => document.querySelector(s);
   const el = {
     watts: $('#watts'), wps: $('#wps'), tapval: $('#tapval'), coresline: $('#coresline'),
-    socket: $('#socket'), socketSvg: $('#socketSvg'), tapinfo: $('#tapinfo'),
+    socket: $('#socket'), socketSvg: $('#socketSvg'), tapinfo: $('#tapinfo'), autotapBadge: $('#autotapBadge'),
     socketMini: $('#socketMini'), tapvalMini: $('#tapvalMini'),
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
@@ -495,6 +503,16 @@
   function tapAnchor() {
     if (el.socketMini && document.getElementById('p-up').classList.contains('active')) return el.socketMini;
     return el.socket;
+  }
+  // Visible "tick" on the socket each time the Auto-Tapper fires, so the player
+  // can see it working even while idle. Respects the animations toggle.
+  function pulseAutoTap() {
+    if (!state.settings.floats || reduceMotion()) return;
+    const btn = el.socket;
+    if (!btn) return;
+    btn.classList.remove('autotap-fire');
+    void btn.offsetWidth;          // force reflow so the animation can replay
+    btn.classList.add('autotap-fire');
   }
   function spawnFloater(amount) {
     if (!state.settings.floats) return;
@@ -832,6 +850,7 @@
       if (next) parts.push(`next ×1.5 @ ${fmtInt(next)} taps (${fmtInt(state.clicks)})`);
       el.tapinfo.textContent = parts.join(' · ');
     }
+    if (el.autotapBadge) el.autotapBadge.hidden = autoTapRate() <= 0;
     el.coresline.textContent = (state.coresEarned || 0) > 0
       ? `◆ ${fmtInt(state.cores)} · +${lifetimeBonusPct()}%` : '';
     el.statTotal.textContent = fmt(state.totalEarned);
@@ -983,10 +1002,12 @@
     try {
       const obj = JSON.parse(decodeURIComponent(escape(atob(code))));
       if (typeof obj !== 'object' || obj.watts === undefined) throw new Error('bad');
-      state = Object.assign(defaultState(), obj);
-      state.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, state.settings || {});
+      // normalizeState carries over cores, coresEarned, coreUpgrades and the
+      // legacy prestige migration, so imported prestige progress is preserved.
+      state = normalizeState(obj);
       save();
-      toast('📥 Save imported!');
+      const coreNote = (state.coresEarned || 0) > 0 ? ` (◆${fmtInt(state.cores)} cores, +${lifetimeBonusPct()}%)` : '';
+      toast('📥 Save imported!' + coreNote, true);
       renderAll();
     } catch (e) { toast('⚠ Invalid save code'); }
   }
@@ -1112,7 +1133,10 @@
     let gain = totalWps() * dt;
     // Auto-Tapper core upgrade: free passive taps (no click-count inflation).
     const taps = autoTapRate();
-    if (taps > 0) gain += clickPower() * taps * dt;
+    if (taps > 0) {
+      gain += clickPower() * taps * dt;
+      if (tickCount % 2 === 0) pulseAutoTap();   // ~5 visible pulses/sec, matching the rate
+    }
     if (gain > 0) {
       state.watts += gain;
       state.totalEarned += gain;
@@ -1132,10 +1156,7 @@
   (async function boot() {
     // Reconcile with the durable IndexedDB copy before anything accrues.
     const durable = await loadDurable();
-    if (durable) {
-      state = Object.assign(defaultState(), durable);
-      state.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, state.settings || {});
-    }
+    if (durable) state = normalizeState(durable);
     await requestPersistence();
     applyOffline();
     renderAll();

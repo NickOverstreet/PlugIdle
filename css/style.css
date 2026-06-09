@@ -42,6 +42,8 @@ body.noanim .surge{ animation:none; }
   #flicker{ animation:none; display:none; }
   .surge{ animation:none; }
   .tapping .pulse{ animation:none; }
+  .socket-btn.autotap-fire .pulse{ animation:none; }
+  .autotap-badge{ animation:none; opacity:.85; }
   .float{ animation-duration:.4s; }
 }
 
@@ -108,6 +110,14 @@ main ::-webkit-scrollbar{ width:6px; } main ::-webkit-scrollbar-thumb{ backgroun
 .socket-svg{ width:120px; height:120px; position:relative; z-index:2; filter:drop-shadow(0 0 6px rgba(61,252,107,.5)); }
 .taphint{ font-family:var(--pixel); font-size:10px; color:var(--dim); margin-top:8px; letter-spacing:1px; }
 .tapinfo{ font-family:var(--term); font-size:15px; color:var(--cyan); margin-top:5px; text-align:center; min-height:18px; padding:0 8px; }
+/* Auto-Tapper: persistent badge + a ring pulse on the socket each auto-tap. */
+.autotap-badge{
+  margin-top:8px; font-family:var(--pixel); font-size:8px; letter-spacing:1px; color:var(--green);
+  border:1px solid var(--green-dim); border-radius:5px; padding:5px 9px;
+  background:rgba(61,252,107,.06); animation:autotapBlink 1.6s ease-in-out infinite;
+}
+@keyframes autotapBlink{ 0%,100%{ opacity:.55; box-shadow:0 0 0 0 rgba(61,252,107,0); } 50%{ opacity:1; box-shadow:0 0 10px rgba(61,252,107,.35); } }
+.socket-btn.autotap-fire .pulse{ animation:ring .45s ease-out; }
 
 /* ---------- Section titles ---------- */
 .sectitle{ font-family:var(--pixel); font-size:10px; color:var(--amber); margin:6px 2px 8px; letter-spacing:1px; text-shadow:0 0 6px rgba(255,194,61,.4); }
