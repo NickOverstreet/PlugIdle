@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.9.2';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.9.3';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -660,18 +660,27 @@
   }
 
   /* ---------- Core actions ---------- */
+  // Credit `n` taps (manual or from the Auto-Tapper) and celebrate any tap
+  // milestone crossed in the process — so auto-taps count toward milestones too.
+  function awardClicks(n) {
+    if (n <= 0) return;
+    const before = state.clicks;
+    state.clicks += n;
+    for (const t of TAP_MILESTONES) {
+      if (t > before && t <= state.clicks) {
+        toast(`👆 TAP MILESTONE! Tap power ×1.5 (now ×${fmt(tapMilestoneMult())})`, true);
+        blip(990, 0.18, 'sawtooth', 0.05);
+        buzz([0, 25, 40, 25]);
+        screenShake(1);
+      }
+    }
+  }
+
   function plug() {
     const gain = clickPower();
     state.watts += gain;
     state.totalEarned += gain;
-    state.clicks++;
-    // Tap milestone reached? Permanent ×1.5 tap power.
-    if (TAP_MILESTONES.includes(state.clicks)) {
-      toast(`👆 TAP MILESTONE! Tap power ×1.5 (now ×${fmt(tapMilestoneMult())})`, true);
-      blip(990, 0.18, 'sawtooth', 0.05);
-      buzz([0, 25, 40, 25]);
-      screenShake(1);
-    }
+    awardClicks(1);
     spawnFloater(gain);
     blip(660 + Math.random() * 80, 0.04, 'triangle');
     buzz(8); // light tap tick
@@ -1126,15 +1135,21 @@
   /* ---------- Main loop ---------- */
   let lastTick = Date.now();
   let tickCount = 0;
+  let autoTapAccum = 0;   // fractional auto-taps carried between ticks
   function tick() {
     const now = Date.now();
     const dt = (now - lastTick) / 1000;
     lastTick = now;
     let gain = totalWps() * dt;
-    // Auto-Tapper core upgrade: free passive taps (no click-count inflation).
+    // Auto-Tapper core upgrade: free passive taps, treated exactly like manual taps.
     const taps = autoTapRate();
     if (taps > 0) {
+      // Auto-taps use full clickPower() (so every tap upgrade applies) and count
+      // toward state.clicks, so they progress the tap milestones just like manual taps.
       gain += clickPower() * taps * dt;
+      autoTapAccum += taps * dt;
+      const whole = Math.floor(autoTapAccum);
+      if (whole > 0) { autoTapAccum -= whole; awardClicks(whole); }
       if (tickCount % 2 === 0) pulseAutoTap();   // ~5 visible pulses/sec, matching the rate
     }
     if (gain > 0) {
