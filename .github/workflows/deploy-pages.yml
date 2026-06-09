@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/cord-idle-game-pwa-45sh4q
   workflow_dispatch:
 
 # Allow the workflow to deploy to Pages.
