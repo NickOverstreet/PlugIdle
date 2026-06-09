@@ -6,6 +6,7 @@
 (() => {
   'use strict';
 
+  const VERSION = '1.6.0';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -405,8 +406,9 @@
     prestigeBtn: $('#prestigeBtn'),
     toast: $('#toast'), modal: $('#modal'), mbox: $('#mbox'),
     savebox: $('#savebox'), exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), wipeBtn: $('#wipeBtn'),
-    storageStatus: $('#storageStatus'),
+    storageStatus: $('#storageStatus'), version: $('#version'),
   };
+  if (el.version) el.version.textContent = `Cord Tycoon v${VERSION}`;
 
   /* ---------- Toast (stacked) ---------- */
   function toast(msg, gold) {
