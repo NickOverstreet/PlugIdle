@@ -1,2 +1,9 @@
 # Local Claude Code preview/launch tooling
 .claude/
+
+# Capacitor / Android build
+node_modules/
+www/
+
+# Python
+__pycache__/

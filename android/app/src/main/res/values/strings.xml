@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PlugIdle</string>
+    <string name="title_activity_main">PlugIdle</string>
+    <string name="package_name">com.nickoverstreet.plugidle</string>
+    <string name="custom_url_scheme">com.nickoverstreet.plugidle</string>
+</resources>

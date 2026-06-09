@@ -100,18 +100,20 @@ IAP without delaying the launch date.
 
 ### Sprint 1 — Capacitor wrapper
 
-- [ ] `npm init` + install `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`.
-- [ ] Add the `build-www` staging script and set `webDir: 'www'`; gitignore `www/` and
-      Android build outputs.
-- [ ] `npx cap add android`, build and run on a real device.
-- [ ] Guard SW registration for native; verify saves persist across app restarts.
-- [ ] Native polish: handle the Android back button (don't exit mid-game), status-bar
-      color matching the CRT theme, portrait lock, splash screen.
-- [ ] Generate launcher icons/splash — extend `scripts/make_icons.py` or use
-      Android Studio's asset tool from the existing 512px icon.
+- [x] `npm init` + install `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`
+      (Capacitor 8, targets SDK 36).
+- [x] Add the `build-www` staging script (`scripts/build-www.mjs`) and set
+      `webDir: 'www'`; gitignore `www/` and Android build outputs.
+- [x] `npx cap add android` — native project committed under `android/`.
+- [ ] Build and run on a real device; verify saves persist across app restarts.
+- [x] Guard SW registration for native (skipped inside Capacitor).
+- [x] Native polish: Android back button saves + minimizes instead of exiting,
+      status bar matches the CRT theme, portrait lock, CRT-dark splash screen.
+- [x] Launcher icons at all densities via `scripts/make_android_assets.py`
+      (reuses the dependency-free PNG encoder); fonts self-hosted so the app
+      renders correctly offline.
 - [ ] Create a release keystore (**back it up — losing it means losing the app
-      listing**), build a signed **AAB**, confirm target API meets Google's current
-      requirement (API 35 as of 2025).
+      listing**), build a signed **AAB** in Android Studio.
 
 **Exit criteria:** signed release AAB of the full game running natively on a device.
 

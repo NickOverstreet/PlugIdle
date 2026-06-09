@@ -1,0 +1,16 @@
+/* Self-hosted fonts (latin subsets from Google Fonts) so the game renders
+   correctly offline and inside the Android app without a network round-trip. */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('press-start-2p-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'VT323';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('vt323-latin.woff2') format('woff2');
+}
