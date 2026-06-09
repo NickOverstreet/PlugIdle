@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.9.0';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.9.1';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -111,11 +111,12 @@
     { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
   ];
 
-  // Every CORD_MILESTONE owned of a cord multiplies that cord's output by
-  // CORD_MILESTONE_MULT — milestone bonuses that give goals and bump the player
-  // past cost walls.
-  const CORD_MILESTONE = 100;
-  const CORD_MILESTONE_MULT = 10;
+  // Cord output milestones: every CORD_MILESTONE owned grants ×2, except every
+  // BIG_MILESTONE owned grants ×BIG_MILESTONE_MULT instead — near-term goals
+  // that bump the player past cost walls.
+  const CORD_MILESTONE = 25;
+  const BIG_MILESTONE = 100;
+  const BIG_MILESTONE_MULT = 10;
 
   /* ---------- Content: achievements ----------
      `cond` decides when one unlocks; optional `prog` returns [current, target]. */
@@ -124,7 +125,7 @@
     { id: 'plug100',  icon: '👆', name: 'Button Masher',   desc: 'Hand-plug 100 cords.',                    cond: () => state.clicks >= 100,   prog: () => [state.clicks, 100] },
     { id: 'plug1000', icon: '✋', name: 'Thumb of Steel',  desc: 'Hand-plug 1,000 cords.',                  cond: () => state.clicks >= 1000,  prog: () => [state.clicks, 1000] },
     { id: 'auto1',    icon: '🤖', name: 'Going Automatic', desc: 'Own your first auto-plugging cord.',      cond: () => totalGenerators() >= 1 },
-    { id: 'own25',    icon: '📦', name: 'Bulk Buyer',      desc: 'Own 25 of a single cord.',                cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 25) },
+    { id: 'own25',    icon: '📦', name: 'Bulk Buyer',      desc: 'Own 25 of a single cord (a ×2 milestone!).', cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 25) },
     { id: 'own50',    icon: '🏗️', name: 'Mass Production',  desc: 'Own 50 of a single cord.',                cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 50) },
     { id: 'own100',   icon: '🏰', name: 'Cord Baron',     desc: 'Own 100 of a single cord (a ×10 milestone!).', cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 100) },
     { id: 'w1k',      icon: '💡', name: 'Kilowatt Club',   desc: 'Earn 1,000 total watts.',                 cond: () => state.totalEarned >= 1e3,  prog: () => [state.totalEarned, 1e3] },
@@ -223,9 +224,17 @@
       // Synergy: this cord gains +per per unit of another cord owned.
       if (u.kind === 'synergy' && u.cord === cordId) m *= 1 + u.per * (state.owned[u.from] || 0);
     }
-    // Ownership milestones: ×CORD_MILESTONE_MULT for every CORD_MILESTONE owned.
-    m *= Math.pow(CORD_MILESTONE_MULT, Math.floor((state.owned[cordId] || 0) / CORD_MILESTONE));
+    // Ownership milestones: ×2 per CORD_MILESTONE, ×BIG_MILESTONE_MULT per BIG_MILESTONE.
+    m *= cordMilestoneMult(state.owned[cordId] || 0);
     return m;
+  }
+
+  // Total milestone multiplier for an owned count: ×2 for each CORD_MILESTONE
+  // step, but every BIG_MILESTONE step is ×BIG_MILESTONE_MULT instead of ×2.
+  function cordMilestoneMult(owned) {
+    const steps = Math.floor(owned / CORD_MILESTONE);
+    const big = Math.floor(owned / BIG_MILESTONE);
+    return Math.pow(2, steps - big) * Math.pow(BIG_MILESTONE_MULT, big);
   }
 
   // Transient multipliers from power surges (not persisted; expire on their own).
@@ -671,10 +680,11 @@
     state.owned[cord.id] = after;
     blip(320, 0.06, 'square', 0.05);
     buzz(12);
-    // Celebrate crossing a ×CORD_MILESTONE_MULT ownership milestone.
+    // Celebrate crossing an ownership milestone (×2, or ×10 at every 100).
     if (Math.floor(after / CORD_MILESTONE) > Math.floor(before / CORD_MILESTONE)) {
-      const tier = Math.pow(CORD_MILESTONE_MULT, Math.floor(after / CORD_MILESTONE));
-      toast(`✖️ ${cord.name} milestone! Now ×${tier}`, true);
+      const tier = cordMilestoneMult(after);
+      const big = Math.floor(after / BIG_MILESTONE) > Math.floor(before / BIG_MILESTONE);
+      toast(`✖️ ${cord.name} ${big ? 'MEGA milestone! ×10 ·' : 'milestone!'} Now ×${fmt(tier)}`, true);
       blip(990, 0.18, 'sawtooth', 0.05);
       buzz([0, 25, 40, 25]);
       screenShake(1);
@@ -744,6 +754,7 @@
       const can = state.watts >= cost;
       const each = cord.wps * cordMultiplier(cord.id) * prestigeMult() * PROD_MULT;
       const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
+      const nextMult = nextMs % BIG_MILESTONE === 0 ? BIG_MILESTONE_MULT : 2;
       const msPct = (owned % CORD_MILESTONE) / CORD_MILESTONE * 100;
       html += `
         <button class="card buyable" data-cord="${cord.id}">
@@ -756,7 +767,7 @@
           <div class="right">
             <div class="owned">own ${fmtInt(owned)}${count > 1 ? `<small> +${count}</small>` : ''}</div>
             <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} W</div>
-            ${owned > 0 ? `<div class="mnote">×${CORD_MILESTONE_MULT} @ ${nextMs}</div>` : ''}
+            ${owned > 0 ? `<div class="mnote">×${nextMult} @ ${nextMs}</div>` : ''}
           </div>
         </button>`;
     });

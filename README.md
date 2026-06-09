@@ -21,7 +21,7 @@ python3 -m http.server 8000
 
 - **Tap the socket** to plug in cords by hand and earn ⚡ watts.
 - **Buy cord generators** — from humble USB-A cables all the way to the Omega Cord — that plug themselves in automatically for passive watts/sec. **24 tiers** in all.
-- **Cord milestones**: every 100 of a cord you own **multiplies that cord's output ×10**, with the next milestone shown on each cord.
+- **Cord milestones**: every 25 of a cord you own **doubles** that cord's output — and every 100th milestone is a bigger **×10** instead of ×2. The next milestone is shown on each cord.
 - **Upgrades** (37 of them) boost tap power, individual cord types, or all cords at once — including **synergy upgrades** where one cord's fleet boosts another.
 - **⚡ Power Surges**: a spark randomly appears during play — tap it for an instant Overload, a Production Frenzy (×7), or a Click Frenzy (×10).
 - **🏆 Goals**: 44 achievements that unlock as you hit milestones, giving you something to chase.
