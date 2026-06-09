@@ -1,12 +1,12 @@
 /* ============================================================
-   Cord Tycoon — a retro CRT idle game about plugging in cords.
+   PlugIdle — a retro CRT idle game about plugging in cords.
    Pure vanilla JS, no dependencies.
    Durable saves: localStorage (sync) + IndexedDB (eviction-resistant).
    ============================================================ */
 (() => {
   'use strict';
 
-  const VERSION = '1.7.1';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.8.0';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -124,7 +124,7 @@
     { id: 'auto1',    icon: '🤖', name: 'Going Automatic', desc: 'Own your first auto-plugging cord.',      cond: () => totalGenerators() >= 1 },
     { id: 'own25',    icon: '📦', name: 'Bulk Buyer',      desc: 'Own 25 of a single cord (a ×2 milestone!).', cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 25) },
     { id: 'own50',    icon: '🏗️', name: 'Mass Production',  desc: 'Own 50 of a single cord.',                cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 50) },
-    { id: 'own100',   icon: '🏰', name: 'Cord Tycoon',     desc: 'Own 100 of a single cord.',               cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 100) },
+    { id: 'own100',   icon: '🏰', name: 'Cord Baron',     desc: 'Own 100 of a single cord.',               cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 100) },
     { id: 'w1k',      icon: '💡', name: 'Kilowatt Club',   desc: 'Earn 1,000 total watts.',                 cond: () => state.totalEarned >= 1e3,  prog: () => [state.totalEarned, 1e3] },
     { id: 'w1m',      icon: '⚡', name: 'Megawatt Mogul',  desc: 'Earn 1 million total watts.',             cond: () => state.totalEarned >= 1e6,  prog: () => [state.totalEarned, 1e6] },
     { id: 'w1b',      icon: '🔆', name: 'Gigawatt Giant',  desc: 'Earn 1 billion total watts.',             cond: () => state.totalEarned >= 1e9,  prog: () => [state.totalEarned, 1e9] },
@@ -440,7 +440,7 @@
     savebox: $('#savebox'), exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), wipeBtn: $('#wipeBtn'),
     storageStatus: $('#storageStatus'), version: $('#version'),
   };
-  if (el.version) el.version.textContent = `Cord Tycoon v${VERSION}`;
+  if (el.version) el.version.textContent = `PlugIdle v${VERSION}`;
 
   /* ---------- Toast (stacked) ---------- */
   function toast(msg, gold) {

@@ -1,6 +1,6 @@
 {
-  "name": "Cord Tycoon",
-  "short_name": "Cord Tycoon",
+  "name": "PlugIdle",
+  "short_name": "PlugIdle",
   "description": "An idle game about plugging in every type of cord imaginable.",
   "start_url": "./index.html",
   "scope": "./",

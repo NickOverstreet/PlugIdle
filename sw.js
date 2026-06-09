@@ -1,5 +1,5 @@
-/* Cord Tycoon service worker — offline-first caching. */
-const CACHE = 'cord-tycoon-v9';
+/* PlugIdle service worker — offline-first caching. */
+const CACHE = 'plugidle-v10';
 const ASSETS = [
   './',
   './index.html',
