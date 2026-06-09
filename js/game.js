@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.8.0';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.9.0';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -111,9 +111,11 @@
     { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
   ];
 
-  // Every CORD_MILESTONE owned of a cord doubles that cord's output — milestone
-  // bonuses that give near-term goals and bump the player past cost walls.
-  const CORD_MILESTONE = 25;
+  // Every CORD_MILESTONE owned of a cord multiplies that cord's output by
+  // CORD_MILESTONE_MULT — milestone bonuses that give goals and bump the player
+  // past cost walls.
+  const CORD_MILESTONE = 100;
+  const CORD_MILESTONE_MULT = 10;
 
   /* ---------- Content: achievements ----------
      `cond` decides when one unlocks; optional `prog` returns [current, target]. */
@@ -122,9 +124,9 @@
     { id: 'plug100',  icon: '👆', name: 'Button Masher',   desc: 'Hand-plug 100 cords.',                    cond: () => state.clicks >= 100,   prog: () => [state.clicks, 100] },
     { id: 'plug1000', icon: '✋', name: 'Thumb of Steel',  desc: 'Hand-plug 1,000 cords.',                  cond: () => state.clicks >= 1000,  prog: () => [state.clicks, 1000] },
     { id: 'auto1',    icon: '🤖', name: 'Going Automatic', desc: 'Own your first auto-plugging cord.',      cond: () => totalGenerators() >= 1 },
-    { id: 'own25',    icon: '📦', name: 'Bulk Buyer',      desc: 'Own 25 of a single cord (a ×2 milestone!).', cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 25) },
+    { id: 'own25',    icon: '📦', name: 'Bulk Buyer',      desc: 'Own 25 of a single cord.',                cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 25) },
     { id: 'own50',    icon: '🏗️', name: 'Mass Production',  desc: 'Own 50 of a single cord.',                cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 50) },
-    { id: 'own100',   icon: '🏰', name: 'Cord Baron',     desc: 'Own 100 of a single cord.',               cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 100) },
+    { id: 'own100',   icon: '🏰', name: 'Cord Baron',     desc: 'Own 100 of a single cord (a ×10 milestone!).', cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 100) },
     { id: 'w1k',      icon: '💡', name: 'Kilowatt Club',   desc: 'Earn 1,000 total watts.',                 cond: () => state.totalEarned >= 1e3,  prog: () => [state.totalEarned, 1e3] },
     { id: 'w1m',      icon: '⚡', name: 'Megawatt Mogul',  desc: 'Earn 1 million total watts.',             cond: () => state.totalEarned >= 1e6,  prog: () => [state.totalEarned, 1e6] },
     { id: 'w1b',      icon: '🔆', name: 'Gigawatt Giant',  desc: 'Earn 1 billion total watts.',             cond: () => state.totalEarned >= 1e9,  prog: () => [state.totalEarned, 1e9] },
@@ -221,8 +223,8 @@
       // Synergy: this cord gains +per per unit of another cord owned.
       if (u.kind === 'synergy' && u.cord === cordId) m *= 1 + u.per * (state.owned[u.from] || 0);
     }
-    // Ownership milestones: ×2 for every CORD_MILESTONE owned.
-    m *= Math.pow(2, Math.floor((state.owned[cordId] || 0) / CORD_MILESTONE));
+    // Ownership milestones: ×CORD_MILESTONE_MULT for every CORD_MILESTONE owned.
+    m *= Math.pow(CORD_MILESTONE_MULT, Math.floor((state.owned[cordId] || 0) / CORD_MILESTONE));
     return m;
   }
 
@@ -669,9 +671,9 @@
     state.owned[cord.id] = after;
     blip(320, 0.06, 'square', 0.05);
     buzz(12);
-    // Celebrate crossing a ×2 ownership milestone.
+    // Celebrate crossing a ×CORD_MILESTONE_MULT ownership milestone.
     if (Math.floor(after / CORD_MILESTONE) > Math.floor(before / CORD_MILESTONE)) {
-      const tier = Math.pow(2, Math.floor(after / CORD_MILESTONE));
+      const tier = Math.pow(CORD_MILESTONE_MULT, Math.floor(after / CORD_MILESTONE));
       toast(`✖️ ${cord.name} milestone! Now ×${tier}`, true);
       blip(990, 0.18, 'sawtooth', 0.05);
       buzz([0, 25, 40, 25]);
@@ -754,7 +756,7 @@
           <div class="right">
             <div class="owned">own ${fmtInt(owned)}${count > 1 ? `<small> +${count}</small>` : ''}</div>
             <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} W</div>
-            ${owned > 0 ? `<div class="mnote">×2 @ ${nextMs}</div>` : ''}
+            ${owned > 0 ? `<div class="mnote">×${CORD_MILESTONE_MULT} @ ${nextMs}</div>` : ''}
           </div>
         </button>`;
     });
