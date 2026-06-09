@@ -3,6 +3,7 @@ const CACHE = 'plugidle-v15';
 const ASSETS = [
   './',
   './index.html',
+  './privacy.html',
   './css/style.css',
   './js/game.js',
   './fonts/fonts.css',

@@ -1194,8 +1194,11 @@
       StatusBar.setBackgroundColor({ color: '#070a0f' });  // pre-15 devices without edge-to-edge
     } catch (e) { /* ignore */ }
     try {
-      // back button: save and minimize instead of killing the game
-      App.addListener('backButton', () => { save(); App.minimizeApp(); });
+      // back button: leave in-app pages first; from the game, save and minimize
+      App.addListener('backButton', ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else { save(); App.minimizeApp(); }
+      });
     } catch (e) { /* ignore */ }
   }
 

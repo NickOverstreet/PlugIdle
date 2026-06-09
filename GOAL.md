@@ -119,13 +119,16 @@ IAP without delaying the launch date.
 
 ### Sprint 2 — Store readiness & start the 14-day clock
 
-- [ ] Write a **privacy policy** (required once AdMob ships; cover ads, identifiers,
-      local saves) and host it on GitHub Pages.
-- [ ] Play Console setup: app entry, **Data Safety form** (declare AdMob data
-      collection now so it doesn't need re-review later), **IARC content rating**
-      questionnaire, ads declaration, target-audience declaration (not child-directed).
-- [ ] Store listing: title, short + full description (ASO keywords: idle, incremental,
-      clicker, offline), 4–8 phone screenshots, 1024×500 feature graphic, 512px icon.
+- [x] Write a **privacy policy** — `privacy.html`, linked from the in-game settings;
+      live at `/pwa-webapp/privacy.html` once merged to `main`.
+- [x] Store listing copy + assets prepared: `store/listing.md` (title, short/full
+      description with ASO keywords, screenshot shot list) and
+      `store/feature-graphic.png` (regenerate via `scripts/make_store_assets.py`);
+      512px icon = `icons/icon-maskable-512.png`.
+- [x] Console form answers prepared: `store/play-console-checklist.md` (Data Safety,
+      IARC content rating, ads/target-audience declarations, SKU list, app-ads.txt).
+- [ ] Fill in the Play Console forms using the checklist; take 4–8 phone screenshots
+      per the shot list.
 - [ ] Upload the AAB to the **closed testing** track; enroll Google Play App Signing.
 - [ ] Get **12+ testers opted in** and confirm the 14-day counter is running.
 - [ ] Set up a feedback channel (Google Form or Discord).
