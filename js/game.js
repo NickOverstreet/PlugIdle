@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.9.3';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.10.0';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -1184,8 +1184,24 @@
     scheduleSurge();      // begin the power-surge cadence
   })();
 
-  // register service worker for installability + offline
-  if ('serviceWorker' in navigator) {
+  // ---- Capacitor native shell (Android) ----
+  // window.Capacitor is injected by the native runtime; absent on the plain web.
+  const NATIVE = !!(window.Capacitor?.isNativePlatform?.());
+  if (NATIVE) {
+    const { App, StatusBar } = window.Capacitor.Plugins;
+    try {
+      StatusBar.setStyle({ style: 'DARK' });               // light icons on the CRT-dark chrome
+      StatusBar.setBackgroundColor({ color: '#070a0f' });  // pre-15 devices without edge-to-edge
+    } catch (e) { /* ignore */ }
+    try {
+      // back button: save and minimize instead of killing the game
+      App.addListener('backButton', () => { save(); App.minimizeApp(); });
+    } catch (e) { /* ignore */ }
+  }
+
+  // register service worker for installability + offline (web only — the native
+  // shell bundles assets locally, and a stale SW cache would fight app updates)
+  if (!NATIVE && 'serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     });

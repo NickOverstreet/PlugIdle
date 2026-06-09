@@ -1,0 +1,21 @@
+{
+  "name": "plugidle",
+  "version": "1.0.0",
+  "description": "PlugIdle — a retro CRT idle game about plugging in every type of cord imaginable.",
+  "private": true,
+  "scripts": {
+    "build:www": "node scripts/build-www.mjs",
+    "sync": "npm run build:www && cap sync android",
+    "open:android": "cap open android",
+    "android": "npm run sync && npm run open:android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/status-bar": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.0"
+  }
+}

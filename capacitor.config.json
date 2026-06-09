@@ -1,0 +1,9 @@
+{
+  "appId": "com.nickoverstreet.plugidle",
+  "appName": "PlugIdle",
+  "webDir": "www",
+  "backgroundColor": "#070a0f",
+  "android": {
+    "allowMixedContent": false
+  }
+}

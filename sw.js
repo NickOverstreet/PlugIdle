@@ -1,10 +1,13 @@
 /* PlugIdle service worker — offline-first caching. */
-const CACHE = 'plugidle-v14';
+const CACHE = 'plugidle-v15';
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
   './js/game.js',
+  './fonts/fonts.css',
+  './fonts/press-start-2p-latin.woff2',
+  './fonts/vt323-latin.woff2',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

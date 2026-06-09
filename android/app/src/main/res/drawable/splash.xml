@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resolution-independent splash: CRT-dark background with the socket centered.
+     Used on Android < 12; Android 12+ uses the Theme.SplashScreen attributes. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splashBackground" />
+    <item
+        android:gravity="center"
+        android:width="192dp"
+        android:height="192dp">
+        <bitmap
+            android:src="@mipmap/ic_launcher_foreground"
+            android:gravity="fill" />
+    </item>
+</layer-list>
