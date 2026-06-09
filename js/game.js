@@ -183,6 +183,13 @@
     lastSeen: Date.now(),
     settings: { sound: true, floats: true, sci: false, haptics: true },
     bulk: 1,             // 1, 10, 100, or 'max'
+    // ---- monetization (Android only; harmless extras on web) ----
+    iap: {},             // non-consumable sku -> true (granted entitlements)
+    theme: '',           // '' (green) | 'amber' | 'ice' | 'vapor'
+    adDay: '',           // local date the rewarded-ad counters belong to
+    adUses: {},          // placement -> uses today (daily caps)
+    boostUntil: 0,       // 2x production boost expiry (persists across restarts)
+    supporterDay: '',    // last date the supporter daily boost was claimed
   });
 
   // Normalize any save (fresh boot, legacy, or imported) into a complete state:
@@ -196,6 +203,8 @@
     s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, s.settings || {});
     if (!hadCoresEarned) s.coresEarned = s.cores || 0;
     if (s.coreUpgrades == null) s.coreUpgrades = {};
+    if (s.iap == null) s.iap = {};
+    if (s.adUses == null) s.adUses = {};
     return s;
   }
 
@@ -259,10 +268,13 @@
     return n * cord.wps * cordMultiplier(cord.id);
   }
 
+  // Permanent +25% from the boost_production_25 purchase (Android IAP).
+  function iapProdMult() { return state.iap && state.iap.boost_production_25 ? 1.25 : 1; }
+
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
-    return sum * prestigeMult() * PROD_MULT * coreProdMult() * buffMult('prod');
+    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * buffMult('prod');
   }
 
   // ---- Tap power: keep hand-plugging relevant for the whole game ----
@@ -607,7 +619,11 @@
     if (!buffs.length) { el.buffBar.classList.remove('show'); el.buffBar.innerHTML = ''; return; }
     el.buffBar.classList.add('show');
     el.buffBar.innerHTML = buffs
-      .map((b) => `<span class="buff">${b.icon} ${b.label} · ${Math.ceil((b.until - now) / 1000)}s</span>`)
+      .map((b) => {
+        const left = Math.ceil((b.until - now) / 1000);
+        const t = left >= 60 ? `${Math.floor(left / 60)}m${left % 60 ? (left % 60) + 's' : ''}` : `${left}s`;
+        return `<span class="buff">${b.icon} ${b.label} · ${t}</span>`;
+      })
       .join('');
   }
 
@@ -989,12 +1005,193 @@
     state.watts += earned;
     state.totalEarned += earned;
     const h = Math.floor(away / 3600000), m = Math.floor((away % 3600000) / 60000);
+    const adBtn = window.Monetize?.adsAvailable?.()
+      ? `<button class="smbtn" id="wbDouble" style="margin-top:8px;width:100%">📺 WATCH AD · DOUBLE IT</button>` : '';
     showModal(`
       <h2>⚡ WELCOME BACK</h2>
       <p class="dim">Your cords ran for<br><b style="color:var(--cyan)">${h}h ${m}m</b> (${Math.round(eff * 100)}% rate)</p>
       <p class="big">+${fmt(earned)} W</p>
-      <button class="bigbtn" id="wbOk" style="margin-top:12px">COLLECT</button>`);
+      <button class="bigbtn" id="wbOk" style="margin-top:12px">COLLECT</button>${adBtn}`);
     document.getElementById('wbOk').addEventListener('click', hideModal);
+    const dbl = document.getElementById('wbDouble');
+    if (dbl) dbl.addEventListener('click', async () => {
+      dbl.disabled = true;
+      const ok = await window.Monetize.showRewarded();
+      if (ok) {
+        state.watts += earned;
+        state.totalEarned += earned;
+        toast('📺 Offline earnings DOUBLED! +' + fmt(earned) + ' W', true);
+        save();
+        renderStatsLite();
+        hideModal();
+      } else {
+        dbl.disabled = false;
+        toast('Ad not ready — try again in a moment');
+      }
+    });
+  }
+
+  /* ---------- Power Store (Android only) ----------
+     Rewarded ad bonuses + Google Play purchases, via the js/monetize.js
+     facade. On the web Monetize.available() is false and none of this UI
+     is ever revealed — the web build stays 100% monetization-free. */
+
+  const IAP_PRODUCTS = [
+    { id: 'supporter_pack',      icon: '💖', name: 'Supporter Pack',  consumable: false, desc: 'Supporter badge + claim a free 2x boost every day.' },
+    { id: 'boost_production_25', icon: '🚀', name: 'Overclock +25%',  consumable: false, desc: 'All production +25%. Permanent.' },
+    { id: 'starter_cores',       icon: '◆',  name: 'Starter Cores',   consumable: false, desc: 'Instantly gain 3 Prestige Cores.' },
+    { id: 'timewarp_4h',         icon: '⏩', name: 'Time Warp · 4h',  consumable: true,  desc: 'Instantly earn 4 hours of production.' },
+    { id: 'timewarp_24h',        icon: '⏭️', name: 'Time Warp · 24h', consumable: true,  desc: 'Instantly earn 24 hours of production.' },
+    { id: 'theme_pack_phosphor', icon: '🎨', name: 'CRT Theme Pack',  consumable: false, desc: 'Amber, Ice & Vapor phosphor themes.' },
+  ];
+  const AD_LIMITS = { boost: 3, surge: 2 };   // rewarded uses per day, per placement
+  const BOOST_MS = 10 * 60000;                // 2x production per boost/claim
+  let iapPrices = {};                         // sku -> localized price string
+
+  function localDay() { return new Date().toDateString(); }
+  function adUsesLeft(kind) {
+    if (state.adDay !== localDay()) { state.adDay = localDay(); state.adUses = {}; }
+    return AD_LIMITS[kind] - (state.adUses[kind] || 0);
+  }
+  function markAdUse(kind) {
+    adUsesLeft(kind);                         // roll the day over if needed
+    state.adUses[kind] = (state.adUses[kind] || 0) + 1;
+  }
+
+  // The 2x boost persists in state.boostUntil so an app restart can't eat a
+  // bonus the player watched an ad (or paid goodwill) for.
+  function grantBoost(label) {
+    const now = Date.now();
+    state.boostUntil = Math.max(state.boostUntil || 0, now) + BOOST_MS;
+    syncBoostBuff();
+    toast(label, true);
+    blip(990, 0.18, 'sawtooth', 0.05);
+    buzz([0, 25, 40, 25]);
+    save();
+  }
+  function syncBoostBuff() {
+    buffs = buffs.filter((b) => b.kind !== 'prod' || b.src !== 'boost');
+    if ((state.boostUntil || 0) > Date.now()) {
+      buffs.push({ kind: 'prod', mult: 2, until: state.boostUntil, icon: '🚀', label: 'BOOST ×2', src: 'boost' });
+    }
+    renderBuffs();
+  }
+
+  function grantTimewarp(hours) {
+    const earned = totalWps() * hours * 3600;
+    state.watts += earned;
+    state.totalEarned += earned;
+    toast(`⏩ TIME WARP! +${fmt(earned)} W (${hours}h)`, true);
+    screenShake(1.2);
+    save();
+    renderAll();
+  }
+
+  // Idempotent entitlement grant — Play Billing re-fires owned products on
+  // every restore/boot, so non-consumables must only apply once.
+  function grantPurchase(sku) {
+    const product = IAP_PRODUCTS.find((p) => p.id === sku);
+    if (!product) return;
+    if (product.consumable) {
+      if (sku === 'timewarp_4h') grantTimewarp(4);
+      else if (sku === 'timewarp_24h') grantTimewarp(24);
+      return;
+    }
+    if (state.iap[sku]) return;               // already granted
+    state.iap[sku] = true;
+    if (sku === 'starter_cores') {
+      state.cores = (state.cores || 0) + 3;
+      state.coresEarned = (state.coresEarned || 0) + 3;
+    }
+    toast(`${product.icon} ${product.name} — thank you!`, true);
+    save();
+    renderAll();
+    renderStore();
+    applyTheme();
+  }
+
+  function applyTheme() {
+    const t = state.iap.theme_pack_phosphor ? (state.theme || '') : '';
+    document.body.dataset.theme = t;
+    renderThemePicker();
+  }
+  const THEMES = [
+    { id: '',      name: 'GREEN' },
+    { id: 'amber', name: 'AMBER' },
+    { id: 'ice',   name: 'ICE' },
+    { id: 'vapor', name: 'VAPOR' },
+  ];
+  function renderThemePicker() {
+    const row = document.getElementById('themeRow');
+    const wrap = document.getElementById('themeBtns');
+    if (!row || !wrap) return;
+    const owned = !!state.iap.theme_pack_phosphor;
+    row.hidden = !owned;
+    if (!owned) return;
+    wrap.innerHTML = THEMES.map((t) =>
+      `<button class="sw theme-sw ${(state.theme || '') === t.id ? 'on' : ''}" data-theme-pick="${t.id}">${t.name}</button>`
+    ).join('');
+  }
+
+  function renderStore() {
+    const block = document.getElementById('storeBlock');
+    if (!block || !window.Monetize?.available?.()) return;
+    block.hidden = false;
+    const h3 = block.querySelector('h3');
+    if (h3) h3.textContent = state.iap.supporter_pack ? '🎁 POWER STORE · 💖 SUPPORTER' : '🎁 POWER STORE';
+
+    const bonus = document.getElementById('bonusArea');
+    if (bonus) {
+      const supporter = state.iap.supporter_pack && state.supporterDay !== localDay();
+      let html = supporter
+        ? `<button class="bigbtn" data-bonus="claim" style="margin-bottom:8px">💖 CLAIM DAILY ×2 BOOST</button>` : '';
+      if (window.Monetize.adsAvailable()) {
+        const boostLeft = adUsesLeft('boost');
+        const surgeLeft = adUsesLeft('surge');
+        html += `
+        <div class="row2">
+          <button class="smbtn" data-bonus="boost" ${boostLeft <= 0 ? 'disabled' : ''}>📺 ×2 BOOST 10m<br><small>${boostLeft}/${AD_LIMITS.boost} today</small></button>
+          <button class="smbtn" data-bonus="surge" ${surgeLeft <= 0 ? 'disabled' : ''}>📺 SUMMON SURGE<br><small>${surgeLeft}/${AD_LIMITS.surge} today</small></button>
+        </div>
+        <p class="muted" style="margin:8px 0 4px">Ads are 100% optional — watch one only when YOU want a bonus.</p>`;
+      }
+      bonus.innerHTML = html;
+    }
+
+    const list = document.getElementById('iaplist');
+    if (list) {
+      list.innerHTML = IAP_PRODUCTS.map((p) => {
+        const owned = !p.consumable && state.iap[p.id];
+        const price = iapPrices[p.id] || '···';
+        return `
+          <button class="upg ${owned ? 'bought' : 'ok'}" data-iap="${p.id}" ${owned ? 'disabled' : ''}>
+            <div class="un">${p.icon} ${p.name}</div>
+            <div class="ud">${p.desc}</div>
+            <div class="uc">${owned ? '✓ OWNED' : price}</div>
+          </button>`;
+      }).join('');
+    }
+  }
+
+  async function onBonusClick(kind) {
+    if (kind === 'claim') {
+      if (!state.iap.supporter_pack || state.supporterDay === localDay()) return;
+      state.supporterDay = localDay();
+      grantBoost('💖 SUPPORTER BOOST ×2 (10m)!');
+      renderStore();
+      return;
+    }
+    if (adUsesLeft(kind) <= 0) { toast('Come back tomorrow!'); return; }
+    const ok = await window.Monetize.showRewarded();
+    if (!ok) { toast('Ad not ready — try again in a moment'); return; }
+    markAdUse(kind);
+    if (kind === 'boost') grantBoost('📺 BOOST ×2 for 10 minutes!');
+    else if (kind === 'surge') {
+      if (surgeActive) toast('⚡ A surge is already on screen!');
+      else { spawnSurge(); toast('📺 SURGE INCOMING — catch it!', true); }
+    }
+    save();
+    renderStore();
   }
 
   /* ---------- Save / load UI ---------- */
@@ -1058,7 +1255,7 @@
       if (tab.dataset.tab === 'goals') renderGoals();
       else if (tab.dataset.tab === 'up') renderUpgrades();
       else if (tab.dataset.tab === 'plug') renderCords();
-      else if (tab.dataset.tab === 'more') { renderCoreShop(); renderStatsLite(); syncSettingsUI(); }
+      else if (tab.dataset.tab === 'more') { renderCoreShop(); renderStatsLite(); syncSettingsUI(); renderStore(); }
     });
   });
 
@@ -1082,6 +1279,27 @@
   el.corelist.addEventListener('click', (e) => {
     const item = e.target.closest('[data-core]');
     if (item) buyCoreUpgrade(CORE_UPGRADES.find(cu => cu.id === item.dataset.core));
+  });
+
+  // Power Store: rewarded bonuses, purchases, restore (delegated; the block
+  // only becomes visible inside the native Android shell)
+  const storeBlock = document.getElementById('storeBlock');
+  if (storeBlock) storeBlock.addEventListener('click', (e) => {
+    const bonus = e.target.closest('[data-bonus]');
+    if (bonus && !bonus.disabled) { onBonusClick(bonus.dataset.bonus); return; }
+    const buyBtn = e.target.closest('[data-iap]');
+    if (buyBtn && !buyBtn.disabled) { window.Monetize.buy(buyBtn.dataset.iap); return; }
+    if (e.target.closest('#restoreBtn')) window.Monetize.restore();
+  });
+  // theme picker (revealed once the theme pack is owned)
+  const themeRow = document.getElementById('themeRow');
+  if (themeRow) themeRow.addEventListener('click', (e) => {
+    const pick = e.target.closest('[data-theme-pick]');
+    if (!pick) return;
+    state.theme = pick.dataset.themePick;
+    applyTheme();
+    save();
+    blip(520, 0.03);
   });
 
   // prestige + save buttons
@@ -1174,6 +1392,15 @@
     if (durable) state = normalizeState(durable);
     await requestPersistence();
     applyOffline();
+    syncBoostBuff();     // resurrect a still-running 2x boost after restart
+    applyTheme();
+    window.Monetize?.init?.({
+      skus: IAP_PRODUCTS.map((p) => ({ id: p.id, consumable: p.consumable })),
+      onGrant: grantPurchase,
+      onPrices: (prices) => { iapPrices = prices; renderStore(); },
+      notify: (msg) => toast(msg),
+    });
+    renderStore();
     renderAll();
     save();              // re-mirror the reconciled state into both stores (self-heal)
     updateStorageStatus();

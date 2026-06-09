@@ -32,7 +32,7 @@ python3 -m http.server 8000
 
 ### Designed to be fun, not manipulative
 
-The engagement mechanics are drawn from a survey of what makes idle games compelling (geometric cost curves, prestige loops, ownership milestones, "juice"/game-feel, surprise bonus events, achievement goals). It deliberately **avoids dark patterns** — there's no monetization, no energy/stamina gates, no pay-to-skip, and nothing that punishes you for not playing. Surges and bonuses only ever reward being present.
+The engagement mechanics are drawn from a survey of what makes idle games compelling (geometric cost curves, prestige loops, ownership milestones, "juice"/game-feel, surprise bonus events, achievement goals). It deliberately **avoids dark patterns** — no forced ads, no pay-to-win, no energy/stamina gates, and nothing that punishes you for not playing. **The web version has no monetization at all.** The Android app adds strictly optional rewarded ads (watch one only when *you* want a bonus) and fair convenience/cosmetic purchases — everything in the game remains reachable for free.
 
 ## 💾 Saving
 

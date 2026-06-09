@@ -277,3 +277,30 @@ textarea{ width:100%; height:70px; background:#060a0e; color:var(--green); borde
 .mbox p{ font-size:19px; color:var(--text); margin:8px 0; }
 .mbox p.dim{ color:var(--dim); font-size:16px; }
 .mbox .big{ font-size:30px; color:var(--amber); }
+
+/* ---------- Power Store (Android shell only) ---------- */
+#bonusArea .bigbtn{ width:100%; }
+#bonusArea .smbtn small{ display:block; font-family:var(--term); font-size:13px; color:var(--dim); margin-top:3px; letter-spacing:0; }
+#themeBtns{ display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
+.theme-sw{ min-width:0; padding:7px 8px; font-size:8px; }
+
+/* ---------- Purchased CRT themes (theme_pack_phosphor) ----------
+   Re-declare the palette on body so every descendant picks it up. */
+body[data-theme="amber"]{
+  --green:#ffb83d; --green-dim:#8f6a1f;
+  --amber:#ff8c3d; --cyan:#ffd34e;
+  --text:#f7e6bf; --dim:#90805e;
+  --line:#3b321d; --line2:#5a4a22;
+}
+body[data-theme="ice"]{
+  --green:#41d8ff; --green-dim:#1f6f8f;
+  --cyan:#9fe9ff;
+  --text:#bfe9f7; --dim:#6e8390;
+  --line:#1d2f3b; --line2:#22405a;
+}
+body[data-theme="vapor"]{
+  --green:#ff4fd8; --green-dim:#8f1f6f;
+  --amber:#41d8ff; --cyan:#ffd34e; --magenta:#3dfc6b;
+  --text:#f7bfe9; --dim:#906e85;
+  --line:#3b1d33; --line2:#5a2250;
+}
