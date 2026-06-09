@@ -162,6 +162,12 @@ main ::-webkit-scrollbar{ width:6px; } main ::-webkit-scrollbar-thumb{ backgroun
 .upg .uc{ font-size:17px; color:var(--amber); }
 .upg.no .uc{ color:var(--red); }
 .upg.bought .uc{ color:var(--green); }
+/* Core (prestige) upgrades — magenta accent to read as a separate currency */
+.upg.core{ border-left:4px solid var(--magenta); }
+.upg.core.ok{ border-color:var(--magenta); }
+.upg.core .uc{ color:var(--magenta); }
+.upg.core.no .uc{ color:var(--dim); }
+.upg.core.bought .uc{ color:var(--green); }
 
 /* ---------- Goals / achievements ---------- */
 .goal{ display:flex; gap:9px; align-items:center; padding:8px 10px; margin-bottom:7px; background:var(--panel); border:2px solid var(--line2); }

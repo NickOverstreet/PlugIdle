@@ -26,6 +26,18 @@
     { id: 'subsea', icon: '🌊', name: 'Subsea Cable',     baseCost: 7.5e10,   wps: 1.6e6, desc: 'Wiring continents together.' },
     { id: 'orbit',  icon: '🛰️', name: 'Orbital Tether',   baseCost: 1e12,     wps: 1e7,   desc: 'A cord from the ground to the stars.' },
     { id: 'quantum',icon: '⚛️', name: 'Quantum Link',     baseCost: 1.4e13,   wps: 6.5e7, desc: 'Entangled. Connected. Everywhere at once.' },
+    { id: 'neural',  icon: '🧠', name: 'Neural Cable',     baseCost: 2e14,    wps: 4e8,    desc: 'Plugged straight into the cortex.' },
+    { id: 'plasma',  icon: '🔥', name: 'Plasma Conduit',   baseCost: 3e15,    wps: 2.6e9,  desc: 'Liquid lightning in a braided sheath.' },
+    { id: 'graviton',icon: '🌀', name: 'Graviton Cord',    baseCost: 4e16,    wps: 1.7e10, desc: 'It plugs into spacetime itself.' },
+    { id: 'darkfib', icon: '🕳️', name: 'Dark Fiber',       baseCost: 6e17,    wps: 1.1e11, desc: 'Bandwidth drawn from the void.' },
+    { id: 'wormhole',icon: '🌌', name: 'Wormhole Jack',    baseCost: 9e18,    wps: 7e11,   desc: 'Both ends, everywhere, at once.' },
+    { id: 'neutrino',icon: '☄️', name: 'Neutrino Strand',  baseCost: 1.3e20,  wps: 4.5e12, desc: 'Passes through planets to connect.' },
+    { id: 'tachyon', icon: '💫', name: 'Tachyon Line',     baseCost: 2e21,    wps: 3e13,   desc: 'Delivers the data before you ask.' },
+    { id: 'singular',icon: '⚫', name: 'Singularity Bus',  baseCost: 3e22,    wps: 1.9e14, desc: 'One cord to compress them all.' },
+    { id: 'cosmic',  icon: '✴️', name: 'Cosmic String',    baseCost: 4.5e23,  wps: 1.2e15, desc: 'A defect in reality, now load-bearing.' },
+    { id: 'multivrs',icon: '🪐', name: 'Multiversal Hub',  baseCost: 7e24,    wps: 8e15,   desc: 'Plugs into every timeline at once.' },
+    { id: 'divine',  icon: '😇', name: 'Divine Connector', baseCost: 1e26,    wps: 5e16,   desc: 'The port the universe booted from.' },
+    { id: 'omega',   icon: '🅾️', name: 'Omega Cord',       baseCost: 1.5e27,  wps: 3.3e17, desc: 'The final plug. Nothing connects beyond.' },
   ];
 
   /* ---------- Content: upgrades ----------
@@ -47,6 +59,47 @@
     { id: 'u_thndr',  icon: '🌩️', name: 'Active Repeaters',    cost: 5e8,    kind: 'cord', cord: 'thndr', mult: 2, req: { cord: 'thndr', n: 5 }, desc: 'Thunderbolt output x2.' },
     { id: 'u_fiber',  icon: '✨', name: 'Dense WDM',           cost: 8e9,    kind: 'cord', cord: 'fiber', mult: 2, req: { cord: 'fiber', n: 5 }, desc: 'Fiber output x2.' },
     { id: 'u_glob4',  icon: '🛸', name: 'Self-Plugging Drones',cost: 1e11,   kind: 'global', mult: 3,    desc: 'All cords x3.' },
+    { id: 'u_click4', icon: '🦿', name: 'Exoskeleton Glove',  cost: 5e7,    kind: 'click',  mult: 3, desc: 'Tap power x3.' },
+    { id: 'u_click5', icon: '🐝', name: 'Nanobot Swarm',      cost: 1e11,   kind: 'click',  mult: 4, desc: 'Tap power x4.' },
+    { id: 'u_click6', icon: '🧠', name: 'Hive-Mind Tap',      cost: 1e16,   kind: 'click',  mult: 5, desc: 'Tap power x5.' },
+    { id: 'u_glob5',  icon: '🎛️', name: 'Plug Orchestra',     cost: 1e14,   kind: 'global', mult: 3, desc: 'All cords x3.' },
+    { id: 'u_glob6',  icon: '🧮', name: 'AI Cable Router',     cost: 1e18,   kind: 'global', mult: 4, desc: 'All cords x4.' },
+    { id: 'u_glob7',  icon: '🌐', name: 'Reality Patchbay',    cost: 1e23,   kind: 'global', mult: 5, desc: 'All cords x5.' },
+    // Synergy upgrades — one cord's fleet boosts another (Cookie-Clicker style).
+    { id: 'syn1', icon: '🔗', name: 'Daisy Chain',       cost: 2e4,  kind: 'synergy', cord: 'jack',  from: 'usba',    per: 0.005, req: { cord: 'usba',  n: 10 }, desc: '+0.5% Audio Jack per USB-A owned.' },
+    { id: 'syn2', icon: '🪢', name: 'Bandwidth Bonding',  cost: 5e5,  kind: 'synergy', cord: 'eth',   from: 'hdmi',    per: 0.005, req: { cord: 'hdmi',  n: 10 }, desc: '+0.5% Ethernet per HDMI owned.' },
+    { id: 'syn3', icon: '🧵', name: 'Backbone Sync',      cost: 5e8,  kind: 'synergy', cord: 'fiber', from: 'power',   per: 0.003, req: { cord: 'power', n: 10 }, desc: '+0.3% Fiber per Power Cord owned.' },
+    { id: 'syn4', icon: '♾️', name: 'Quantum Coupling',   cost: 1e27, kind: 'synergy', cord: 'omega', from: 'quantum', per: 0.01,  req: { cord: 'quantum', n: 10 }, desc: '+1% Omega per Quantum Link owned.' },
+    // Per-cord doublers for the new tiers (unlock at 5 owned).
+    { id: 'u_neural',  icon: '🧠', name: 'Myelin Sheathing',  cost: 6e15,  kind: 'cord', cord: 'neural',   mult: 2, req: { cord: 'neural',   n: 5 }, desc: 'Neural Cable output x2.' },
+    { id: 'u_plasma',  icon: '🔥', name: 'Magnetic Bottling', cost: 1e17,  kind: 'cord', cord: 'plasma',   mult: 2, req: { cord: 'plasma',   n: 5 }, desc: 'Plasma Conduit output x2.' },
+    { id: 'u_graviton',icon: '🌀', name: 'Tensor Winding',    cost: 1.3e18,kind: 'cord', cord: 'graviton', mult: 2, req: { cord: 'graviton', n: 5 }, desc: 'Graviton Cord output x2.' },
+    { id: 'u_darkfib', icon: '🕳️', name: 'Vacuum Pumping',    cost: 2e19,  kind: 'cord', cord: 'darkfib',  mult: 2, req: { cord: 'darkfib',  n: 5 }, desc: 'Dark Fiber output x2.' },
+    { id: 'u_wormhole',icon: '🌌', name: 'Throat Stabilizer', cost: 3e20,  kind: 'cord', cord: 'wormhole', mult: 2, req: { cord: 'wormhole', n: 5 }, desc: 'Wormhole Jack output x2.' },
+    { id: 'u_neutrino',icon: '☄️', name: 'Flavour Oscillator',cost: 4e21,  kind: 'cord', cord: 'neutrino', mult: 2, req: { cord: 'neutrino', n: 5 }, desc: 'Neutrino Strand output x2.' },
+    { id: 'u_tachyon', icon: '💫', name: 'Causality Bypass',  cost: 6e22,  kind: 'cord', cord: 'tachyon',  mult: 2, req: { cord: 'tachyon',  n: 5 }, desc: 'Tachyon Line output x2.' },
+    { id: 'u_singular',icon: '⚫', name: 'Event Horizoning',  cost: 1e24,  kind: 'cord', cord: 'singular', mult: 2, req: { cord: 'singular', n: 5 }, desc: 'Singularity Bus output x2.' },
+    { id: 'u_cosmic',  icon: '✴️', name: 'Tension Tuning',    cost: 1.5e25,kind: 'cord', cord: 'cosmic',   mult: 2, req: { cord: 'cosmic',   n: 5 }, desc: 'Cosmic String output x2.' },
+    { id: 'u_multivrs',icon: '🪐', name: 'Brane Alignment',   cost: 2e26,  kind: 'cord', cord: 'multivrs', mult: 2, req: { cord: 'multivrs', n: 5 }, desc: 'Multiversal Hub output x2.' },
+    { id: 'u_divine',  icon: '😇', name: 'Holy Soldering',    cost: 3e27,  kind: 'cord', cord: 'divine',   mult: 2, req: { cord: 'divine',   n: 5 }, desc: 'Divine Connector output x2.' },
+    { id: 'u_omega',   icon: '🅾️', name: 'Final Firmware',    cost: 5e28,  kind: 'cord', cord: 'omega',    mult: 2, req: { cord: 'omega',    n: 5 }, desc: 'Omega Cord output x2.' },
+  ];
+
+  /* ---------- Content: core upgrades (prestige shop) ----------
+     Bought with Prestige Cores (◆). Cores are spent, but your per-core
+     production bonus is based on cores ever EARNED, so it never drops. */
+  const CORE_UPGRADES = [
+    { id: 'thumbs',    icon: '👍', name: 'Overclocked Thumbs', cost: 1,  desc: 'Tap power ×3.' },
+    { id: 'phantom',   icon: '🔌', name: 'Phantom Power',      cost: 2,  desc: 'All production ×1.5.' },
+    { id: 'battery',   icon: '🔋', name: 'Battery Backup',     cost: 2,  desc: 'Offline cap +24h (48h total).' },
+    { id: 'magnet',    icon: '🧲', name: 'Surge Magnet',       cost: 3,  desc: 'Power surges arrive ~40% sooner.' },
+    { id: 'jumpstart', icon: '🚀', name: 'Jump Start',         cost: 4,  desc: 'Keep 5% of your watts through recycling.' },
+    { id: 'megasurge', icon: '⚡', name: 'Mega Surges',        cost: 4,  desc: 'Surge Overload payouts ×2.' },
+    { id: 'recycler',  icon: '♻️', name: "Recycler's Edge",    cost: 6,  desc: 'Prestige core gains ×1.5.' },
+    { id: 'resonance', icon: '💠', name: 'Core Resonance',     cost: 8,  desc: 'Each core gives +8% instead of +5%.' },
+    { id: 'nightshift',icon: '🌙', name: 'Night Shift',        cost: 10, desc: 'Offline efficiency 50% → 75%.' },
+    { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
+    { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
   ];
 
   // Every CORD_MILESTONE owned of a cord doubles that cord's output — milestone
@@ -75,9 +128,31 @@
     { id: 'allcord',  icon: '🧳', name: 'Full Toolkit',    desc: 'Own at least one of every cord type.',    cond: () => CORDS.every(c => (state.owned[c.id] || 0) >= 1), prog: () => [CORDS.filter(c => (state.owned[c.id] || 0) >= 1).length, CORDS.length] },
     { id: 'surge1',   icon: '✨', name: 'Spark Catcher',   desc: 'Catch your first power surge.',           cond: () => (state.surgesCollected || 0) >= 1 },
     { id: 'surge25',  icon: '🌩️', name: 'Storm Chaser',    desc: 'Catch 25 power surges.',                  cond: () => (state.surgesCollected || 0) >= 25, prog: () => [state.surgesCollected || 0, 25] },
-    { id: 'prest1',   icon: '♻️', name: 'Recycler',        desc: 'Recycle for your first prestige core.',   cond: () => (state.cores || 0) >= 1 },
-    { id: 'prest10',  icon: '💠', name: 'Core Collector',  desc: 'Hold 10 prestige cores.',                 cond: () => (state.cores || 0) >= 10, prog: () => [state.cores || 0, 10] },
+    { id: 'prest1',   icon: '♻️', name: 'Recycler',        desc: 'Recycle for your first prestige core.',   cond: () => (state.coresEarned || 0) >= 1 },
+    { id: 'prest10',  icon: '💠', name: 'Core Collector',  desc: 'Earn 10 prestige cores.',                 cond: () => (state.coresEarned || 0) >= 10, prog: () => [state.coresEarned || 0, 10] },
     { id: 'quantum',  icon: '⚛️', name: 'Quantum Leap',    desc: 'Own a Quantum Link.',                     cond: () => (state.owned.quantum || 0) >= 1 },
+    { id: 'w1qa',     icon: '💎', name: 'Quadrillionaire', desc: 'Earn 1 quadrillion total watts.',         cond: () => state.totalEarned >= 1e15, prog: () => [state.totalEarned, 1e15] },
+    { id: 'w1qi',     icon: '👑', name: 'Quintillion Lord',desc: 'Earn 1 quintillion total watts.',         cond: () => state.totalEarned >= 1e18, prog: () => [state.totalEarned, 1e18] },
+    { id: 'w1sx',     icon: '🌠', name: 'Sextillion Sage', desc: 'Earn 1 sextillion total watts.',          cond: () => state.totalEarned >= 1e21, prog: () => [state.totalEarned, 1e21] },
+    { id: 'wps1t',    icon: '🌋', name: 'Megastructure',   desc: 'Reach 1 trillion watts/sec.',             cond: () => totalWps() >= 1e12, prog: () => [totalWps(), 1e12] },
+    { id: 'wps1qa',   icon: '💥', name: 'Dyson Sphere',    desc: 'Reach 1 quadrillion watts/sec.',          cond: () => totalWps() >= 1e15, prog: () => [totalWps(), 1e15] },
+    { id: 'plug10k',  icon: '🤜', name: 'Carpal Tunnel',   desc: 'Hand-plug 10,000 cords.',                 cond: () => state.clicks >= 10000, prog: () => [state.clicks, 10000] },
+    { id: 'own250',   icon: '🏙️', name: 'Cord Hoarder',    desc: 'Own 250 of a single cord.',               cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 250) },
+    { id: 'own500',   icon: '🌇', name: 'Cord Singularity', desc: 'Own 500 of a single cord.',              cond: () => CORDS.some(c => (state.owned[c.id] || 0) >= 500) },
+    { id: 'gens1k',   icon: '🧰', name: 'Thousand Plugs',  desc: 'Own 1,000 generators in total.',          cond: () => totalGenerators() >= 1000, prog: () => [totalGenerators(), 1000] },
+    { id: 'void',     icon: '🕳️', name: 'Into the Void',   desc: 'Own a Dark Fiber.',                       cond: () => (state.owned.darkfib || 0) >= 1 },
+    { id: 'sing',     icon: '⚫', name: 'Point of No Return',desc: 'Own a Singularity Bus.',                 cond: () => (state.owned.singular || 0) >= 1 },
+    { id: 'multi',    icon: '🪐', name: 'Across Realities', desc: 'Own a Multiversal Hub.',                  cond: () => (state.owned.multivrs || 0) >= 1 },
+    { id: 'omega1',   icon: '🅾️', name: 'The Final Plug',  desc: 'Own an Omega Cord.',                      cond: () => (state.owned.omega || 0) >= 1 },
+    { id: 'allcord24',icon: '🧰', name: 'Master Electrician',desc: 'Own one of all 24 cord types.',          cond: () => CORDS.every(c => (state.owned[c.id] || 0) >= 1), prog: () => [CORDS.filter(c => (state.owned[c.id] || 0) >= 1).length, CORDS.length] },
+    { id: 'surge100', icon: '🌪️', name: 'Tempest',         desc: 'Catch 100 power surges.',                 cond: () => (state.surgesCollected || 0) >= 100, prog: () => [state.surgesCollected || 0, 100] },
+    { id: 'syn1ach',  icon: '🔗', name: 'Synergist',       desc: 'Buy a synergy upgrade.',                  cond: () => UPGRADES.some(u => u.kind === 'synergy' && state.upgrades[u.id]) },
+    { id: 'up15',     icon: '🔩', name: 'Master Tinkerer',  desc: 'Buy 15 upgrades.',                       cond: () => Object.keys(state.upgrades).length >= 15, prog: () => [Object.keys(state.upgrades).length, 15] },
+    { id: 'upAll',    icon: '🛠️', name: 'Fully Upgraded',  desc: 'Buy every upgrade.',                      cond: () => Object.keys(state.upgrades).length >= UPGRADES.length, prog: () => [Object.keys(state.upgrades).length, UPGRADES.length] },
+    { id: 'prest50',  icon: '🔷', name: 'Core Magnate',    desc: 'Earn 50 prestige cores.',                 cond: () => (state.coresEarned || 0) >= 50, prog: () => [state.coresEarned || 0, 50] },
+    { id: 'prest100', icon: '🟣', name: 'Core Overlord',   desc: 'Earn 100 prestige cores.',                cond: () => (state.coresEarned || 0) >= 100, prog: () => [state.coresEarned || 0, 100] },
+    { id: 'core1',    icon: '◆', name: 'Spend to Ascend',  desc: 'Buy your first core upgrade.',            cond: () => Object.keys(state.coreUpgrades || {}).length >= 1 },
+    { id: 'coreAll',  icon: '💟', name: 'Core Completionist',desc: 'Buy every core upgrade.',                cond: () => Object.keys(state.coreUpgrades || {}).length >= CORE_UPGRADES.length, prog: () => [Object.keys(state.coreUpgrades || {}).length, CORE_UPGRADES.length] },
   ];
 
   /* ---------- State ---------- */
@@ -85,9 +160,11 @@
     watts: 0,
     totalEarned: 0,
     clicks: 0,
-    cores: 0,            // prestige currency
+    cores: 0,            // prestige currency — SPENDABLE on core upgrades
+    coresEarned: 0,      // lifetime cores ever earned — drives the permanent bonus
     owned: {},           // cordId -> count
     upgrades: {},        // upgradeId -> true
+    coreUpgrades: {},    // coreUpgradeId -> true (permanent, persists across prestige)
     achievements: {},    // achievementId -> true (persists across prestige)
     surgesCollected: 0,  // lifetime power surges caught
     startedAt: Date.now(),
@@ -100,10 +177,27 @@
   // backfill any missing fields from older/partial saves
   state = Object.assign(defaultState(), state);
   state.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, state.settings || {});
+  // Older saves had `cores` double as the lifetime bonus source; seed coresEarned from it.
+  if (state.coresEarned == null) state.coresEarned = state.cores || 0;
+  if (state.coreUpgrades == null) state.coreUpgrades = {};
 
   /* ---------- Derived values ---------- */
+  const co = (id) => !!(state.coreUpgrades && state.coreUpgrades[id]);
+  // Per-core production bonus (lifetime cores), boosted by Core Resonance.
+  function corePer() { return co('resonance') ? 0.08 : 0.05; }
+  function coreClickMult() { return co('thumbs') ? 3 : 1; }
+  function coreProdMult() { let m = 1; if (co('phantom')) m *= 1.5; if (co('overdrive')) m *= 2; return m; }
+  function offlineCapMs() { return (24 + (co('battery') ? 24 : 0)) * 3600000; }
+  function offlineEff() { return co('nightshift') ? 0.75 : 0.5; }
+  function surgeDelayMult() { return co('magnet') ? 0.6 : 1; }
+  function surgeRewardMult() { return co('megasurge') ? 2 : 1; }
+  function prestigeGainMult() { return co('recycler') ? 1.5 : 1; }
+  function autoTapRate() { return co('autotap') ? 5 : 0; }
+  function prestigeKeepFrac() { return co('jumpstart') ? 0.05 : 0; }
+  function lifetimeBonusPct() { return Math.round(corePer() * 100 * (state.coresEarned || 0)); }
+
   function prestigeMult() {
-    return 1 + 0.05 * (state.cores || 0);
+    return 1 + corePer() * (state.coresEarned || 0);
   }
 
   // An upgrade's multiplier applies to a cord's WHOLE output — every unit you
@@ -115,6 +209,8 @@
       if (!state.upgrades[u.id]) continue;
       if (u.kind === 'cord' && u.cord === cordId) m *= u.mult;
       if (u.kind === 'global') m *= u.mult;
+      // Synergy: this cord gains +per per unit of another cord owned.
+      if (u.kind === 'synergy' && u.cord === cordId) m *= 1 + u.per * (state.owned[u.from] || 0);
     }
     // Ownership milestones: ×2 for every CORD_MILESTONE owned.
     m *= Math.pow(2, Math.floor((state.owned[cordId] || 0) / CORD_MILESTONE));
@@ -138,7 +234,7 @@
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
-    return sum * prestigeMult() * PROD_MULT * buffMult('prod');
+    return sum * prestigeMult() * PROD_MULT * coreProdMult() * buffMult('prod');
   }
 
   function clickPower() {
@@ -151,7 +247,7 @@
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'global') glob *= u.mult;
     }
-    return p * glob * prestigeMult() * PROD_MULT * buffMult('click');
+    return p * glob * prestigeMult() * PROD_MULT * coreClickMult() * buffMult('click');
   }
 
   function cordCost(cord, count) {
@@ -187,14 +283,15 @@
   }
 
   function prestigeGain() {
-    // Total cores this run "deserves" follows a sqrt curve; you collect the
-    // difference between that and what you already hold.
-    const potential = Math.floor(Math.sqrt(state.totalEarned / 1e9));
-    return Math.max(0, potential - (state.cores || 0));
+    // Cores "deserved" follows a sqrt curve (×Recycler's Edge bonus); you
+    // collect the difference vs. cores already earned this lifetime.
+    const potential = Math.floor(Math.sqrt(state.totalEarned / 1e9) * prestigeGainMult());
+    return Math.max(0, potential - (state.coresEarned || 0));
   }
 
   /* ---------- Number formatting ---------- */
-  const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+  const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc',
+    'Ud', 'Dd', 'Td', 'Qad', 'Qid', 'Sxd', 'Spd', 'Ocd', 'Nod', 'Vg', 'Uvg'];
   function fmt(n) {
     if (!isFinite(n)) return '∞';
     if (n < 1000) return (Math.floor(n * 10) / 10).toString().replace(/\.0$/, '');
@@ -300,6 +397,7 @@
     socket: $('#socket'), socketSvg: $('#socketSvg'),
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
+    corelist: $('#corelist'),
     statTotal: $('#statTotal'), statClicks: $('#statClicks'), statWps: $('#statWps'),
     statGens: $('#statGens'), statSurges: $('#statSurges'), statAch: $('#statAch'),
     statTime: $('#statTime'), statCores: $('#statCores'),
@@ -381,7 +479,7 @@
   let surgeHideTimer = null;
 
   function scheduleSurge() {
-    const delay = 60000 + Math.random() * 90000; // 60–150s between surges
+    const delay = (60000 + Math.random() * 90000) * surgeDelayMult(); // 60–150s (Surge Magnet: ×0.6)
     setTimeout(trySpawnSurge, delay);
   }
   function trySpawnSurge() {
@@ -412,7 +510,7 @@
     const now = Date.now();
     const roll = Math.random();
     if (roll < 0.5) {
-      const bonus = Math.max(totalWps() * 90, clickPower() * 60, 50);
+      const bonus = Math.max(totalWps() * 90, clickPower() * 60, 50) * surgeRewardMult();
       state.watts += bonus;
       state.totalEarned += bonus;
       spawnFloater(bonus);
@@ -555,6 +653,20 @@
     return (state.owned[u.req.cord] || 0) >= u.req.n;
   }
 
+  function buyCoreUpgrade(cu) {
+    if (state.coreUpgrades[cu.id]) return;
+    if ((state.cores || 0) < cu.cost) { toast('Not enough cores'); blip(120, 0.06); return; }
+    state.cores -= cu.cost;
+    state.coreUpgrades[cu.id] = true;
+    blip(700, 0.16, 'sawtooth', 0.05);
+    buzz([0, 20, 40, 20]);
+    toast('◆ ' + cu.name + '!', true);
+    checkAchievements();
+    renderCoreShop();
+    renderShop();        // production multipliers may have changed
+    renderStatsLite();
+  }
+
   /* ---------- Rendering ---------- */
   function renderShop() {
     renderCords();
@@ -627,14 +739,31 @@
     el.uplist.innerHTML = html;
   }
 
+  function renderCoreShop() {
+    if (!el.corelist) return;
+    let html = '';
+    for (const cu of CORE_UPGRADES) {
+      const bought = !!state.coreUpgrades[cu.id];
+      const can = !bought && (state.cores || 0) >= cu.cost;
+      const cls = bought ? 'bought' : can ? 'ok' : 'no';
+      html += `
+        <button class="upg core ${cls}" data-core="${cu.id}">
+          <div class="un">${cu.icon} ${cu.name}</div>
+          <div class="ud">${cu.desc}</div>
+          <div class="uc">${bought ? '✓ OWNED' : '◆ ' + cu.cost}</div>
+        </button>`;
+    }
+    el.corelist.innerHTML = html;
+  }
+
   // lightweight per-frame updates (numbers only, no list rebuild)
   function renderStatsLite() {
     const wps = totalWps();
     el.watts.textContent = fmt(state.watts);
     el.wps.textContent = fmt(wps);
     el.tapval.textContent = fmt(clickPower());
-    el.coresline.textContent = (state.cores || 0) > 0
-      ? `◆ ${fmtInt(state.cores)} cores +${state.cores * 5}%` : '';
+    el.coresline.textContent = (state.coresEarned || 0) > 0
+      ? `◆ ${fmtInt(state.cores)} · +${lifetimeBonusPct()}%` : '';
     el.statTotal.textContent = fmt(state.totalEarned);
     el.statClicks.textContent = fmtInt(state.clicks);
     el.statWps.textContent = fmt(wps);
@@ -646,7 +775,7 @@
     const pg = prestigeGain();
     el.coregain.textContent = fmtInt(pg);
     el.corecount.textContent = fmtInt(state.cores || 0);
-    el.prestigemult.textContent = '+' + ((state.cores || 0) * 5) + '%';
+    el.prestigemult.textContent = '+' + lifetimeBonusPct() + '%';
     el.prestigeBtn.classList.toggle('dis', pg < 1);
   }
 
@@ -676,6 +805,7 @@
 
   function renderAll() {
     renderShop();
+    renderCoreShop();
     renderGoals();
     renderBuffs();
     renderStatsLite();
@@ -713,12 +843,13 @@
   function doPrestige() {
     const gain = prestigeGain();
     if (gain <= 0) { toast('Earn more before recycling'); return; }
-    const newPct = ((state.cores || 0) + gain) * 5;
+    const newPct = Math.round(corePer() * 100 * ((state.coresEarned || 0) + gain));
+    const kept = Math.floor((state.watts || 0) * prestigeKeepFrac());
     showModal(`
       <h2 class="danger">♻ RECYCLE?</h2>
-      <p class="dim">Reset all watts, cords &amp; upgrades.</p>
+      <p class="dim">Reset watts, cords &amp; upgrades.<br>Cores, core upgrades &amp; goals are kept.</p>
       <p class="big">+${fmt(gain)} ◆ Cores</p>
-      <p>New bonus: <b style="color:var(--green)">+${newPct}%</b></p>
+      <p>New bonus: <b style="color:var(--green)">+${newPct}%</b>${kept > 0 ? `<br><span class="dim">Jump Start keeps ${fmt(kept)} W</span>` : ''}</p>
       <div class="row2" style="margin-top:14px">
         <button class="bigbtn" id="mYes">CONFIRM</button>
         <button class="smbtn" id="mNo">CANCEL</button>
@@ -726,12 +857,15 @@
     document.getElementById('mYes').addEventListener('click', () => {
       const carry = {
         cores: (state.cores || 0) + gain,
+        coresEarned: (state.coresEarned || 0) + gain,
+        coreUpgrades: state.coreUpgrades,
         settings: state.settings,
         achievements: state.achievements,
         surgesCollected: state.surgesCollected,
         startedAt: state.startedAt,
       };
       state = Object.assign(defaultState(), carry);
+      state.watts = kept;
       buffs = [];
       save();
       hideModal();
@@ -748,17 +882,18 @@
   /* ---------- Offline earnings ---------- */
   function applyOffline() {
     const now = Date.now();
-    const away = Math.min(now - (state.lastSeen || now), 1000 * 60 * 60 * 24); // cap 24h
+    const eff = offlineEff();
+    const away = Math.min(now - (state.lastSeen || now), offlineCapMs()); // Battery Backup raises the cap
     if (away < 1000 * 30) return; // ignore < 30s
     const rate = totalWps();
-    const earned = rate * (away / 1000) * 0.5; // 50% efficiency while away
+    const earned = rate * (away / 1000) * eff;
     if (earned <= 0) return;
     state.watts += earned;
     state.totalEarned += earned;
     const h = Math.floor(away / 3600000), m = Math.floor((away % 3600000) / 60000);
     showModal(`
       <h2>⚡ WELCOME BACK</h2>
-      <p class="dim">Your cords ran for<br><b style="color:var(--cyan)">${h}h ${m}m</b> (50% rate)</p>
+      <p class="dim">Your cords ran for<br><b style="color:var(--cyan)">${h}h ${m}m</b> (${Math.round(eff * 100)}% rate)</p>
       <p class="big">+${fmt(earned)} W</p>
       <button class="bigbtn" id="wbOk" style="margin-top:12px">COLLECT</button>`);
     document.getElementById('wbOk').addEventListener('click', hideModal);
@@ -822,7 +957,7 @@
       if (tab.dataset.tab === 'goals') renderGoals();
       else if (tab.dataset.tab === 'up') renderUpgrades();
       else if (tab.dataset.tab === 'plug') renderCords();
-      else if (tab.dataset.tab === 'more') { renderStatsLite(); syncSettingsUI(); }
+      else if (tab.dataset.tab === 'more') { renderCoreShop(); renderStatsLite(); syncSettingsUI(); }
     });
   });
 
@@ -842,6 +977,10 @@
   el.uplist.addEventListener('click', (e) => {
     const item = e.target.closest('[data-upgrade]');
     if (item) buyUpgrade(UPGRADES.find(u => u.id === item.dataset.upgrade));
+  });
+  el.corelist.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-core]');
+    if (item) buyCoreUpgrade(CORE_UPGRADES.find(cu => cu.id === item.dataset.core));
   });
 
   // prestige + save buttons
@@ -899,7 +1038,10 @@
     const now = Date.now();
     const dt = (now - lastTick) / 1000;
     lastTick = now;
-    const gain = totalWps() * dt;
+    let gain = totalWps() * dt;
+    // Auto-Tapper core upgrade: free passive taps (no click-count inflation).
+    const taps = autoTapRate();
+    if (taps > 0) gain += clickPower() * taps * dt;
     if (gain > 0) {
       state.watts += gain;
       state.totalEarned += gain;
