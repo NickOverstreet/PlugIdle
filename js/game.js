@@ -6,11 +6,12 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.6.0';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.7.0';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
   const PROD_MULT = 1.6;          // global pacing: scales all income (active, idle & clicks)
+  const COST_GROWTH = 1.12;       // per-buy cost multiplier (lower = smoother stacking; was 1.15)
 
   /* ---------- Content: cord generators ----------
      Each generator produces watts/sec. Cost grows 1.15x per buy. */
@@ -23,22 +24,22 @@
     { id: 'power',  icon: '🔋', name: 'Power Cord',       baseCost: 1.4e6,    wps: 1400,  desc: 'The three-pronged workhorse.' },
     { id: 'thndr',  icon: '🌩️', name: 'Thunderbolt 4',    baseCost: 2e7,      wps: 7800,  desc: '40 Gbps of pure plug-in bliss.' },
     { id: 'fiber',  icon: '✨', name: 'Fiber Optic Line', baseCost: 3.3e8,    wps: 44000, desc: 'Plugging in at the speed of light.' },
-    { id: 'indus',  icon: '🏭', name: 'Industrial Bus',   baseCost: 5.1e9,    wps: 260000,desc: 'Cables thicker than your arm.' },
-    { id: 'subsea', icon: '🌊', name: 'Subsea Cable',     baseCost: 7.5e10,   wps: 1.6e6, desc: 'Wiring continents together.' },
-    { id: 'orbit',  icon: '🛰️', name: 'Orbital Tether',   baseCost: 1e12,     wps: 1e7,   desc: 'A cord from the ground to the stars.' },
-    { id: 'quantum',icon: '⚛️', name: 'Quantum Link',     baseCost: 1.4e13,   wps: 6.5e7, desc: 'Entangled. Connected. Everywhere at once.' },
-    { id: 'neural',  icon: '🧠', name: 'Neural Cable',     baseCost: 2e14,    wps: 4e8,    desc: 'Plugged straight into the cortex.' },
-    { id: 'plasma',  icon: '🔥', name: 'Plasma Conduit',   baseCost: 3e15,    wps: 2.6e9,  desc: 'Liquid lightning in a braided sheath.' },
-    { id: 'graviton',icon: '🌀', name: 'Graviton Cord',    baseCost: 4e16,    wps: 1.7e10, desc: 'It plugs into spacetime itself.' },
-    { id: 'darkfib', icon: '🕳️', name: 'Dark Fiber',       baseCost: 6e17,    wps: 1.1e11, desc: 'Bandwidth drawn from the void.' },
-    { id: 'wormhole',icon: '🌌', name: 'Wormhole Jack',    baseCost: 9e18,    wps: 7e11,   desc: 'Both ends, everywhere, at once.' },
-    { id: 'neutrino',icon: '☄️', name: 'Neutrino Strand',  baseCost: 1.3e20,  wps: 4.5e12, desc: 'Passes through planets to connect.' },
-    { id: 'tachyon', icon: '💫', name: 'Tachyon Line',     baseCost: 2e21,    wps: 3e13,   desc: 'Delivers the data before you ask.' },
-    { id: 'singular',icon: '⚫', name: 'Singularity Bus',  baseCost: 3e22,    wps: 1.9e14, desc: 'One cord to compress them all.' },
-    { id: 'cosmic',  icon: '✴️', name: 'Cosmic String',    baseCost: 4.5e23,  wps: 1.2e15, desc: 'A defect in reality, now load-bearing.' },
-    { id: 'multivrs',icon: '🪐', name: 'Multiversal Hub',  baseCost: 7e24,    wps: 8e15,   desc: 'Plugs into every timeline at once.' },
-    { id: 'divine',  icon: '😇', name: 'Divine Connector', baseCost: 1e26,    wps: 5e16,   desc: 'The port the universe booted from.' },
-    { id: 'omega',   icon: '🅾️', name: 'Omega Cord',       baseCost: 1.5e27,  wps: 3.3e17, desc: 'The final plug. Nothing connects beyond.' },
+    { id: 'indus',  icon: '🏭', name: 'Industrial Bus',   baseCost: 5.1e9,    wps: 4e5,desc: 'Cables thicker than your arm.' },
+    { id: 'subsea', icon: '🌊', name: 'Subsea Cable',     baseCost: 7.5e10,   wps: 3.6e6, desc: 'Wiring continents together.' },
+    { id: 'orbit',  icon: '🛰️', name: 'Orbital Tether',   baseCost: 1e12,     wps: 3.2e7,   desc: 'A cord from the ground to the stars.' },
+    { id: 'quantum',icon: '⚛️', name: 'Quantum Link',     baseCost: 1.4e13,   wps: 2.9e8, desc: 'Entangled. Connected. Everywhere at once.' },
+    { id: 'neural',  icon: '🧠', name: 'Neural Cable',     baseCost: 2e14,    wps: 2.6e9,    desc: 'Plugged straight into the cortex.' },
+    { id: 'plasma',  icon: '🔥', name: 'Plasma Conduit',   baseCost: 3e15,    wps: 2.3e10,  desc: 'Liquid lightning in a braided sheath.' },
+    { id: 'graviton',icon: '🌀', name: 'Graviton Cord',    baseCost: 4e16,    wps: 2.1e11, desc: 'It plugs into spacetime itself.' },
+    { id: 'darkfib', icon: '🕳️', name: 'Dark Fiber',       baseCost: 6e17,    wps: 1.9e12, desc: 'Bandwidth drawn from the void.' },
+    { id: 'wormhole',icon: '🌌', name: 'Wormhole Jack',    baseCost: 9e18,    wps: 1.7e13,   desc: 'Both ends, everywhere, at once.' },
+    { id: 'neutrino',icon: '☄️', name: 'Neutrino Strand',  baseCost: 1.3e20,  wps: 1.5e14, desc: 'Passes through planets to connect.' },
+    { id: 'tachyon', icon: '💫', name: 'Tachyon Line',     baseCost: 2e21,    wps: 1.4e15,   desc: 'Delivers the data before you ask.' },
+    { id: 'singular',icon: '⚫', name: 'Singularity Bus',  baseCost: 3e22,    wps: 1.25e16, desc: 'One cord to compress them all.' },
+    { id: 'cosmic',  icon: '✴️', name: 'Cosmic String',    baseCost: 4.5e23,  wps: 1.1e17, desc: 'A defect in reality, now load-bearing.' },
+    { id: 'multivrs',icon: '🪐', name: 'Multiversal Hub',  baseCost: 7e24,    wps: 1e18,   desc: 'Plugs into every timeline at once.' },
+    { id: 'divine',  icon: '😇', name: 'Divine Connector', baseCost: 1e26,    wps: 9e18,   desc: 'The port the universe booted from.' },
+    { id: 'omega',   icon: '🅾️', name: 'Omega Cord',       baseCost: 1.5e27,  wps: 8e19, desc: 'The final plug. Nothing connects beyond.' },
   ];
 
   /* ---------- Content: upgrades ----------
@@ -66,6 +67,12 @@
     { id: 'u_glob5',  icon: '🎛️', name: 'Plug Orchestra',     cost: 1e14,   kind: 'global', mult: 3, desc: 'All cords x3.' },
     { id: 'u_glob6',  icon: '🧮', name: 'AI Cable Router',     cost: 1e18,   kind: 'global', mult: 4, desc: 'All cords x4.' },
     { id: 'u_glob7',  icon: '🌐', name: 'Reality Patchbay',    cost: 1e23,   kind: 'global', mult: 5, desc: 'All cords x5.' },
+    { id: 'u_click7', icon: '🥊', name: 'Plasma Gauntlet',     cost: 5e13,   kind: 'click',  mult: 5, desc: 'Tap power x5.' },
+    { id: 'u_click8', icon: '🌟', name: 'Singularity Grip',    cost: 1e19,   kind: 'click',  mult: 10, desc: 'Tap power x10.' },
+    // Tap-scaling upgrades — each hand-plug also earns a % of your current W/s.
+    { id: 'tw1', icon: '⚡', name: 'Live Wire',      cost: 5e4,  kind: 'tapwps', frac: 0.01, req: { cord: 'usbc',  n: 1 }, desc: 'Each tap also earns 1% of your W/s.' },
+    { id: 'tw2', icon: '🔋', name: 'Capacitor Bank', cost: 5e7,  kind: 'tapwps', frac: 0.02, req: { cord: 'thndr', n: 1 }, desc: 'Each tap earns +2% of your W/s.' },
+    { id: 'tw3', icon: '🗼', name: 'Tesla Coil',     cost: 5e11, kind: 'tapwps', frac: 0.03, req: { cord: 'orbit', n: 1 }, desc: 'Each tap earns +3% of your W/s.' },
     // Synergy upgrades — one cord's fleet boosts another (Cookie-Clicker style).
     { id: 'syn1', icon: '🔗', name: 'Daisy Chain',       cost: 2e4,  kind: 'synergy', cord: 'jack',  from: 'usba',    per: 0.005, req: { cord: 'usba',  n: 10 }, desc: '+0.5% Audio Jack per USB-A owned.' },
     { id: 'syn2', icon: '🪢', name: 'Bandwidth Bonding',  cost: 5e5,  kind: 'synergy', cord: 'eth',   from: 'hdmi',    per: 0.005, req: { cord: 'hdmi',  n: 10 }, desc: '+0.5% Ethernet per HDMI owned.' },
@@ -91,6 +98,7 @@
      production bonus is based on cores ever EARNED, so it never drops. */
   const CORE_UPGRADES = [
     { id: 'thumbs',    icon: '👍', name: 'Overclocked Thumbs', cost: 1,  desc: 'Tap power ×3.' },
+    { id: 'static',    icon: '🔱', name: 'Static Discharge',   cost: 5,  desc: 'Each tap also earns 4% of your W/s.' },
     { id: 'phantom',   icon: '🔌', name: 'Phantom Power',      cost: 2,  desc: 'All production ×1.5.' },
     { id: 'battery',   icon: '🔋', name: 'Battery Backup',     cost: 2,  desc: 'Offline cap +24h (48h total).' },
     { id: 'magnet',    icon: '🧲', name: 'Surge Magnet',       cost: 3,  desc: 'Power surges arrive ~40% sooner.' },
@@ -238,6 +246,27 @@
     return sum * prestigeMult() * PROD_MULT * coreProdMult() * buffMult('prod');
   }
 
+  // ---- Tap power: keep hand-plugging relevant for the whole game ----
+  // Tap milestones: every threshold of lifetime hand-plugs grants ×1.5 tap power.
+  const TAP_MILESTONES = [100, 500, 2500, 10000, 50000, 250000, 1e6, 5e6];
+  function tapMilestonesPassed() {
+    let n = 0;
+    for (const t of TAP_MILESTONES) if ((state.clicks || 0) >= t) n++;
+    return n;
+  }
+  function tapMilestoneMult() { return Math.pow(1.5, tapMilestonesPassed()); }
+  function nextTapMilestone() {
+    for (const t of TAP_MILESTONES) if ((state.clicks || 0) < t) return t;
+    return null;
+  }
+  // Taps also earn a % of your current W/s (so they scale with production forever).
+  function tapWpsFrac() {
+    let f = 0;
+    for (const u of UPGRADES) if (state.upgrades[u.id] && u.kind === 'tapwps') f += u.frac;
+    if (co('static')) f += 0.04;
+    return f;
+  }
+
   function clickPower() {
     let p = 1;
     for (const u of UPGRADES) {
@@ -248,13 +277,15 @@
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'global') glob *= u.mult;
     }
-    return p * glob * prestigeMult() * PROD_MULT * coreClickMult() * buffMult('click');
+    const flat = p * glob * prestigeMult() * PROD_MULT * coreClickMult() * tapMilestoneMult();
+    const fromWps = tapWpsFrac() * totalWps();   // scales with income, keeps taps useful
+    return (flat + fromWps) * buffMult('click');
   }
 
   function cordCost(cord, count) {
     // cost of buying `count` more, starting from current owned
     const owned = state.owned[cord.id] || 0;
-    const r = 1.15;
+    const r = COST_GROWTH;
     let total = 0;
     for (let i = 0; i < count; i++) {
       total += cord.baseCost * Math.pow(r, owned + i);
@@ -264,7 +295,7 @@
 
   function maxAffordable(cord) {
     const owned = state.owned[cord.id] || 0;
-    const r = 1.15;
+    const r = COST_GROWTH;
     const base = cord.baseCost * Math.pow(r, owned);
     // geometric series: watts >= base*(r^k - 1)/(r-1)
     const w = state.watts;
@@ -395,7 +426,7 @@
   const $ = (s) => document.querySelector(s);
   const el = {
     watts: $('#watts'), wps: $('#wps'), tapval: $('#tapval'), coresline: $('#coresline'),
-    socket: $('#socket'), socketSvg: $('#socketSvg'),
+    socket: $('#socket'), socketSvg: $('#socketSvg'), tapinfo: $('#tapinfo'),
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
     corelist: $('#corelist'),
@@ -598,6 +629,13 @@
     state.watts += gain;
     state.totalEarned += gain;
     state.clicks++;
+    // Tap milestone reached? Permanent ×1.5 tap power.
+    if (TAP_MILESTONES.includes(state.clicks)) {
+      toast(`👆 TAP MILESTONE! Tap power ×1.5 (now ×${fmt(tapMilestoneMult())})`, true);
+      blip(990, 0.18, 'sawtooth', 0.05);
+      buzz([0, 25, 40, 25]);
+      screenShake(1);
+    }
     spawnFloater(gain);
     blip(660 + Math.random() * 80, 0.04, 'triangle');
     buzz(8); // light tap tick
@@ -764,6 +802,15 @@
     el.watts.textContent = fmt(state.watts);
     el.wps.textContent = fmt(wps);
     el.tapval.textContent = fmt(clickPower());
+    if (el.tapinfo) {
+      const next = nextTapMilestone();
+      const frac = tapWpsFrac();
+      const parts = [];
+      if (tapMilestonesPassed() > 0) parts.push(`milestone ×${fmt(tapMilestoneMult())}`);
+      if (frac > 0) parts.push(`+${Math.round(frac * 100)}% W/s per tap`);
+      if (next) parts.push(`next ×1.5 @ ${fmtInt(next)} taps (${fmtInt(state.clicks)})`);
+      el.tapinfo.textContent = parts.join(' · ');
+    }
     el.coresline.textContent = (state.coresEarned || 0) > 0
       ? `◆ ${fmtInt(state.cores)} · +${lifetimeBonusPct()}%` : '';
     el.statTotal.textContent = fmt(state.totalEarned);
