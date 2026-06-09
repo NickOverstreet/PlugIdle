@@ -147,6 +147,17 @@ main ::-webkit-scrollbar{ width:6px; } main ::-webkit-scrollbar-thumb{ backgroun
 .milestone i{ display:block; height:100%; background:var(--magenta); box-shadow:0 0 6px var(--magenta); }
 .empty-note{ color:var(--dim); text-align:center; padding:24px 10px; font-size:18px; }
 
+/* ---------- Compact tap button on the Upgrades tab ---------- */
+.taptab{
+  position:sticky; top:0; z-index:3; width:100%;
+  font-family:var(--pixel); font-size:11px; padding:13px; margin-bottom:10px;
+  background:linear-gradient(#13241a,#0c170f); color:var(--green);
+  border:2px solid var(--green); cursor:pointer; letter-spacing:1px;
+  text-shadow:0 0 6px rgba(61,252,107,.5);
+}
+.taptab:active{ transform:translateY(2px); }
+.taptab b{ color:var(--amber); }
+
 /* ---------- Upgrade grid ---------- */
 .ugrid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .upg{

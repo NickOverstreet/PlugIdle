@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.7.0';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.7.1';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -427,6 +427,7 @@
   const el = {
     watts: $('#watts'), wps: $('#wps'), tapval: $('#tapval'), coresline: $('#coresline'),
     socket: $('#socket'), socketSvg: $('#socketSvg'), tapinfo: $('#tapinfo'),
+    socketMini: $('#socketMini'), tapvalMini: $('#tapvalMini'),
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
     corelist: $('#corelist'),
@@ -478,9 +479,15 @@
   }
 
   /* ---------- Floating numbers ---------- */
+  // Whichever tap control is currently on screen (main socket, or the
+  // compact tap button on the Upgrades tab).
+  function tapAnchor() {
+    if (el.socketMini && document.getElementById('p-up').classList.contains('active')) return el.socketMini;
+    return el.socket;
+  }
   function spawnFloater(amount) {
     if (!state.settings.floats) return;
-    const r = el.socket.getBoundingClientRect();
+    const r = tapAnchor().getBoundingClientRect();
     const f = document.createElement('div');
     f.className = 'float';
     f.textContent = '+' + fmt(amount);
@@ -802,6 +809,7 @@
     el.watts.textContent = fmt(state.watts);
     el.wps.textContent = fmt(wps);
     el.tapval.textContent = fmt(clickPower());
+    if (el.tapvalMini) el.tapvalMini.textContent = fmt(clickPower());
     if (el.tapinfo) {
       const next = nextTapMilestone();
       const frac = tapWpsFrac();
@@ -992,6 +1000,7 @@
 
   /* ---------- Event wiring ---------- */
   el.socket.addEventListener('click', plug);
+  el.socketMini.addEventListener('click', plug); // tap button on the Upgrades tab
   // iOS suppresses :active styling unless a touchstart listener exists.
   document.body.addEventListener('touchstart', () => {}, { passive: true });
 
