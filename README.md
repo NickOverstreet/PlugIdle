@@ -27,7 +27,7 @@ python3 -m http.server 8000
 - **🏆 Goals**: a tab full of achievements that unlock as you hit milestones, giving you something to chase.
 - **Offline earnings**: your cords keep working while you're away (50% efficiency, capped at 24h), shown in a "Welcome back" summary.
 - **Recycle Plant (prestige)**: melt your whole operation into Prestige Cores for a permanent +5% bonus each (achievements and surge stats carry over).
-- **Settings**: toggle sound, animations, and scientific notation.
+- **Settings**: toggle sound, haptics (vibration), animations, and scientific notation.
 
 ### Designed to be fun, not manipulative
 

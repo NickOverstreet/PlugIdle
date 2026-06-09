@@ -92,14 +92,14 @@
     surgesCollected: 0,  // lifetime power surges caught
     startedAt: Date.now(),
     lastSeen: Date.now(),
-    settings: { sound: true, floats: true, sci: false },
+    settings: { sound: true, floats: true, sci: false, haptics: true },
     bulk: 1,             // 1, 10, 100, or 'max'
   });
 
   let state = loadLocal() || defaultState();
   // backfill any missing fields from older/partial saves
   state = Object.assign(defaultState(), state);
-  state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
+  state.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, state.settings || {});
 
   /* ---------- Derived values ---------- */
   function prestigeMult() {
@@ -337,6 +337,15 @@
     } catch (e) { /* audio blocked */ }
   }
 
+  /* ---------- Haptics (Vibration API) ----------
+     Progressive enhancement: unsupported on iOS Safari, where the audio +
+     visual feedback already covers it. Feature-detected and setting-gated. */
+  const canVibrate = typeof navigator !== 'undefined' && 'vibrate' in navigator;
+  function buzz(pattern) {
+    if (!state.settings.haptics || !canVibrate) return;
+    try { navigator.vibrate(pattern); } catch (e) { /* ignore */ }
+  }
+
   /* ---------- Floating numbers ---------- */
   function spawnFloater(amount) {
     if (!state.settings.floats) return;
@@ -417,6 +426,7 @@
     }
     state.surgesCollected = (state.surgesCollected || 0) + 1;
     blip(1200, 0.18, 'square', 0.06);
+    buzz([0, 30, 50, 30]);
     screenShake(1.2);
     checkAchievements();
     renderBuffs();
@@ -446,6 +456,7 @@
         earnedNew = true;
         toast('🏆 ' + a.name, true);
         blip(1320, 0.2, 'triangle', 0.06);
+        buzz([0, 20, 50, 20, 50, 40]);
         screenShake(0.8);
       }
     }
@@ -489,6 +500,7 @@
     state.clicks++;
     spawnFloater(gain);
     blip(660 + Math.random() * 80, 0.04, 'triangle');
+    buzz(8); // light tap tick
     if (state.settings.floats) {
       el.socket.classList.add('tapping');
       setTimeout(() => el.socket.classList.remove('tapping'), 200);
@@ -511,11 +523,13 @@
     const after = before + count;
     state.owned[cord.id] = after;
     blip(320, 0.06, 'square', 0.05);
+    buzz(12);
     // Celebrate crossing a ×2 ownership milestone.
     if (Math.floor(after / CORD_MILESTONE) > Math.floor(before / CORD_MILESTONE)) {
       const tier = Math.pow(2, Math.floor(after / CORD_MILESTONE));
       toast(`✖️ ${cord.name} milestone! Now ×${tier}`, true);
       blip(990, 0.18, 'sawtooth', 0.05);
+      buzz([0, 25, 40, 25]);
       screenShake(1);
     }
     checkAchievements();
@@ -529,6 +543,7 @@
     state.watts -= u.cost;
     state.upgrades[u.id] = true;
     blip(880, 0.12, 'sawtooth', 0.05);
+    buzz([0, 15, 30, 15]);
     toast('⬆ ' + u.name + ' purchased!');
     checkAchievements();
     renderShop();
@@ -650,6 +665,7 @@
   function syncSettingsUI() {
     document.querySelectorAll('.sw').forEach((b) => {
       const v = b.dataset.set === 'sound' ? state.settings.sound
+              : b.dataset.set === 'haptic' ? state.settings.haptics
               : b.dataset.set === 'anim' ? state.settings.floats
               : state.settings.sci;
       b.classList.toggle('on', !!v);
@@ -720,6 +736,7 @@
       save();
       hideModal();
       blip(220, 0.3, 'sawtooth', 0.06);
+      buzz([0, 40, 60, 40, 60, 80]);
       screenShake(1.5);
       toast(`♻ Empire recycled. +${gain} cores`, true);
       checkAchievements();
@@ -762,7 +779,7 @@
       const obj = JSON.parse(decodeURIComponent(escape(atob(code))));
       if (typeof obj !== 'object' || obj.watts === undefined) throw new Error('bad');
       state = Object.assign(defaultState(), obj);
-      state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
+      state.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, state.settings || {});
       save();
       toast('📥 Save imported!');
       renderAll();
@@ -791,6 +808,8 @@
 
   /* ---------- Event wiring ---------- */
   el.socket.addEventListener('click', plug);
+  // iOS suppresses :active styling unless a touchstart listener exists.
+  document.body.addEventListener('touchstart', () => {}, { passive: true });
 
   // tabs (bottom nav)
   document.querySelectorAll('.tab').forEach(tab => {
@@ -836,6 +855,7 @@
     b.addEventListener('click', () => {
       const k = b.dataset.set;
       if (k === 'sound') state.settings.sound = !state.settings.sound;
+      else if (k === 'haptic') { state.settings.haptics = !state.settings.haptics; if (state.settings.haptics) buzz(20); }
       else if (k === 'anim') state.settings.floats = !state.settings.floats;
       else state.settings.sci = !state.settings.sci;
       syncSettingsUI();
@@ -901,7 +921,7 @@
     const durable = await loadDurable();
     if (durable) {
       state = Object.assign(defaultState(), durable);
-      state.settings = Object.assign({ sound: true, floats: true, sci: false }, state.settings || {});
+      state.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, state.settings || {});
     }
     await requestPersistence();
     applyOffline();
