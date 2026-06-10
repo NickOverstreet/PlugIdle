@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.13.0';       // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.13.1';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -1027,9 +1027,9 @@
             <div class="milestone"><i style="width:${msPct}%"></i></div>
           </div>
           <div class="right">
-            <div class="owned">own ${fmtInt(owned)}${count > 1 ? `<small> +${count}</small>` : ''}</div>
+            <div class="owned">own ${fmt(owned)}</div>
             <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} W</div>
-            ${owned > 0 ? `<div class="mnote">×${nextMult} @ ${nextMs}</div>` : ''}
+            <div class="mnote">${owned > 0 ? `×${nextMult} @ ${fmt(nextMs)}` : '&nbsp;'}</div>
           </div>
         </button>`;
     });

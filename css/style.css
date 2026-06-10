@@ -143,16 +143,20 @@ main ::-webkit-scrollbar{ width:6px; } main ::-webkit-scrollbar-thumb{ backgroun
 .card:active.buyable{ transform:translateY(1px); }
 .card .ico{ font-size:30px; width:42px; text-align:center; flex:0 0 42px; }
 .card .body{ flex:1; min-width:0; }
-.card .nm{ font-size:21px; color:var(--text); line-height:1; }
-.card .meta{ font-size:16px; color:var(--dim); margin-top:2px; }
+/* nm + meta never wrap — keeps each card a fixed height no matter how wide the
+   numbers in .right get, so buying never reflows/jiggles the list. */
+.card .nm{ font-size:21px; color:var(--text); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .meta{ font-size:16px; color:var(--dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .card .meta .pos{ color:var(--cyan); }
-.card .right{ text-align:right; flex:0 0 auto; }
-.card .owned{ font-family:var(--pixel); font-size:12px; color:var(--green); }
+/* Fixed-width column with tabular digits so changing counts/costs never resize
+   the card. Numbers are kept compact (fmt) in JS so they fit without clipping. */
+.card .right{ text-align:right; flex:0 0 108px; width:108px; }
+.card .owned{ font-family:var(--pixel); font-size:12px; color:var(--green); white-space:nowrap; overflow:hidden; font-variant-numeric:tabular-nums; }
 .card .owned small{ font-family:var(--term); font-size:15px; color:var(--amber); }
-.card .cost{ font-size:20px; color:var(--amber); margin-top:3px; }
+.card .cost{ font-size:20px; color:var(--amber); margin-top:3px; white-space:nowrap; overflow:hidden; font-variant-numeric:tabular-nums; }
 .card .cost.ok{ color:var(--green); }
 .card .cost.no{ color:var(--red); }
-.card .mnote{ font-size:14px; color:var(--magenta); margin-top:2px; }
+.card .mnote{ font-size:14px; color:var(--magenta); margin-top:2px; white-space:nowrap; overflow:hidden; font-variant-numeric:tabular-nums; }
 .milestone{ position:absolute; bottom:2px; left:5px; right:5px; height:3px; background:#0a1410; }
 .milestone i{ display:block; height:100%; background:var(--magenta); box-shadow:0 0 6px var(--magenta); }
 .empty-note{ color:var(--dim); text-align:center; padding:24px 10px; font-size:18px; }
