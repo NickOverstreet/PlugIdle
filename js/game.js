@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.11.0';       // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.12.0';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -116,6 +116,11 @@
     { id: 'nightshift',icon: '🌙', name: 'Night Shift',        cost: 10, desc: 'Offline efficiency 50% → 75%.' },
     { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
     { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
+    // Late-game core accelerators — the ladder that makes ??? reachable.
+    { id: 'fission',   icon: '☢️', name: 'Core Fission',       cost: 5e9,  desc: 'Prestige core gains ×5.' },
+    { id: 'cascade',   icon: '🧨', name: 'Core Cascade',       cost: 1e12, desc: 'Prestige core gains ×25.' },
+    { id: 'singular2', icon: '🕳️', name: 'Core Singularity',   cost: 6e13, desc: 'Prestige core gains ×100.' },
+    { id: 'mystery',   icon: '🌀', name: '???',                cost: 1e15, desc: '[DATA CORRUPTED] Do not plug in.' },
   ];
 
   /* ---------- Content: challenges ----------
@@ -132,6 +137,63 @@
   ];
   const ch = () => (state && state.challenge) || '';
   const chDone = (id) => !!(state && state.challengesDone && state.challengesDone[id]);
+
+  /* ---------- Content: the Voltlands (idle slayer) ----------
+     Unlocked by the ??? core upgrade. Weapons are this world's generators
+     (zaps/sec instead of watts/sec); same cost growth and ownership
+     milestones as cords, so the proven early-game curve carries over. */
+  const WEAPONS = [
+    { id: 'glove',   icon: '🧤', name: 'Static Glove',     baseCost: 15,      zps: 0.1,   desc: 'Shuffle on carpet. Touch enemy.' },
+    { id: 'tongs',   icon: '🥢', name: 'Taser Tongs',      baseCost: 100,     zps: 1,     desc: 'For a more civilized electrocution.' },
+    { id: 'welder',  icon: '🔧', name: 'Arc Welder',       baseCost: 1100,    zps: 8,     desc: 'Welds enemies to the floor. Permanently.' },
+    { id: 'coil',    icon: '🗼', name: 'Tesla Coil',       baseCost: 12000,   zps: 47,    desc: 'Wireless damage transmission.' },
+    { id: 'ladder',  icon: '🪜', name: "Jacob's Ladder",   baseCost: 1.3e5,   zps: 260,   desc: 'The climbing spark of doom.' },
+    { id: 'cannon',  icon: '🧨', name: 'Capacitor Cannon', baseCost: 1.4e6,   zps: 1400,  desc: 'Charges slowly. Discharges all at once.' },
+    { id: 'railgun', icon: '🎯', name: 'Volt Railgun',     baseCost: 2e7,     zps: 7800,  desc: 'The rails are also electrified.' },
+    { id: 'storm',   icon: '🌩️', name: 'Storm Caller',     baseCost: 3.3e8,   zps: 44000, desc: 'Subscribe to lightning. Cancel anytime.' },
+    { id: 'ball',    icon: '🔮', name: 'Ball Lightning',   baseCost: 5.1e9,   zps: 4e5,   desc: 'Science still cannot explain it. It hurts.' },
+    { id: 'zeus',    icon: '🏛️', name: 'Zeus Rig',         baseCost: 7.5e10,  zps: 3.6e6, desc: 'Borrowed. Do not tell him.' },
+  ];
+
+  /* kinds: 'zap' multiplies tap-zap power; 'weapon' doubles one weapon
+     (unlocks at 5 owned); 'zglobal' multiplies all ZPS; 'crit' = 10% ×10 taps. */
+  const ZAP_UPGRADES = [
+    { id: 'z_zap1',  icon: '🧤', name: 'Rubber Gloves Off', cost: 100,   kind: 'zap', mult: 2, desc: 'Tap-zap power x2.' },
+    { id: 'z_glove', icon: '⚡', name: 'Carpet Static Farm', cost: 500,  kind: 'weapon', weapon: 'glove',  mult: 2, req: { weapon: 'glove', n: 5 },  desc: 'Static Glove zaps x2.' },
+    { id: 'z_zap2',  icon: '✌️', name: 'Two-Finger Tesla',  cost: 2500,  kind: 'zap', mult: 2, desc: 'Tap-zap power x2.' },
+    { id: 'z_tongs', icon: '🥢', name: 'Insulated Grips',   cost: 5000,  kind: 'weapon', weapon: 'tongs',  mult: 2, req: { weapon: 'tongs', n: 5 },  desc: 'Taser Tongs zaps x2.' },
+    { id: 'z_glob1', icon: '🌫️', name: 'Conductive Air',    cost: 25000, kind: 'zglobal', mult: 1.5, desc: 'All weapons +50%.' },
+    { id: 'z_weld',  icon: '🔧', name: 'Plasma Cutting Tip',cost: 60000, kind: 'weapon', weapon: 'welder', mult: 2, req: { weapon: 'welder', n: 5 }, desc: 'Arc Welder zaps x2.' },
+    { id: 'z_crit',  icon: '💥', name: 'Overcharge',        cost: 150000,kind: 'crit', desc: '10% chance a tap-zap deals x10.' },
+    { id: 'z_coil',  icon: '🗼', name: 'Resonant Windings', cost: 6e5,   kind: 'weapon', weapon: 'coil',   mult: 2, req: { weapon: 'coil', n: 5 },   desc: 'Tesla Coil zaps x2.' },
+    { id: 'z_glob2', icon: '🌀', name: 'Ion Storm',         cost: 3e6,   kind: 'zglobal', mult: 2, desc: 'All weapons x2.' },
+    { id: 'z_ladder',icon: '🪜', name: 'Extension Rungs',   cost: 8e6,   kind: 'weapon', weapon: 'ladder', mult: 2, req: { weapon: 'ladder', n: 5 }, desc: "Jacob's Ladder zaps x2." },
+    { id: 'z_zap3',  icon: '🔨', name: 'Mjolnir Grip',      cost: 5e7,   kind: 'zap', mult: 5, desc: 'Tap-zap power x5.' },
+    { id: 'z_glob3', icon: '🧲', name: 'Superconductors',   cost: 1e8,   kind: 'zglobal', mult: 3, desc: 'All weapons x3.' },
+  ];
+
+  const ENEMIES = [
+    { icon: '🦠', name: 'Static Mite' },
+    { icon: '🐀', name: 'Copper Rat' },
+    { icon: '🦇', name: 'Volt Bat' },
+    { icon: '🕷️', name: 'Shock Spider' },
+    { icon: '🤖', name: 'Resistor Drone' },
+    { icon: '🦂', name: 'Surge Scorpion' },
+    { icon: '🧌', name: 'Ohm Golem' },
+    { icon: '👾', name: 'Glitch Wraith' },
+    { icon: '🦞', name: 'Cable Crab' },
+    { icon: '🐍', name: 'Inductor Serpent' },
+  ];
+  const BOSSES = [
+    { icon: '🐉', name: 'Fuse Dragon' },
+    { icon: '⛰️', name: 'Breaker Behemoth' },
+    { icon: '🦑', name: 'Grounding Kraken' },
+    { icon: '👹', name: 'Overload Oni' },
+    { icon: '🌪️', name: 'Storm Tyrant' },
+  ];
+  const ZONES = ['Static Fields', 'Copper Canyons', 'Insulator Wastes', 'Capacitor Crypts',
+    'Magnet Mires', 'Dynamo Dunes', 'The Short Circuit', 'Transformer Tombs',
+    'Gigavolt Glacier', 'The Eye of the Storm'];
 
   // Cord output milestones: every CORD_MILESTONE owned grants ×2, except every
   // BIG_MILESTONE owned grants ×BIG_MILESTONE_MULT instead — near-term goals
@@ -193,6 +255,15 @@
     { id: 'chal1',    icon: '🧪', name: 'Lab Rat',         desc: 'Complete a challenge.',                   cond: () => Object.keys(state.challengesDone || {}).length >= 1 },
     { id: 'chalAll',  icon: '🏅', name: 'Grid Scientist',  desc: 'Complete every challenge.',               cond: () => Object.keys(state.challengesDone || {}).length >= CHALLENGES.length, prog: () => [Object.keys(state.challengesDone || {}).length, CHALLENGES.length] },
     { id: 'streak7',  icon: '🔥', name: 'Week of Power',   desc: 'Reach a 7-day check-in streak.',          cond: () => (state.streak || 0) >= 7, prog: () => [state.streak || 0, 7] },
+    // Voltlands
+    { id: 'worm1',    icon: '🌀', name: 'What Does It Do?',desc: 'Plug in the thing you were told not to.', cond: () => !!state.wormhole },
+    { id: 'kill1',    icon: '⚡', name: 'First Contact II', desc: 'Electrocute your first enemy.',           cond: () => (state.slayer?.kills || 0) >= 1 },
+    { id: 'boss1',    icon: '👑', name: 'Breaker of Breakers', desc: 'Defeat your first boss.',             cond: () => (state.slayer?.bosses || 0) >= 1 },
+    { id: 'wave25',   icon: '🗺️', name: 'Deep in the Voltlands', desc: 'Reach wave 25.',                    cond: () => (state.slayer?.wave || 0) >= 25, prog: () => [state.slayer?.wave || 0, 25] },
+    { id: 'wave50',   icon: '🌪️', name: 'Storm Front',     desc: 'Reach wave 50.',                          cond: () => (state.slayer?.wave || 0) >= 50, prog: () => [state.slayer?.wave || 0, 50] },
+    { id: 'weap5',    icon: '🔫', name: 'Armed to the Teeth', desc: 'Own 5 different weapons.',             cond: () => WEAPONS.filter(w => (state.slayer?.weapons[w.id] || 0) >= 1).length >= 5, prog: () => [WEAPONS.filter(w => (state.slayer?.weapons[w.id] || 0) >= 1).length, 5] },
+    { id: 'weapAll',  icon: '🏛️', name: 'Full Arsenal',    desc: `Own all ${WEAPONS.length} weapons.`,      cond: () => WEAPONS.every(w => (state.slayer?.weapons[w.id] || 0) >= 1), prog: () => [WEAPONS.filter(w => (state.slayer?.weapons[w.id] || 0) >= 1).length, WEAPONS.length] },
+    { id: 'volt1m',   icon: '🔋', name: 'Million Volt Smile', desc: 'Earn 1 million total volts.',          cond: () => (state.slayer?.totalVolts || 0) >= 1e6, prog: () => [state.slayer?.totalVolts || 0, 1e6] },
   ];
 
   /* ---------- State ---------- */
@@ -218,6 +289,11 @@
     streakAt: 0,         // ms timestamp of the last streak claim
     streakDay: '',       // local date of the last streak claim
     streakUntil: 0,      // streak production buff expiry
+    // ---- the Voltlands (unlocked by the ??? core upgrade) ----
+    wormhole: false,     // has the player been through?
+    world: 'grid',       // 'grid' (plug game) | 'volt' (slayer game)
+    lifetimeEarned: 0,   // watts ever earned, NEVER resets (grid->volt synergy)
+    slayer: defaultSlayer(),
     // ---- monetization (Android only; harmless extras on web) ----
     iap: {},             // non-consumable sku -> true (granted entitlements)
     theme: '',           // '' (green) | 'amber' | 'ice' | 'vapor'
@@ -227,14 +303,30 @@
     supporterDay: '',    // last date the supporter daily boost was claimed
   });
 
+  function defaultSlayer() {
+    return {
+      volts: 0,          // spendable ⚡ currency
+      totalVolts: 0,     // lifetime volts (achievements)
+      wave: 1,
+      killsThisWave: 0,
+      kills: 0,          // lifetime kills
+      bosses: 0,         // lifetime boss kills (volt->grid synergy)
+      hp: 0, maxHp: 0,   // current enemy
+      weapons: {},       // weaponId -> count
+      upgrades: {},      // zapUpgradeId -> true
+    };
+  }
+
   // Normalize any save (fresh boot, legacy, or imported) into a complete state:
   // backfill missing fields, merge settings, and reconstruct prestige fields
   // (older saves used `cores` as the lifetime-bonus source, with no coresEarned).
   function normalizeState(s) {
     s = s || {};
-    // Detect legacy saves (no coresEarned / prestigeV) BEFORE defaults backfill.
+    // Detect legacy saves (no coresEarned / prestigeV / lifetimeEarned)
+    // BEFORE the defaults merge backfills them with zero-values.
     const hadCoresEarned = s.coresEarned != null;
     const hadPrestigeV = s.prestigeV != null;
+    const hadLifetime = s.lifetimeEarned != null;
     s = Object.assign(defaultState(), s);
     s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true, autobuy: false }, s.settings || {});
     if (!hadCoresEarned) s.coresEarned = s.cores || 0;
@@ -242,6 +334,8 @@
     if (s.iap == null) s.iap = {};
     if (s.adUses == null) s.adUses = {};
     if (s.challengesDone == null) s.challengesDone = {};
+    if (!hadLifetime) s.lifetimeEarned = s.totalEarned || 0;   // best available seed
+    s.slayer = Object.assign(defaultSlayer(), s.slayer || {});
     // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
     // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
     // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
@@ -264,7 +358,13 @@
   function offlineEff() { return co('nightshift') ? 0.75 : 0.5; }
   function surgeDelayMult() { return co('magnet') ? 0.6 : 1; }
   function surgeRewardMult() { return co('megasurge') ? 2 : 1; }
-  function prestigeGainMult() { return co('recycler') ? 1.5 : 1; }
+  function prestigeGainMult() {
+    let m = co('recycler') ? 1.5 : 1;
+    if (co('fission')) m *= 5;
+    if (co('cascade')) m *= 25;
+    if (co('singular2')) m *= 100;
+    return m;
+  }
   function autoTapRate() { return co('autotap') ? 5 : 0; }
   function prestigeKeepFrac() { return co('jumpstart') ? 0.05 : 0; }
   function lifetimeBonusPct() { return Math.round((prestigeMult() - 1) * 100); }
@@ -323,6 +423,15 @@
     return n * cord.wps * cordMultiplier(cord.id);
   }
 
+  // Single entry point for earning watts: lifetimeEarned never resets and
+  // powers the grid->volt synergy; totalEarned is the per-run figure that
+  // drives prestige potential and achievements.
+  function gainWatts(n) {
+    state.watts += n;
+    state.totalEarned += n;
+    state.lifetimeEarned = (state.lifetimeEarned || 0) + n;
+  }
+
   // Permanent +25% from the boost_production_25 purchase (Android IAP).
   function iapProdMult() { return state.iap && state.iap.boost_production_25 ? 1.25 : 1; }
 
@@ -339,7 +448,7 @@
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
     const challengePenalty = ch() === 'brownout' ? 0.5 : 1;
-    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod') * challengePenalty;
+    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod') * challengePenalty * bossWattsMult();
   }
 
   // ---- Tap power: keep hand-plugging relevant for the whole game ----
@@ -542,6 +651,11 @@
     toast: $('#toast'), modal: $('#modal'), mbox: $('#mbox'),
     savebox: $('#savebox'), exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), wipeBtn: $('#wipeBtn'),
     storageStatus: $('#storageStatus'), version: $('#version'),
+    // Voltlands
+    worldBtn: $('#worldBtn'), wattsUnit: $('#wattsUnit'), wpsUnit: $('#wpsUnit'), tapUnit: $('#tapUnit'),
+    enemyBtn: $('#enemyBtn'), enemyEmoji: $('#enemyEmoji'), enemyName: $('#enemyName'),
+    zoneName: $('#zoneName'), hpFill: $('#hpFill'), hpText: $('#hpText'), zapinfo: $('#zapinfo'),
+    weaponlist: $('#weaponlist'), zuplist: $('#zuplist'),
   };
   if (el.version) el.version.textContent = `PlugIdle v${VERSION}`;
 
@@ -676,8 +790,7 @@
     const roll = Math.random();
     if (roll < 0.5) {
       const bonus = Math.max(totalWps() * 90, clickPower() * 60, 50) * surgeRewardMult() * chainMult;
-      state.watts += bonus;
-      state.totalEarned += bonus;
+      gainWatts(bonus);
       spawnFloater(bonus);
       toast('⚡ OVERLOAD! +' + fmt(bonus) + ' W', true);
     } else if (roll < 0.75) {
@@ -790,8 +903,7 @@
 
   function plug() {
     const gain = clickPower();
-    state.watts += gain;
-    state.totalEarned += gain;
+    gainWatts(gain);
     awardClicks(1);
     spawnFloater(gain);
     blip(660 + Math.random() * 80, 0.04, 'triangle');
@@ -858,6 +970,13 @@
     if ((state.cores || 0) < cu.cost) { toast('Not enough cores'); blip(120, 0.06); return; }
     state.cores -= cu.cost;
     state.coreUpgrades[cu.id] = true;
+    if (cu.id === 'mystery') {           // you were warned not to plug it in
+      state.wormhole = true;
+      save();
+      checkAchievements();
+      playWormhole();
+      return;
+    }
     blip(700, 0.16, 'sawtooth', 0.05);
     buzz([0, 20, 40, 20]);
     toast('◆ ' + cu.name + '!', true);
@@ -960,9 +1079,20 @@
   // lightweight per-frame updates (numbers only, no list rebuild)
   function renderStatsLite() {
     const wps = totalWps();
-    el.watts.textContent = fmt(state.watts);
-    el.wps.textContent = fmt(wps);
-    el.tapval.textContent = fmt(clickPower());
+    const volt = activeWorld() === 'volt';
+    if (volt) {
+      // header doubles as the Voltlands HUD
+      el.watts.textContent = fmt(sl().volts);
+      el.wps.textContent = fmt(totalZps());
+      el.tapval.textContent = fmt(zapPower());
+    } else {
+      el.watts.textContent = fmt(state.watts);
+      el.wps.textContent = fmt(wps);
+      el.tapval.textContent = fmt(clickPower());
+    }
+    if (el.wattsUnit) el.wattsUnit.textContent = volt ? 'V' : 'W';
+    if (el.wpsUnit) el.wpsUnit.textContent = volt ? 'Z/s' : 'W/s';
+    if (el.tapUnit) el.tapUnit.textContent = volt ? '/ zap' : '/ plug';
     if (el.tapvalMini) el.tapvalMini.textContent = fmt(clickPower());
     if (el.tapinfo) {
       const next = nextTapMilestone();
@@ -984,6 +1114,18 @@
     el.statAch.textContent = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length + ' / ' + ACHIEVEMENTS.length;
     const sg = document.getElementById('statGrid');
     if (sg) sg.textContent = '+' + achCount() + '%';
+    // Voltlands stats (rows stay hidden until the wormhole)
+    document.querySelectorAll('.voltstat').forEach((li) => { li.hidden = !state.wormhole; });
+    if (state.wormhole) {
+      const sv = document.getElementById('statVolts');
+      const sw = document.getElementById('statWave');
+      const sk = document.getElementById('statKills');
+      const sb = document.getElementById('statBosses');
+      if (sv) sv.textContent = fmt(sl().totalVolts);
+      if (sw) sw.textContent = fmtInt(sl().wave);
+      if (sk) sk.textContent = fmtInt(sl().kills);
+      if (sb) sb.textContent = `${fmtInt(sl().bosses)} (grid +${sl().bosses * 2}%)`;
+    }
     el.statCores.textContent = fmtInt(state.cores || 0);
     el.statTime.textContent = fmtDuration(Date.now() - state.startedAt);
     const pg = prestigeGain();
@@ -1028,6 +1170,7 @@
     renderChallenges();
     renderGoals();
     renderBuffs();
+    if (state.wormhole) { renderWeapons(); renderZapUpgrades(); renderSlayerLite(); }
     renderStatsLite();
     syncSettingsUI();
   }
@@ -1049,9 +1192,18 @@
       if (!upgradeUnlocked(u)) { sig += '-'; continue; }
       sig += state.watts >= u.cost ? '1' : '0';
     }
+    if (state.wormhole) {
+      sig += '|';
+      for (const w of WEAPONS) sig += sl().volts >= weaponCost(w, 1) ? '1' : '0';
+      for (const u of ZAP_UPGRADES) {
+        if (sl().upgrades[u.id]) { sig += 'b'; continue; }
+        sig += sl().volts >= u.cost ? '1' : '0';
+      }
+    }
     if (sig !== lastSig) {
       lastSig = sig;
       renderShop();
+      if (state.wormhole) { renderWeapons(); renderZapUpgrades(); }
     }
   }
 
@@ -1078,6 +1230,9 @@
       streak: state.streak, streakAt: state.streakAt,
       streakDay: state.streakDay, streakUntil: state.streakUntil,
       challengesDone: state.challengesDone,
+      // the Voltlands are a parallel world — grid resets never touch them
+      wormhole: state.wormhole, world: state.world,
+      lifetimeEarned: state.lifetimeEarned, slayer: state.slayer,
     }, extra || {});
   }
   // Challenge-perk head starts applied to every fresh run.
@@ -1231,6 +1386,280 @@
     save();
   }
 
+  /* ---------- The Voltlands: slayer logic ---------- */
+  const sl = () => state.slayer;
+  const zu = (id) => !!(state.slayer && state.slayer.upgrades[id]);
+  const isBossWave = (w) => w % 10 === 0;
+
+  function enemyFor(wave) {
+    if (isBossWave(wave)) return BOSSES[(wave / 10 - 1) % BOSSES.length];
+    return ENEMIES[(wave - 1) % ENEMIES.length];
+  }
+  function zoneFor(wave) {
+    const idx = Math.floor((wave - 1) / 10);
+    const cycle = Math.floor(idx / ZONES.length);
+    return ZONES[idx % ZONES.length] + (cycle > 0 ? ` ${cycle + 1}` : '');
+  }
+  function enemyHp(wave) { return 10 * Math.pow(1.22, wave - 1) * (isBossWave(wave) ? 10 : 1); }
+  function voltReward(wave) { return Math.pow(1.19, wave - 1) * (isBossWave(wave) ? 12 : 1); }
+
+  // ---- cross-world synergy ----
+  // Volt->Grid: every boss killed is a permanent +2% watts production.
+  function bossWattsMult() { return 1 + 0.02 * ((state.slayer && state.slayer.bosses) || 0); }
+  // Grid->Volt: +1% ZPS per order of magnitude of watts EVER generated.
+  function gridZpsBoost() { return 1 + 0.01 * Math.log10(1 + (state.lifetimeEarned || 0)); }
+
+  function weaponMultiplier(weaponId) {
+    let m = 1;
+    for (const u of ZAP_UPGRADES) {
+      if (!sl().upgrades[u.id]) continue;
+      if (u.kind === 'weapon' && u.weapon === weaponId) m *= u.mult;
+      if (u.kind === 'zglobal') m *= u.mult;
+    }
+    return m * cordMilestoneMult(sl().weapons[weaponId] || 0);   // same x2-per-25 milestones
+  }
+  function totalZps() {
+    let sum = 0;
+    for (const w of WEAPONS) sum += (sl().weapons[w.id] || 0) * w.zps * weaponMultiplier(w.id);
+    return sum * gridZpsBoost() * achMult() * buffMult('prod');
+  }
+  function zapPower() {
+    let p = 1;
+    for (const u of ZAP_UPGRADES) if (sl().upgrades[u.id] && u.kind === 'zap') p *= u.mult;
+    return p * gridZpsBoost() * achMult() * buffMult('click');
+  }
+  function weaponCost(w, count) {
+    const owned = sl().weapons[w.id] || 0;
+    let total = 0;
+    for (let i = 0; i < count; i++) total += w.baseCost * Math.pow(COST_GROWTH, owned + i);
+    return Math.ceil(total);
+  }
+  function zapUpgradeUnlocked(u) {
+    if (!u.req) return true;
+    return (sl().weapons[u.req.weapon] || 0) >= u.req.n;
+  }
+
+  function spawnEnemy() {
+    sl().maxHp = enemyHp(sl().wave);
+    sl().hp = sl().maxHp;
+  }
+
+  function killEnemy() {
+    const s = sl();
+    const boss = isBossWave(s.wave);
+    const reward = voltReward(s.wave);
+    s.volts += reward;
+    s.totalVolts += reward;
+    s.kills++;
+    s.killsThisWave++;
+    if (boss) {
+      s.bosses++;
+      toast(`💀 ${enemyFor(s.wave).name} DOWN! Grid power +2% (now +${s.bosses * 2}%)`, true);
+      blip(220, 0.3, 'sawtooth', 0.06);
+      buzz([0, 40, 60, 40]);
+      screenShake(1.5);
+    }
+    const needed = boss ? 1 : 10;
+    if (s.killsThisWave >= needed) {
+      s.killsThisWave = 0;
+      s.wave++;
+      if ((s.wave - 1) % 10 === 0 && s.wave > 1) toast(`🗺️ ${zoneFor(s.wave)} — wave ${s.wave}`, true);
+    }
+    checkAchievements();
+  }
+
+  // Damage application with overkill carry (capped kills/tick so a huge ZPS
+  // spike can't lock the loop).
+  function applyZapDamage(dmg) {
+    const s = sl();
+    if (s.maxHp <= 0) spawnEnemy();
+    s.hp -= dmg;
+    let safety = 50;
+    while (s.hp <= 0 && safety-- > 0) {
+      const leftover = -s.hp;
+      killEnemy();
+      spawnEnemy();
+      s.hp = s.maxHp - leftover;
+    }
+    if (s.hp <= 0) s.hp = 1;   // safety floor after 50 kills in one tick
+  }
+
+  function slayerTick(dt) {
+    if (!state.wormhole) return;
+    const zps = totalZps();
+    if (zps > 0) applyZapDamage(zps * dt);
+  }
+
+  function zapEnemy() {
+    let dmg = zapPower();
+    let crit = false;
+    if (zu('z_crit') && Math.random() < 0.10) { dmg *= 10; crit = true; }
+    applyZapDamage(dmg);
+    if (state.settings.floats && el.enemyBtn) {
+      const r = el.enemyBtn.getBoundingClientRect();
+      const f = document.createElement('div');
+      f.className = 'float' + (crit ? ' crit' : '');
+      f.textContent = (crit ? '💥' : '⚡') + fmt(dmg);
+      f.style.left = (r.left + r.width / 2 - 20 + (Math.random() * 60 - 30)) + 'px';
+      f.style.top = (r.top + 30) + 'px';
+      el.floaters.appendChild(f);
+      setTimeout(() => f.remove(), 1000);
+      el.enemyBtn.classList.remove('zapped');
+      void el.enemyBtn.offsetWidth;
+      el.enemyBtn.classList.add('zapped');
+    }
+    blip(crit ? 1500 : 900 + Math.random() * 100, 0.05, 'sawtooth', 0.05);
+    buzz(crit ? [0, 30, 30, 30] : 8);
+    renderSlayerLite();
+  }
+
+  function buyWeapon(w) {
+    const cost = weaponCost(w, 1);
+    if (sl().volts < cost) { toast('Not enough volts'); blip(120, 0.06); return; }
+    sl().volts -= cost;
+    const after = (sl().weapons[w.id] || 0) + 1;
+    sl().weapons[w.id] = after;
+    blip(320, 0.06, 'square', 0.05);
+    buzz(12);
+    if (after % CORD_MILESTONE === 0) {
+      toast(`✖️ ${w.name} milestone! Now ×${fmt(cordMilestoneMult(after))}`, true);
+      blip(990, 0.18, 'sawtooth', 0.05);
+    }
+    checkAchievements();
+    renderWeapons();
+    renderSlayerLite();
+  }
+
+  function buyZapUpgrade(u) {
+    if (sl().upgrades[u.id]) return;
+    if (sl().volts < u.cost) { toast('Not enough volts'); blip(120, 0.06); return; }
+    sl().volts -= u.cost;
+    sl().upgrades[u.id] = true;
+    blip(880, 0.12, 'sawtooth', 0.05);
+    buzz([0, 15, 30, 15]);
+    toast('⚡ ' + u.name + ' wired in!');
+    renderZapUpgrades();
+    renderSlayerLite();
+  }
+
+  /* ---------- Voltlands rendering ---------- */
+  function renderWeapons() {
+    if (!el.weaponlist) return;
+    let html = '';
+    let anyUnlocked = false;
+    WEAPONS.forEach((w, i) => {
+      const owned = sl().weapons[w.id] || 0;
+      const prevOwned = i === 0 ? 1 : (sl().weapons[WEAPONS[i - 1].id] || 0);
+      if (!(owned > 0 || prevOwned > 0)) return;
+      anyUnlocked = true;
+      const cost = weaponCost(w, 1);
+      const can = sl().volts >= cost;
+      const each = w.zps * weaponMultiplier(w.id) * gridZpsBoost();
+      html += `
+        <button class="card buyable" data-weapon="${w.id}">
+          <div class="ico">${w.icon}</div>
+          <div class="body">
+            <div class="nm">${w.name}</div>
+            <div class="meta"><span class="pos">${fmt(each)} Z/s each</span> · ${w.desc}</div>
+          </div>
+          <div class="right">
+            <div class="owned">own ${fmtInt(owned)}</div>
+            <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} V</div>
+          </div>
+        </button>`;
+    });
+    if (!anyUnlocked) html = `<p class="empty-note">Zap enemies to earn your first volts!</p>`;
+    el.weaponlist.innerHTML = html;
+  }
+
+  function renderZapUpgrades() {
+    if (!el.zuplist) return;
+    const list = ZAP_UPGRADES.filter((u) => sl().upgrades[u.id] || zapUpgradeUnlocked(u))
+      .sort((a, b) => a.cost - b.cost);
+    if (!list.length) {
+      el.zuplist.innerHTML = `<p class="empty-note">Buy more weapons to unlock upgrades…</p>`;
+      return;
+    }
+    el.zuplist.innerHTML = list.map((u) => {
+      const bought = !!sl().upgrades[u.id];
+      const can = !bought && sl().volts >= u.cost;
+      const cls = bought ? 'bought' : can ? 'ok' : 'no';
+      return `
+        <button class="upg ${cls}" data-zupgrade="${u.id}">
+          <div class="un">${u.icon} ${u.name}</div>
+          <div class="ud">${u.desc}</div>
+          <div class="uc">${bought ? '✓ OWNED' : fmt(u.cost) + ' V'}</div>
+        </button>`;
+    }).join('');
+  }
+
+  function renderSlayerLite() {
+    if (!state.wormhole || !el.hpFill) return;
+    const s = sl();
+    const e = enemyFor(s.wave);
+    const boss = isBossWave(s.wave);
+    el.enemyEmoji.textContent = e.icon;
+    el.enemyName.textContent = (boss ? '👑 BOSS: ' : '') + e.name;
+    el.zoneName.textContent = `${zoneFor(s.wave)} · WAVE ${s.wave}${boss ? '' : ` · ${s.killsThisWave}/10`}`;
+    const pct = s.maxHp > 0 ? Math.max(0, (s.hp / s.maxHp) * 100) : 0;
+    el.hpFill.style.width = pct + '%';
+    el.hpText.textContent = `${fmt(Math.max(0, s.hp))} / ${fmt(s.maxHp)} HP`;
+    if (el.zapinfo) el.zapinfo.textContent =
+      `⚡${fmt(zapPower())} / zap · grid boost ×${gridZpsBoost().toFixed(2)}`;
+    el.enemyBtn.classList.toggle('boss', boss);
+  }
+
+  /* ---------- World switching & the wormhole ---------- */
+  function activeWorld() { return state.wormhole && state.world === 'volt' ? 'volt' : 'grid'; }
+
+  function applyWorld() {
+    const w = activeWorld();
+    document.body.dataset.world = w;
+    if (el.worldBtn) {
+      el.worldBtn.hidden = !state.wormhole;
+      el.worldBtn.textContent = w === 'volt' ? '🔌' : '🌀';
+      el.worldBtn.setAttribute('aria-label', w === 'volt' ? 'Return to the Grid' : 'Enter the wormhole');
+    }
+    // if the active tab belongs to the other world, jump to this world's home
+    const active = document.querySelector('.tab.active');
+    const tw = (active && active.dataset.tworld) || 'both';
+    if (tw !== 'both' && tw !== w) activateTab(w === 'volt' ? 'zap' : 'plug', true);
+    renderStatsLite();
+  }
+
+  function switchWorld() {
+    if (!state.wormhole) return;
+    state.world = activeWorld() === 'volt' ? 'grid' : 'volt';
+    blip(state.world === 'volt' ? 180 : 520, 0.2, 'sawtooth', 0.05);
+    applyWorld();
+    save();
+  }
+
+  function playWormhole() {
+    state.world = 'volt';
+    if (sl().maxHp <= 0) spawnEnemy();
+    const ov = document.getElementById('wormhole');
+    const instant = !state.settings.floats || reduceMotion() || !ov;
+    if (instant) {
+      applyWorld();
+      renderAll();
+      toast('🌀 ARRIVAL: THE VOLTLANDS', true);
+      save();
+      return;
+    }
+    ov.classList.add('show');
+    blip(80, 1.4, 'sawtooth', 0.07);
+    buzz([0, 80, 60, 80, 60, 200]);
+    screenShake(2);
+    setTimeout(() => {
+      applyWorld();
+      renderAll();
+      toast('🌀 ARRIVAL: THE VOLTLANDS', true);
+      save();
+      setTimeout(() => ov.classList.remove('show'), 700);
+    }, 4200);
+  }
+
   /* ---------- Offline earnings ---------- */
   function applyOffline() {
     const now = Date.now();
@@ -1240,15 +1669,24 @@
     const rate = totalWps();
     const earned = rate * (away / 1000) * eff;
     if (earned <= 0) return;
-    state.watts += earned;
-    state.totalEarned += earned;
+    gainWatts(earned);
+    // Voltlands earn too (ZPS keeps zapping; no wave progress offline)
+    let voltLine = '';
+    if (state.wormhole) {
+      const voltsEarned = totalZps() * (away / 1000) * eff;
+      if (voltsEarned > 0) {
+        sl().volts += voltsEarned;
+        sl().totalVolts += voltsEarned;
+        voltLine = `<p class="big" style="font-size:22px">+${fmt(voltsEarned)} V</p>`;
+      }
+    }
     const h = Math.floor(away / 3600000), m = Math.floor((away % 3600000) / 60000);
     const adBtn = window.Monetize?.adsAvailable?.()
       ? `<button class="smbtn" id="wbDouble" style="margin-top:8px;width:100%">📺 WATCH AD · DOUBLE IT</button>` : '';
     showModal(`
       <h2>⚡ WELCOME BACK</h2>
       <p class="dim">Your cords ran for<br><b style="color:var(--cyan)">${h}h ${m}m</b> (${Math.round(eff * 100)}% rate)</p>
-      <p class="big">+${fmt(earned)} W</p>
+      <p class="big">+${fmt(earned)} W</p>${voltLine}
       <button class="bigbtn" id="wbOk" style="margin-top:12px">COLLECT</button>${adBtn}`);
     document.getElementById('wbOk').addEventListener('click', hideModal);
     const dbl = document.getElementById('wbDouble');
@@ -1256,8 +1694,7 @@
       dbl.disabled = true;
       const ok = await window.Monetize.showRewarded();
       if (ok) {
-        state.watts += earned;
-        state.totalEarned += earned;
+        gainWatts(earned);
         toast('📺 Offline earnings DOUBLED! +' + fmt(earned) + ' W', true);
         save();
         renderStatsLite();
@@ -1317,8 +1754,7 @@
 
   function grantTimewarp(hours) {
     const earned = totalWps() * hours * 3600;
-    state.watts += earned;
-    state.totalEarned += earned;
+    gainWatts(earned);
     toast(`⏩ TIME WARP! +${fmt(earned)} W (${hours}h)`, true);
     screenShake(1.2);
     save();
@@ -1452,6 +1888,9 @@
       save();
       const coreNote = (state.coresEarned || 0) > 0 ? ` (◆${fmtInt(state.cores)} cores, +${lifetimeBonusPct()}%)` : '';
       toast('📥 Save imported!' + coreNote, true);
+      if (state.wormhole && sl().maxHp <= 0) spawnEnemy();
+      applyWorld();
+      applyTheme();
       renderAll();
     } catch (e) { toast('⚠ Invalid save code'); }
   }
@@ -1471,6 +1910,8 @@
       save();
       hideModal();
       toast('Reset complete');
+      applyWorld();
+      applyTheme();
       renderAll();
     });
     document.getElementById('wN').addEventListener('click', hideModal);
@@ -1479,22 +1920,38 @@
   /* ---------- Event wiring ---------- */
   el.socket.addEventListener('click', plug);
   el.socketMini.addEventListener('click', plug); // tap button on the Upgrades tab
+  if (el.enemyBtn) el.enemyBtn.addEventListener('click', zapEnemy);
+  if (el.worldBtn) el.worldBtn.addEventListener('click', switchWorld);
+  if (el.weaponlist) el.weaponlist.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-weapon]');
+    if (item) buyWeapon(WEAPONS.find((w) => w.id === item.dataset.weapon));
+  });
+  if (el.zuplist) el.zuplist.addEventListener('click', (e) => {
+    const item = e.target.closest('[data-zupgrade]');
+    if (item) buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === item.dataset.zupgrade));
+  });
   // iOS suppresses :active styling unless a touchstart listener exists.
   document.body.addEventListener('touchstart', () => {}, { passive: true });
 
-  // tabs (bottom nav)
+  // tabs (bottom nav) — also driven programmatically by world switching
+  function activateTab(name, silent) {
+    const tab = document.querySelector(`.tab[data-tab="${name}"]`);
+    const panel = document.getElementById('p-' + name);
+    if (!tab || !panel) return;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    panel.classList.add('active');
+    if (!silent) blip(520, 0.03);
+    if (name === 'goals') renderGoals();
+    else if (name === 'up') renderUpgrades();
+    else if (name === 'plug') renderCords();
+    else if (name === 'zap') { renderWeapons(); renderSlayerLite(); }
+    else if (name === 'arsenal') renderZapUpgrades();
+    else if (name === 'more') { renderCoreShop(); renderChallenges(); renderStatsLite(); syncSettingsUI(); renderStore(); }
+  }
   document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      document.getElementById('p-' + tab.dataset.tab).classList.add('active');
-      blip(520, 0.03);
-      if (tab.dataset.tab === 'goals') renderGoals();
-      else if (tab.dataset.tab === 'up') renderUpgrades();
-      else if (tab.dataset.tab === 'plug') renderCords();
-      else if (tab.dataset.tab === 'more') { renderCoreShop(); renderChallenges(); renderStatsLite(); syncSettingsUI(); renderStore(); }
-    });
+    tab.addEventListener('click', () => activateTab(tab.dataset.tab));
   });
 
   // delegated shop clicks
@@ -1576,13 +2033,14 @@
   // close modal by tapping the backdrop
   el.modal.addEventListener('click', (e) => { if (e.target === el.modal) hideModal(); });
 
-  // keyboard: space/enter to plug
+  // keyboard: space/enter to plug (or zap, in the Voltlands)
   window.addEventListener('keydown', (e) => {
     if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat &&
         document.activeElement?.tagName !== 'TEXTAREA' &&
         document.activeElement?.tagName !== 'INPUT') {
       e.preventDefault();
-      plug();
+      if (activeWorld() === 'volt') zapEnemy();
+      else plug();
     }
   });
 
@@ -1641,12 +2099,11 @@
       if (whole > 0) { autoTapAccum -= whole; awardClicks(whole); }
       if (tickCount % 2 === 0) pulseAutoTap();   // ~5 visible pulses/sec, matching the rate
     }
-    if (gain > 0) {
-      state.watts += gain;
-      state.totalEarned += gain;
-    }
+    if (gain > 0) gainWatts(gain);
+    slayerTick(dt);           // both economies always tick (parallel worlds)
     tickCount++;
     if (tickCount % 30 === 0) autoBuyTick();   // ~every 3s
+    if (activeWorld() === 'volt' && tickCount % 2 === 0) renderSlayerLite();
     checkChallenge();
     renderBuffs();            // count down / clear expired surge buffs
     checkAchievements();      // catches threshold (watts/time) unlocks
@@ -1667,6 +2124,8 @@
     applyOffline();
     syncBoostBuff();     // resurrect a still-running 2x boost after restart
     claimDailyStreak();  // daily check-in bonus (48h forgiveness)
+    if (state.wormhole && sl().maxHp <= 0) spawnEnemy();
+    applyWorld();        // restore which world the player was in
     applyTheme();
     window.Monetize?.init?.({
       skus: IAP_PRODUCTS.map((p) => ({ id: p.id, consumable: p.consumable })),

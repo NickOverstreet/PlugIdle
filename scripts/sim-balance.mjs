@@ -105,7 +105,18 @@ function clickPower() {
 const nextCordCost = (c) => Math.ceil(c.baseCost * Math.pow(COST_GROWTH, owned[c.id] || 0));
 const cordUnlocked = (i) => i === 0 || (owned[CORDS[i].id] || 0) > 0 || (owned[CORDS[i - 1].id] || 0) > 0;
 const upUnlocked = (u) => !u.req || (owned[u.req.cord] || 0) >= u.req.n;
-const cores = () => Math.floor(rootFn(runEarned / DIVISOR));
+// --accelerators: bot buys the core-gain ladder (Fission/Cascade/Singularity)
+// when affordable, and we report when the 1e15 ??? upgrade becomes buyable.
+const ACCEL = args.includes('--accelerators');
+const ACCELS = [
+  { name: 'Core Fission',     cost: 5e9,  mult: 5 },
+  { name: 'Core Cascade',     cost: 1e12, mult: 25 },
+  { name: 'Core Singularity', cost: 6e13, mult: 100 },
+];
+let accelMult = 1, coresSpent = 0, accelIdx = 0, mysteryAt = null;
+const accelLog = [];
+
+const cores = () => Math.floor(rootFn(runEarned / DIVISOR) * accelMult);
 
 /* ---------- greedy run ---------- */
 const TAP_RATE = 4;            // taps/sec while "active" (first 15 min + after each wall)
@@ -163,6 +174,15 @@ while (t < END) {
       prestiges.push({ t, gained: gain, total: coresEarned });
       owned = {}; ups = {}; watts = 0; runEarned = 0;
       tapSecondsLeft = ACTIVE_TAP_BUDGET;   // player is active right after a reset
+      if (ACCEL) {
+        while (accelIdx < ACCELS.length && coresEarned - coresSpent >= ACCELS[accelIdx].cost) {
+          coresSpent += ACCELS[accelIdx].cost;
+          accelMult *= ACCELS[accelIdx].mult;
+          accelLog.push({ t, name: ACCELS[accelIdx].name, mult: accelMult });
+          accelIdx++;
+        }
+        if (!mysteryAt && coresEarned - coresSpent >= 1e15) mysteryAt = t;
+      }
     }
   }
 }
@@ -199,3 +219,7 @@ console.log(`  totalEarned ${sci(totalEarned)}  wps ${sci(totalWps())}  purchase
 console.log(`  cores deserved ${cores().toLocaleString()}, earned ${coresEarned.toLocaleString()}  (prestige mult ×${(1 + CORE_PCT * Math.max(cores(), coresEarned)).toExponential(2)})`);
 const last = CORDS[CORDS.length - 1];
 console.log(`  ${last.name} (final tier) first bought: ${firstBuy[last.id] != null ? hm(firstBuy[last.id]) : 'never'}`);
+if (ACCEL) {
+  for (const a of accelLog) console.log(`  ${hm(a.t).padStart(8)}  bought ${a.name} (gain x${a.mult} total)`);
+  console.log(`  ??? (1e15 cores) affordable: ${mysteryAt != null ? hm(mysteryAt) : 'never'}`);
+}
