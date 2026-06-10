@@ -1,5 +1,5 @@
 /* PlugIdle service worker — offline-first caching. */
-const CACHE = 'plugidle-v15';
+const CACHE = 'plugidle-v16';
 const ASSETS = [
   './',
   './index.html',

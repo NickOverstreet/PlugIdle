@@ -53,10 +53,14 @@ bonus, then climb back faster than ever. Spend cores on permanent upgrades —
 bigger taps, longer offline earnings, auto-tapping, and more. Your bonus
 never goes down.
 
-🏆 50 ACHIEVEMENTS = REAL POWER
+🏆 58 ACHIEVEMENTS = REAL POWER
 Every achievement permanently adds +1% production (the Grid Bonus), kept
 forever across prestiges. And a daily check-in streak that FORGIVES a
 missed day instead of punishing you.
+
+🌀 AND THEN THERE'S "???"
+At the bottom of the core shop sits a corrupted upgrade. [DATA CORRUPTED]
+Do not plug in. (Plug it in.)
 
 🌙 TRUE OFFLINE PLAY
 No connection needed. Your cords keep working while you sleep, and a

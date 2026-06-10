@@ -20,12 +20,12 @@
 
   <div id="app">
     <header class="topbar">
-      <div class="logo">PLUG<span class="b">IDLE</span></div>
+      <div class="logo">PLUG<span class="b">IDLE</span><button class="worldbtn" id="worldBtn" hidden aria-label="Switch world">🌀</button></div>
       <div class="stats">
-        <div class="watts"><span id="watts">0</span> <small>W</small></div>
+        <div class="watts"><span id="watts">0</span> <small id="wattsUnit">W</small></div>
         <div class="rate">
-          <div class="wps"><b id="wps">0</b> W/s</div>
-          <div class="taprate">+<span id="tapval">1</span> / plug</div>
+          <div class="wps"><b id="wps">0</b> <span id="wpsUnit">W/s</span></div>
+          <div class="taprate">+<span id="tapval">1</span> <span id="tapUnit">/ plug</span></div>
           <div class="coresline" id="coresline"></div>
         </div>
       </div>
@@ -61,6 +61,29 @@
         <button class="taptab" id="socketMini" aria-label="Plug in a cord">⚡ TAP TO PLUG · +<b id="tapvalMini">1</b> W</button>
         <div class="sectitle">⬆️ UPGRADES</div>
         <div class="ugrid" id="uplist"></div>
+      </section>
+
+      <!-- THE VOLTLANDS: slayer combat (unlocked by the ??? core upgrade) -->
+      <section class="panel" id="p-zap">
+        <div class="arena">
+          <div class="zone" id="zoneName"></div>
+          <button class="enemy-btn" id="enemyBtn" aria-label="Zap the enemy">
+            <span class="enemy-emoji" id="enemyEmoji">🦠</span>
+          </button>
+          <div class="enemy-name" id="enemyName"></div>
+          <div class="hpbar"><i id="hpFill"></i></div>
+          <div class="hptext" id="hpText"></div>
+          <div class="taphint">▶ TAP TO ZAP ◀</div>
+          <div class="tapinfo" id="zapinfo"></div>
+        </div>
+        <div class="sectitle">🔫 CONDUCTOR ARSENAL</div>
+        <div id="weaponlist"></div>
+      </section>
+
+      <!-- THE VOLTLANDS: zap upgrades -->
+      <section class="panel" id="p-arsenal">
+        <div class="sectitle">⚡ ZAP UPGRADES</div>
+        <div class="ugrid" id="zuplist"></div>
       </section>
 
       <!-- GOALS / ACHIEVEMENTS -->
@@ -115,6 +138,10 @@
             <li><span>Grid bonus (goals)</span><b id="statGrid">+0%</b></li>
             <li><span>Time played</span><b id="statTime">0s</b></li>
             <li><span>Prestige cores</span><b id="statCores">0</b></li>
+            <li class="voltstat" hidden><span>⚡ Total volts</span><b id="statVolts">0</b></li>
+            <li class="voltstat" hidden><span>⚡ Wave</span><b id="statWave">1</b></li>
+            <li class="voltstat" hidden><span>⚡ Enemies zapped</span><b id="statKills">0</b></li>
+            <li class="voltstat" hidden><span>⚡ Bosses down</span><b id="statBosses">0</b></li>
           </ul>
         </div>
 
@@ -145,11 +172,23 @@
     </main>
 
     <nav class="tabbar">
-      <button class="tab active" data-tab="plug"><span class="ti">⚡</span><span class="tl">PLUG</span></button>
-      <button class="tab" data-tab="up"><span class="ti">⬆️</span><span class="tl">UPGRADE</span></button>
-      <button class="tab" data-tab="goals"><span class="ti">🏆</span><span class="tl">GOALS</span></button>
-      <button class="tab" data-tab="more"><span class="ti">♻️</span><span class="tl">MORE</span></button>
+      <button class="tab active" data-tab="plug" data-tworld="grid"><span class="ti">⚡</span><span class="tl">PLUG</span></button>
+      <button class="tab" data-tab="up" data-tworld="grid"><span class="ti">⬆️</span><span class="tl">UPGRADE</span></button>
+      <button class="tab" data-tab="zap" data-tworld="volt"><span class="ti">🔫</span><span class="tl">ZAP</span></button>
+      <button class="tab" data-tab="arsenal" data-tworld="volt"><span class="ti">⚡</span><span class="tl">ARSENAL</span></button>
+      <button class="tab" data-tab="goals" data-tworld="both"><span class="ti">🏆</span><span class="tl">GOALS</span></button>
+      <button class="tab" data-tab="more" data-tworld="both"><span class="ti">♻️</span><span class="tl">MORE</span></button>
     </nav>
+  </div>
+
+  <!-- Wormhole cutscene overlay (the ??? upgrade) -->
+  <div id="wormhole" aria-hidden="true">
+    <div class="spiral"></div>
+    <div class="wormtext">
+      <p>&gt; CONNECTION LOST</p>
+      <p>&gt; VOLTAGE EXCEEDS RATED MAXIMUM</p>
+      <p>&gt; REROUTING . . .</p>
+    </div>
   </div>
 
   <!-- Floating tap numbers, power surges, toasts, modal -->

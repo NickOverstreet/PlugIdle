@@ -182,12 +182,17 @@ Update cadence target: a meaningful update every 4–6 weeks.
 forgiveness, surge chains + Grid Storm, 2 post-Omega cord tiers + 4 upgrades +
 6 achievements.
 
+**Also shipped pre-launch (v1.12 — "The Wormhole Update"):** the second
+progression layer landed as the **???** core upgrade (1e15 cores, reachable via
+the new core-accelerator ladder ~330 bot-hours in) which opens **the Voltlands**
+— a parallel idle-slayer world (zaps/sec, 10 weapons, 12 zap upgrades, waves +
+bosses, two-way travel, cross-world synergy buffs, 8 achievements).
+
 Remaining backlog, roughly in order:
 
 - **v1.1 — Retention:** push-notification opt-in ("your rig is at the offline cap").
-- **v1.2 — Content:** second prestige layer ("Grid Ascension" — consumes/resets
-  cores for Grid Points; timed for when veterans clear a run in ~15 min), more
-  challenges, another cord wave.
+- **v1.2 — Content:** more challenges, another cord wave, Voltlands depth
+  (its own prestige loop, weapon evolutions, named elite enemies).
 - **v1.3 — Social:** Google Play Games Services — achievements, leaderboards
   (total watts, fastest prestige), **cloud save** (replaces manual codes on Android).
 - **v1.4 — Events:** timed weekend events (e.g., "Surge Storm" — 2× surge frequency),
