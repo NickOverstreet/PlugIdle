@@ -28,18 +28,24 @@ permanent prestige bonuses.
 It looks like a CRT terminal, plays like a pocket power plant, and respects
 your time AND your wallet.
 
-🔌 24 CORD GENERATORS
+🔌 26 CORD GENERATORS
 Start with USB cables and audio jacks. End with quantum links, wormhole
-jacks, and cosmic strings. Every cord plugs itself in and earns watts per
-second — even while you're away.
+jacks, and cosmic strings — and discover what plugs in BEYOND the final
+plug. Every cord plugs itself in and earns watts per second — even while
+you're away.
 
-⬆️ 37 UPGRADES + SYNERGIES
+⬆️ 41 UPGRADES + SYNERGIES
 Boost your tap power, double individual cords, multiply everything at once,
 and unlock synergies where one cord's fleet supercharges another.
 
-⚡ POWER SURGES
+⚡ POWER SURGES & CHAINS
 A spark appears — tap it fast! Overloads, Production Frenzies (×7), and
-Click Frenzies (×10) reward you for being there at the right moment.
+Click Frenzies (×10) reward you for being there at the right moment. Chain
+catches for bigger payouts, and ride the rare GRID STORM.
+
+🧪 6 CHALLENGE RUNS
+Production halved. Tapping disabled. USB-A only. Beat a twisted run to earn
+a PERMANENT perk — auto-buying, cheaper cords, faster surges, and more.
 
 ♻️ PRESTIGE THAT FEELS GOOD
 Melt your operation down into Prestige Cores for a permanent production
@@ -47,8 +53,10 @@ bonus, then climb back faster than ever. Spend cores on permanent upgrades —
 bigger taps, longer offline earnings, auto-tapping, and more. Your bonus
 never goes down.
 
-🏆 44 ACHIEVEMENTS
-Milestones worth chasing, kept forever across prestiges.
+🏆 50 ACHIEVEMENTS = REAL POWER
+Every achievement permanently adds +1% production (the Grid Bonus), kept
+forever across prestiges. And a daily check-in streak that FORGIVES a
+missed day instead of punishing you.
 
 🌙 TRUE OFFLINE PLAY
 No connection needed. Your cords keep working while you sleep, and a

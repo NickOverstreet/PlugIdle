@@ -304,3 +304,10 @@ body[data-theme="vapor"]{
   --text:#f7bfe9; --dim:#906e85;
   --line:#3b1d33; --line2:#5a2250;
 }
+
+/* ---------- Grid Bonus (achievements -> production) ---------- */
+.gridbonus{
+  font-family:var(--pixel); font-size:8px; line-height:1.6; letter-spacing:.5px;
+  color:var(--amber); border:2px solid var(--line); background:rgba(255,194,61,.05);
+  padding:8px 10px; margin:0 2px 10px; text-shadow:0 0 6px rgba(255,194,61,.35);
+}

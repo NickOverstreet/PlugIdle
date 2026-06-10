@@ -66,6 +66,7 @@
       <!-- GOALS / ACHIEVEMENTS -->
       <section class="panel" id="p-goals">
         <div class="sectitle">🏆 ACHIEVEMENTS <span id="goalcount" class="dimcount"></span></div>
+        <div class="gridbonus" id="gridBonus"></div>
         <div id="goallist"></div>
       </section>
 
@@ -73,7 +74,7 @@
       <section class="panel" id="p-more">
         <div class="block">
           <h3>♻️ RECYCLE PLANT</h3>
-          <p>Melt your whole operation into Prestige Cores. Each core grants a permanent <b class="hi">+5%</b> to all production. Achievements &amp; surge stats are kept.</p>
+          <p>Melt your whole operation into Prestige Cores. Each core grants a permanent <b class="hi">+5%</b> to all production (diminishing past ×10 total). Achievements &amp; surge stats are kept.</p>
           <div class="coregain">+<span id="coregain">0</span> ◆ Cores</div>
           <button class="bigbtn danger" id="prestigeBtn">RECYCLE EMPIRE</button>
           <p class="center">Cores: <b class="mag" id="corecount">0</b> ◆ &nbsp;(lifetime <span id="prestigemult">+0%</span>)</p>
@@ -83,6 +84,14 @@
           <h3>◆ CORE UPGRADES</h3>
           <p>Spend Prestige Cores on <b class="hi">permanent</b> boosts. Cores are spent here, but your per-core bonus is based on cores ever earned — so it never drops.</p>
           <div class="ugrid" id="corelist"></div>
+        </div>
+
+        <!-- Challenges: unlocked after the first prestige -->
+        <div class="block" id="challengeBlock" hidden>
+          <h3>🧪 CHALLENGES</h3>
+          <p>Special runs with a twist. Hit the goal to earn a <b class="hi">permanent</b> perk. Starting one resets your run like recycling (no cores gained); recycling abandons it.</p>
+          <div id="chActive" hidden></div>
+          <div class="ugrid" id="chlist"></div>
         </div>
 
         <!-- Power Store: rewarded bonuses + IAP. Only revealed by the native
@@ -103,6 +112,7 @@
             <li><span>Generators owned</span><b id="statGens">0</b></li>
             <li><span>Power surges caught</span><b id="statSurges">0</b></li>
             <li><span>Achievements unlocked</span><b id="statAch">0</b></li>
+            <li><span>Grid bonus (goals)</span><b id="statGrid">+0%</b></li>
             <li><span>Time played</span><b id="statTime">0s</b></li>
             <li><span>Prestige cores</span><b id="statCores">0</b></li>
           </ul>
@@ -114,6 +124,7 @@
           <div class="toggle"><span>📳 Haptics</span><button class="sw" data-set="haptic">ON</button></div>
           <div class="toggle"><span>✨ Animations</span><button class="sw" data-set="anim">ON</button></div>
           <div class="toggle"><span>🔬 Sci. Notation</span><button class="sw" data-set="sci">OFF</button></div>
+          <div class="toggle" id="autobuyRow" hidden><span>🤖 Auto-Buy Cheapest</span><button class="sw" data-set="autobuy">OFF</button></div>
           <div class="toggle" id="themeRow" hidden><span>🎨 CRT Theme</span><span id="themeBtns"></span></div>
           <p class="muted" id="storageStatus">Checking storage…</p>
           <p class="muted"><a href="privacy.html" style="color:inherit">Privacy policy</a></p>
