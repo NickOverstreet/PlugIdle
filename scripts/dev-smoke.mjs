@@ -75,7 +75,7 @@ const hook = `
     buyCoreUpgrade, zapEnemy, buyWeapon, buyZapUpgrade, switchWorld,
     totalZps, zapPower, bossWattsMult, gridZpsBoost, prestigeGain, prestigeMult,
     carryState, defaultState, normalizeState, applyZapDamage, spawnEnemy,
-    autoBuyTick, autoBuyUpgrades,
+    autoBuyTick, autoBuyUpgrades, autoTapRate,
   };
 })();`;
 if (!src.endsWith('})();\n')) throw new Error('unexpected game.js tail');
@@ -153,7 +153,7 @@ check('save: roundtrip keeps weapons', round.slayer.weapons.glove === 1);
 check('save: legacy save gets slayer backfilled', T.normalizeState({ watts: 5 }).slayer.wave === 1);
 
 // accelerators present and wired
-check('content: 18 core upgrades', T.CORE_UPGRADES.length === 18);
+check('content: 23 core upgrades', T.CORE_UPGRADES.length === 23);
 S().coreUpgrades.fission = true;
 const g1 = T.prestigeGain();
 delete S().coreUpgrades.fission;
@@ -191,6 +191,36 @@ S().upgrades = {};
 T.autoBuyUpgrades();
 check('autoupg: toggle off stops buying', Object.keys(S().upgrades).length === 0);
 S().settings.autoupgOn = true;
+
+// Auto-Tapper ladder: rate scales 5→1000 and each tier needs the previous
+S().coreUpgrades = {};
+check('autotap: rate 0 with none owned', T.autoTapRate() === 0);
+S().cores = 1e6;
+T.buyCoreUpgrade(T.CORE_UPGRADES.find(c => c.id === 'autotap10'));
+check('autotap: II is locked without I', !S().coreUpgrades.autotap10);
+S().coreUpgrades.autotap = true;
+check('autotap: base rate is 5', T.autoTapRate() === 5);
+['autotap10', 'autotap20', 'autotap50', 'autotap100', 'autotap1000'].forEach(id => { S().coreUpgrades[id] = true; });
+check('autotap: maxed rate is 1000', T.autoTapRate() === 1000);
+
+// Ouroboros Cord: 0 watts, boosts prestige core gain, never auto-bought
+const ouro = T.CORDS.find(c => c.coreGain);
+check('content: ouroboros core-gain cord exists', !!ouro && ouro.wps === 0);
+S().coreUpgrades = {};
+S().owned = {};
+S().totalEarned = 1e30;
+S().coresEarned = 0;
+const baseGain = T.prestigeGain();
+S().owned[ouro.id] = 50;
+check('ouroboros: boosts prestige gain', T.prestigeGain() > baseGain);
+
+S().challenge = '';
+S().coreUpgrades = { autobuy: true };
+S().settings.autobuyOn = true;
+S().owned = { genesis: 1 };       // unlocks ouro (its previous cord)
+S().watts = 1e40;                 // more than enough to afford ouro
+T.autoBuyTick();
+check('autobuy: never buys the core-gain cord', (S().owned[ouro.id] || 0) === 0);
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
