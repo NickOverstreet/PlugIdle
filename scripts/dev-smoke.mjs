@@ -164,10 +164,18 @@ S().challenge = '';
 S().coreUpgrades.autobuy = true;
 S().owned = { usba: 1 };
 S().watts = 1e9;
-const cordsBefore = T.CORDS.reduce((n, c) => n + (S().owned[c.id] || 0), 0);
+const tally = () => T.CORDS.reduce((n, c) => n + (S().owned[c.id] || 0), 0);
+const cordsBefore = tally();
 T.autoBuyTick();
-const cordsAfter = T.CORDS.reduce((n, c) => n + (S().owned[c.id] || 0), 0);
+const cordsAfter = tally();
 check('autobuy: buys many cords in one tick', cordsAfter - cordsBefore > 1);
+
+// ...and its Settings toggle stops it
+S().settings.autobuyOn = false;
+const offBefore = tally();
+T.autoBuyTick();
+check('autobuy: toggle off stops buying', tally() === offBefore);
+S().settings.autobuyOn = true;
 
 // Auto-Upgrader core upgrade: buys all unlocked affordable upgrades at once
 S().coreUpgrades.autoupg = true;
@@ -176,6 +184,13 @@ S().owned = { usba: 10, jack: 10 };
 S().watts = 1e9;
 T.autoBuyUpgrades();
 check('autoupg: buys affordable upgrades', Object.keys(S().upgrades).length > 1);
+
+// ...and its Settings toggle stops it
+S().settings.autoupgOn = false;
+S().upgrades = {};
+T.autoBuyUpgrades();
+check('autoupg: toggle off stops buying', Object.keys(S().upgrades).length === 0);
+S().settings.autoupgOn = true;
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
