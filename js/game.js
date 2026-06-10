@@ -290,10 +290,19 @@
   // Permanent +25% from the boost_production_25 purchase (Android IAP).
   function iapProdMult() { return state.iap && state.iap.boost_production_25 ? 1.25 : 1; }
 
+  // Grid Bonus: each unlocked achievement grants +1% production, permanently
+  // (Cookie Clicker's milk pattern — goals become power; persists prestiges).
+  function achCount() {
+    let n = 0;
+    for (const a of ACHIEVEMENTS) if (state.achievements[a.id]) n++;
+    return n;
+  }
+  function achMult() { return 1 + 0.01 * achCount(); }
+
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
-    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * buffMult('prod');
+    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod');
   }
 
   // ---- Tap power: keep hand-plugging relevant for the whole game ----
@@ -658,7 +667,7 @@
       if (ok) {
         state.achievements[a.id] = true;
         earnedNew = true;
-        toast('🏆 ' + a.name, true);
+        toast('🏆 ' + a.name + ' · GRID +1%', true);
         blip(1320, 0.2, 'triangle', 0.06);
         buzz([0, 20, 50, 20, 50, 40]);
         screenShake(0.8);
@@ -672,6 +681,8 @@
   function renderGoals() {
     const done = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length;
     el.goalcount.textContent = `(${done}/${ACHIEVEMENTS.length})`;
+    const gb = document.getElementById('gridBonus');
+    if (gb) gb.textContent = `⚡ GRID BONUS: +${done}% production · +1% per achievement, kept through recycling`;
     let html = '';
     for (const a of ACHIEVEMENTS) {
       const got = !!state.achievements[a.id];
@@ -905,6 +916,8 @@
     el.statGens.textContent = fmtInt(totalGenerators());
     el.statSurges.textContent = fmtInt(state.surgesCollected || 0);
     el.statAch.textContent = ACHIEVEMENTS.filter((a) => state.achievements[a.id]).length + ' / ' + ACHIEVEMENTS.length;
+    const sg = document.getElementById('statGrid');
+    if (sg) sg.textContent = '+' + achCount() + '%';
     el.statCores.textContent = fmtInt(state.cores || 0);
     el.statTime.textContent = fmtDuration(Date.now() - state.startedAt);
     const pg = prestigeGain();

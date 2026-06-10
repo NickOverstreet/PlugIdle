@@ -24,7 +24,7 @@ python3 -m http.server 8000
 - **Cord milestones**: every 25 of a cord you own **doubles** that cord's output — and every 100th milestone is a bigger **×10** instead of ×2. The next milestone is shown on each cord.
 - **Upgrades** (37 of them) boost tap power, individual cord types, or all cords at once — including **synergy upgrades** where one cord's fleet boosts another.
 - **⚡ Power Surges**: a spark randomly appears during play — tap it for an instant Overload, a Production Frenzy (×7), or a Click Frenzy (×10).
-- **🏆 Goals**: 44 achievements that unlock as you hit milestones, giving you something to chase.
+- **🏆 Goals**: 44 achievements that unlock as you hit milestones — each one permanently adds **+1% production** (the Grid Bonus), so chasing goals makes you stronger.
 - **Offline earnings**: your cords keep working while you're away (50% efficiency, capped at 24h), shown in a "Welcome back" summary.
 - **Recycle Plant (prestige)**: melt your whole operation into Prestige Cores for a permanent per-core production bonus (achievements, core upgrades, and surge stats carry over).
 - **◆ Core Upgrades**: spend Prestige Cores on **permanent** boosts — bigger taps, more production, longer offline cap, faster/stronger surges, auto-tapping, and more. Your per-core bonus is based on cores *ever earned*, so spending never lowers it.
