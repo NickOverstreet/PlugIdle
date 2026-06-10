@@ -71,10 +71,11 @@ let src = readFileSync(join(root, 'js', 'game.js'), 'utf8');
 const hook = `
   window.__test = {
     get state() { return state; },
-    CORE_UPGRADES, WEAPONS, ZAP_UPGRADES, CHALLENGES,
+    CORE_UPGRADES, WEAPONS, ZAP_UPGRADES, CHALLENGES, CORDS, UPGRADES,
     buyCoreUpgrade, zapEnemy, buyWeapon, buyZapUpgrade, switchWorld,
     totalZps, zapPower, bossWattsMult, gridZpsBoost, prestigeGain, prestigeMult,
     carryState, defaultState, normalizeState, applyZapDamage, spawnEnemy,
+    autoBuyTick, autoBuyUpgrades,
   };
 })();`;
 if (!src.endsWith('})();\n')) throw new Error('unexpected game.js tail');
@@ -152,11 +153,29 @@ check('save: roundtrip keeps weapons', round.slayer.weapons.glove === 1);
 check('save: legacy save gets slayer backfilled', T.normalizeState({ watts: 5 }).slayer.wave === 1);
 
 // accelerators present and wired
-check('content: 16 core upgrades', T.CORE_UPGRADES.length === 16);
+check('content: 18 core upgrades', T.CORE_UPGRADES.length === 18);
 S().coreUpgrades.fission = true;
 const g1 = T.prestigeGain();
 delete S().coreUpgrades.fission;
 check('accelerators: fission multiplies gain', g1 >= T.prestigeGain());
+
+// Auto-Buyer core upgrade: one tick buys MANY cords across tiers (not 1)
+S().challenge = '';
+S().coreUpgrades.autobuy = true;
+S().owned = { usba: 1 };
+S().watts = 1e9;
+const cordsBefore = T.CORDS.reduce((n, c) => n + (S().owned[c.id] || 0), 0);
+T.autoBuyTick();
+const cordsAfter = T.CORDS.reduce((n, c) => n + (S().owned[c.id] || 0), 0);
+check('autobuy: buys many cords in one tick', cordsAfter - cordsBefore > 1);
+
+// Auto-Upgrader core upgrade: buys all unlocked affordable upgrades at once
+S().coreUpgrades.autoupg = true;
+S().upgrades = {};
+S().owned = { usba: 10, jack: 10 };
+S().watts = 1e9;
+T.autoBuyUpgrades();
+check('autoupg: buys affordable upgrades', Object.keys(S().upgrades).length > 1);
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

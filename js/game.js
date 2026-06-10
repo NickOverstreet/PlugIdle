@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.12.0';       // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.13.0';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -116,6 +116,8 @@
     { id: 'nightshift',icon: '🌙', name: 'Night Shift',        cost: 10, desc: 'Offline efficiency 50% → 75%.' },
     { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
     { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
+    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys cords for you — fast, many at once.' },
+    { id: 'autoupg',   icon: '🛠️', name: 'Auto-Upgrader',      cost: 22, desc: 'Auto-buys upgrades the moment you can afford them.' },
     // Late-game core accelerators — the ladder that makes ??? reachable.
     { id: 'fission',   icon: '☢️', name: 'Core Fission',       cost: 5e9,  desc: 'Prestige core gains ×5.' },
     { id: 'cascade',   icon: '🧨', name: 'Core Cascade',       cost: 1e12, desc: 'Prestige core gains ×25.' },
@@ -133,7 +135,7 @@
     { id: 'minimalist', icon: '🧘', name: 'MINIMALIST',   rule: 'Upgrades cannot be bought.',                goal: 5e9,  reward: 'PREWIRED — runs start with Reinforced Thumbs owned.' },
     { id: 'darkgrid',   icon: '🌑', name: 'DARK GRID',    rule: 'Power surges never appear.',                goal: 1e10, reward: 'SURGE BEACON — surges arrive 20% sooner.' },
     { id: 'overpriced', icon: '💸', name: 'OVERPRICED',   rule: 'Cord costs grow 18% per buy (not 12%).',    goal: 1e11, reward: 'WHOLESALE — all cords cost 3% less.' },
-    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys your cheapest cord (toggle in Settings).' },
+    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys cords for you, fast (toggle in Settings).' },
   ];
   const ch = () => (state && state.challenge) || '';
   const chDone = (id) => !!(state && state.challengesDone && state.challengesDone[id]);
@@ -2059,25 +2061,52 @@
   }
 
   /* ---------- Main loop ---------- */
-  // AUTO-PLUGGER (BROWNOUT challenge perk): quietly buys the cheapest
-  // affordable cord every ~3s when the setting is on. No sounds/toasts — it
-  // runs constantly; milestone celebrations still fire on manual buys.
+  // Auto-buy is active from the Auto-Buyer core upgrade (always on, like the
+  // Auto-Tapper) OR the BROWNOUT challenge perk (its Settings toggle).
+  function autoBuyActive() {
+    return co('autobuy') || (chDone('brownout') && state.settings.autobuy);
+  }
+
+  // AUTO-BUYER: every tick, grab a fat batch of every affordable cord, highest
+  // tier first so watts flow to the best ones. No sounds/toasts and no per-buy
+  // re-render — it runs flat-out; milestone celebrations still fire on manual
+  // buys. AUTO_BUY_PER_CORD caps work per tier per tick (≈250 cords/tier/sec).
+  const AUTO_BUY_PER_CORD = 25;
   function autoBuyTick() {
-    if (!state.settings.autobuy || !chDone('brownout')) return;
-    let best = null;
-    CORDS.forEach((cord, i) => {
-      if (ch() === 'solo' && cord.id !== 'usba') return;
+    if (!autoBuyActive()) return;
+    let bought = false;
+    for (let i = CORDS.length - 1; i >= 0; i--) {
+      const cord = CORDS[i];
+      if (ch() === 'solo' && cord.id !== 'usba') continue;   // SOLO CIRCUIT: USB-A only
       const owned = state.owned[cord.id] || 0;
       const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
-      if (!(owned > 0 || prevOwned > 0)) return;
-      const cost = cordCost(cord, 1);
-      if (cost <= state.watts && (!best || cost < best.cost)) best = { cord, cost };
-    });
-    if (best) {
-      state.watts -= best.cost;
-      state.owned[best.cord.id] = (state.owned[best.cord.id] || 0) + 1;
-      lastSig = '';           // force the shop's affordability re-render
+      if (!(owned > 0 || prevOwned > 0)) continue;            // not unlocked yet
+      const k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
+      if (k <= 0) continue;
+      const cost = cordCost(cord, k);
+      if (state.watts < cost) continue;
+      state.watts -= cost;
+      state.owned[cord.id] = owned + k;
+      bought = true;
     }
+    if (bought) lastSig = '';   // force the shop's affordability re-render
+  }
+
+  // AUTO-UPGRADER (core upgrade): every tick, buy every unlocked, affordable
+  // upgrade, cheapest first so cheap ones are never starved by a pricey one.
+  function autoBuyUpgrades() {
+    if (!co('autoupg') || ch() === 'minimalist') return;     // MINIMALIST: no upgrades
+    let bought = false;
+    const avail = UPGRADES
+      .filter(u => !state.upgrades[u.id] && upgradeUnlocked(u))
+      .sort((a, b) => a.cost - b.cost);
+    for (const u of avail) {
+      if (state.watts < u.cost) continue;
+      state.watts -= u.cost;
+      state.upgrades[u.id] = true;
+      bought = true;
+    }
+    if (bought) lastSig = '';   // force the shop's affordability re-render
   }
 
   let lastTick = Date.now();
@@ -2102,7 +2131,8 @@
     if (gain > 0) gainWatts(gain);
     slayerTick(dt);           // both economies always tick (parallel worlds)
     tickCount++;
-    if (tickCount % 30 === 0) autoBuyTick();   // ~every 3s
+    autoBuyTick();        // fast cord auto-buyer (Auto-Buyer core / BROWNOUT perk)
+    autoBuyUpgrades();    // Auto-Upgrader core upgrade
     if (activeWorld() === 'volt' && tickCount % 2 === 0) renderSlayerLite();
     checkChallenge();
     renderBuffs();            // count down / clear expired surge buffs
