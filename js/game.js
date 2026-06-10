@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.13.1';       // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.13.2';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -135,7 +135,7 @@
     { id: 'minimalist', icon: '🧘', name: 'MINIMALIST',   rule: 'Upgrades cannot be bought.',                goal: 5e9,  reward: 'PREWIRED — runs start with Reinforced Thumbs owned.' },
     { id: 'darkgrid',   icon: '🌑', name: 'DARK GRID',    rule: 'Power surges never appear.',                goal: 1e10, reward: 'SURGE BEACON — surges arrive 20% sooner.' },
     { id: 'overpriced', icon: '💸', name: 'OVERPRICED',   rule: 'Cord costs grow 18% per buy (not 12%).',    goal: 1e11, reward: 'WHOLESALE — all cords cost 3% less.' },
-    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys cords for you, fast (toggle in Settings).' },
+    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys cords for you, fast, forever.' },
   ];
   const ch = () => (state && state.challenge) || '';
   const chDone = (id) => !!(state && state.challengesDone && state.challengesDone[id]);
@@ -282,7 +282,7 @@
     surgesCollected: 0,  // lifetime power surges caught
     startedAt: Date.now(),
     lastSeen: Date.now(),
-    settings: { sound: true, floats: true, sci: false, haptics: true, autobuy: false },
+    settings: { sound: true, floats: true, sci: false, haptics: true },
     bulk: 1,             // 1, 10, 100, or 'max'
     prestigeV: 2,        // prestige-curve schema (v2 = cbrt gain + softcap)
     challenge: '',       // active challenge id (cleared by completion/abandon/prestige)
@@ -330,7 +330,7 @@
     const hadPrestigeV = s.prestigeV != null;
     const hadLifetime = s.lifetimeEarned != null;
     s = Object.assign(defaultState(), s);
-    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true, autobuy: false }, s.settings || {});
+    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, s.settings || {});
     if (!hadCoresEarned) s.coresEarned = s.cores || 0;
     if (s.coreUpgrades == null) s.coreUpgrades = {};
     if (s.iap == null) s.iap = {};
@@ -1156,13 +1156,10 @@
       const v = b.dataset.set === 'sound' ? state.settings.sound
               : b.dataset.set === 'haptic' ? state.settings.haptics
               : b.dataset.set === 'anim' ? state.settings.floats
-              : b.dataset.set === 'autobuy' ? state.settings.autobuy
               : state.settings.sci;
       b.classList.toggle('on', !!v);
       b.textContent = v ? 'ON' : 'OFF';
     });
-    const abRow = document.getElementById('autobuyRow');
-    if (abRow) abRow.hidden = !chDone('brownout');   // AUTO-PLUGGER perk gate
     document.body.classList.toggle('noanim', !state.settings.floats);
   }
 
@@ -2023,7 +2020,6 @@
       if (k === 'sound') state.settings.sound = !state.settings.sound;
       else if (k === 'haptic') { state.settings.haptics = !state.settings.haptics; if (state.settings.haptics) buzz(20); }
       else if (k === 'anim') state.settings.floats = !state.settings.floats;
-      else if (k === 'autobuy') state.settings.autobuy = !state.settings.autobuy;
       else state.settings.sci = !state.settings.sci;
       syncSettingsUI();
       renderStatsLite();
@@ -2061,10 +2057,10 @@
   }
 
   /* ---------- Main loop ---------- */
-  // Auto-buy is active from the Auto-Buyer core upgrade (always on, like the
-  // Auto-Tapper) OR the BROWNOUT challenge perk (its Settings toggle).
+  // Auto-buy is active from the Auto-Buyer core upgrade or the BROWNOUT
+  // challenge perk — both always on once earned, like the Auto-Tapper.
   function autoBuyActive() {
-    return co('autobuy') || (chDone('brownout') && state.settings.autobuy);
+    return co('autobuy') || chDone('brownout');
   }
 
   // AUTO-BUYER: every tick, grab a fat batch of every affordable cord, highest
