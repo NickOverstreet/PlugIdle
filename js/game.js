@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.13.3';       // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.14.0';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -42,6 +42,9 @@
     { id: 'omega',   icon: '🅾️', name: 'Omega Cord',       baseCost: 1.5e27,  wps: 8e19, desc: 'The final plug. Nothing connects beyond.' },
     { id: 'axiom',   icon: '📐', name: 'Axiom Wire',       baseCost: 2.5e29,  wps: 7e20, desc: 'Plugs pure logic straight into the wall.' },
     { id: 'genesis', icon: '🌱', name: 'Genesis Patch',    baseCost: 4e31,    wps: 6.5e21, desc: 'The cable the next universe boots from.' },
+    // Final tier: carries no watts — instead it boosts prestige core gain.
+    // coreGain = + this much to the core-gain multiplier per cord owned.
+    { id: 'ouro',    icon: '♾️', name: 'Ouroboros Cord',   baseCost: 5e33,    wps: 0, coreGain: 0.01, desc: 'Loops the grid back into the recycler.' },
   ];
 
   /* ---------- Content: upgrades ----------
@@ -115,8 +118,14 @@
     { id: 'resonance', icon: '💠', name: 'Core Resonance',     cost: 8,  desc: 'Each core gives +8% instead of +5%.' },
     { id: 'nightshift',icon: '🌙', name: 'Night Shift',        cost: 10, desc: 'Offline efficiency 50% → 75%.' },
     { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
-    { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
-    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys cords for you — fast, many at once.' },
+    { id: 'autotap',    icon: '🤖', name: 'Auto-Tapper',       cost: 15,  desc: 'Auto-plugs 5×/sec, free forever.' },
+    // Auto-Tapper ladder — each unlocks once the previous is owned.
+    { id: 'autotap10',  icon: '🤖', name: 'Auto-Tapper II',    cost: 25,  req: 'autotap',    desc: 'Auto-plugs 10×/sec.' },
+    { id: 'autotap20',  icon: '🤖', name: 'Auto-Tapper III',   cost: 45,  req: 'autotap10',  desc: 'Auto-plugs 20×/sec.' },
+    { id: 'autotap50',  icon: '🤖', name: 'Auto-Tapper IV',    cost: 80,  req: 'autotap20',  desc: 'Auto-plugs 50×/sec.' },
+    { id: 'autotap100', icon: '🤖', name: 'Auto-Tapper V',     cost: 150, req: 'autotap50',  desc: 'Auto-plugs 100×/sec.' },
+    { id: 'autotap1000',icon: '🤖', name: 'Auto-Tapper VI',    cost: 400, req: 'autotap100', desc: 'Auto-plugs 1000×/sec.' },
+    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys the most expensive cords you can afford.' },
     { id: 'autoupg',   icon: '🛠️', name: 'Auto-Upgrader',      cost: 22, desc: 'Auto-buys upgrades the moment you can afford them.' },
     // Late-game core accelerators — the ladder that makes ??? reachable.
     { id: 'fission',   icon: '☢️', name: 'Core Fission',       cost: 5e9,  desc: 'Prestige core gains ×5.' },
@@ -367,7 +376,22 @@
     if (co('singular2')) m *= 100;
     return m;
   }
-  function autoTapRate() { return co('autotap') ? 5 : 0; }
+  function autoTapRate() {
+    if (co('autotap1000')) return 1000;
+    if (co('autotap100')) return 100;
+    if (co('autotap50')) return 50;
+    if (co('autotap20')) return 20;
+    if (co('autotap10')) return 10;
+    if (co('autotap')) return 5;
+    return 0;
+  }
+  // Ouroboros Cord (and any future coreGain cord) multiplies prestige core
+  // gain by +coreGain per owned, capped at ×2 so it can never run away.
+  function coreCordGainMult() {
+    let bonus = 0;
+    for (const c of CORDS) if (c.coreGain) bonus += c.coreGain * (state.owned[c.id] || 0);
+    return 1 + Math.min(bonus, 1);
+  }
   function prestigeKeepFrac() { return co('jumpstart') ? 0.05 : 0; }
   function lifetimeBonusPct() { return Math.round((prestigeMult() - 1) * 100); }
 
@@ -531,7 +555,7 @@
     // collect the difference vs. cores already earned this lifetime. Cube root
     // (Cookie Clicker's shape) needs ~8x more lifetime earnings per doubling,
     // keeping late-game cores meaningful instead of cascading.
-    const potential = Math.floor(Math.cbrt(state.totalEarned / 1e9) * prestigeGainMult());
+    const potential = Math.floor(Math.cbrt(state.totalEarned / 1e9) * prestigeGainMult() * coreCordGainMult());
     return Math.max(0, potential - (state.coresEarned || 0));
   }
 
@@ -969,6 +993,7 @@
 
   function buyCoreUpgrade(cu) {
     if (state.coreUpgrades[cu.id]) return;
+    if (cu.req && !co(cu.req)) return;   // locked until its prerequisite is owned
     if ((state.cores || 0) < cu.cost) { toast('Not enough cores'); blip(120, 0.06); return; }
     state.cores -= cu.cost;
     state.coreUpgrades[cu.id] = true;
@@ -1015,6 +1040,24 @@
       const count = buyCount(cord);
       const cost = cordCost(cord, count);
       const can = state.watts >= cost;
+      // Core-gain cord (Ouroboros): boosts prestige cores instead of watts.
+      if (cord.coreGain) {
+        const totalPct = Math.min(cord.coreGain * owned, 1) * 100;   // matches the ×2 cap
+        html += `
+        <button class="card buyable" data-cord="${cord.id}">
+          <div class="ico">${cord.icon}</div>
+          <div class="body">
+            <div class="nm">${cord.name}</div>
+            <div class="meta"><span class="pos">+${fmt(cord.coreGain * 100)}% ◆ cores each</span> · ${cord.desc}</div>
+          </div>
+          <div class="right">
+            <div class="owned">own ${fmt(owned)}</div>
+            <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} W</div>
+            <div class="mnote">+${fmt(totalPct)}% ◆</div>
+          </div>
+        </button>`;
+        return;
+      }
       const each = cord.wps * cordMultiplier(cord.id) * prestigeMult() * PROD_MULT;
       const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
       const nextMult = nextMs % BIG_MILESTONE === 0 ? BIG_MILESTONE_MULT : 2;
@@ -1066,6 +1109,8 @@
     if (!el.corelist) return;
     let html = '';
     for (const cu of CORE_UPGRADES) {
+      // req-gated upgrades (e.g. the Auto-Tapper ladder) stay hidden until owned.
+      if (cu.req && !co(cu.req) && !state.coreUpgrades[cu.id]) continue;
       const bought = !!state.coreUpgrades[cu.id];
       const can = !bought && (state.cores || 0) >= cu.cost;
       const cls = bought ? 'bought' : can ? 'ok' : 'no';
@@ -2073,26 +2118,34 @@
     return (co('autobuy') || chDone('brownout')) && state.settings.autobuyOn;
   }
 
-  // AUTO-BUYER: every tick, grab a fat batch of every affordable cord, highest
-  // tier first so watts flow to the best ones. No sounds/toasts and no per-buy
-  // re-render — it runs flat-out; milestone celebrations still fire on manual
-  // buys. AUTO_BUY_PER_CORD caps work per tier per tick (≈250 cords/tier/sec).
-  const AUTO_BUY_PER_CORD = 25;
+  // AUTO-BUYER: every tick, greedily spend watts on the MOST EXPENSIVE cord it
+  // can afford, in batches, until nothing's affordable (or the per-tick guard
+  // trips). Skips the Ouroboros Cord (wps 0) so it never starves production.
+  // Silent — no sounds/toasts; milestone celebrations still fire on manual buys.
+  const AUTO_BUY_PER_CORD = 25;     // cords per batch
   function autoBuyTick() {
     if (!autoBuyActive()) return;
     let bought = false;
-    for (let i = CORDS.length - 1; i >= 0; i--) {
-      const cord = CORDS[i];
-      if (ch() === 'solo' && cord.id !== 'usba') continue;   // SOLO CIRCUIT: USB-A only
-      const owned = state.owned[cord.id] || 0;
-      const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
-      if (!(owned > 0 || prevOwned > 0)) continue;            // not unlocked yet
+    let guard = 60;                 // cap batches per tick
+    while (guard-- > 0) {
+      let pick = -1;
+      for (let i = CORDS.length - 1; i >= 0; i--) {
+        const cord = CORDS[i];
+        if (cord.wps <= 0) continue;                           // skip non-producing cords
+        if (ch() === 'solo' && cord.id !== 'usba') continue;   // SOLO CIRCUIT: USB-A only
+        const owned = state.owned[cord.id] || 0;
+        const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
+        if (!(owned > 0 || prevOwned > 0)) continue;           // not unlocked yet
+        if (state.watts >= cordCost(cord, 1)) { pick = i; break; }
+      }
+      if (pick < 0) break;                                     // nothing affordable
+      const cord = CORDS[pick];
       const k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
-      if (k <= 0) continue;
+      if (k <= 0) break;
       const cost = cordCost(cord, k);
-      if (state.watts < cost) continue;
+      if (state.watts < cost) break;
       state.watts -= cost;
-      state.owned[cord.id] = owned + k;
+      state.owned[cord.id] = (state.owned[cord.id] || 0) + k;
       bought = true;
     }
     if (bought) lastSig = '';   // force the shop's affordability re-render
