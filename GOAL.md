@@ -56,8 +56,9 @@ monetization lands, so the public promise stays honest.)
 | Concern | Choice |
 |---|---|
 | Rewarded ads | `@capacitor-community/admob` (includes Google UMP consent flow for EEA/UK) |
-| In-app purchases | Google Play Billing via the **RevenueCat Capacitor SDK** (free tier, handles receipt validation + restore). No-third-party alternative: `cordova-plugin-purchase`. |
-| Entitlement storage | Existing IndexedDB save, plus a "Restore purchases" button that re-syncs from the store |
+| In-app purchases | Google Play Billing via **`cordova-plugin-purchase`** — no third-party account or API key needed, works immediately with Play license testers (chosen over RevenueCat for ship-speed; can migrate later if server-side receipt validation becomes worth it) |
+| Entitlement storage | Existing IndexedDB save (idempotent grants), plus a "Restore purchases" button that re-syncs from the store |
+| Bridge module | `js/monetize.js` — single facade the game talks to; reports unavailable on the web so the PWA renders zero monetization UI |
 
 ### Rewarded ad placements (opt-in, daily-capped)
 
@@ -119,13 +120,16 @@ IAP without delaying the launch date.
 
 ### Sprint 2 — Store readiness & start the 14-day clock
 
-- [ ] Write a **privacy policy** (required once AdMob ships; cover ads, identifiers,
-      local saves) and host it on GitHub Pages.
-- [ ] Play Console setup: app entry, **Data Safety form** (declare AdMob data
-      collection now so it doesn't need re-review later), **IARC content rating**
-      questionnaire, ads declaration, target-audience declaration (not child-directed).
-- [ ] Store listing: title, short + full description (ASO keywords: idle, incremental,
-      clicker, offline), 4–8 phone screenshots, 1024×500 feature graphic, 512px icon.
+- [x] Write a **privacy policy** — `privacy.html`, linked from the in-game settings;
+      live at `/pwa-webapp/privacy.html` once merged to `main`.
+- [x] Store listing copy + assets prepared: `store/listing.md` (title, short/full
+      description with ASO keywords, screenshot shot list) and
+      `store/feature-graphic.png` (regenerate via `scripts/make_store_assets.py`);
+      512px icon = `icons/icon-maskable-512.png`.
+- [x] Console form answers prepared: `store/play-console-checklist.md` (Data Safety,
+      IARC content rating, ads/target-audience declarations, SKU list, app-ads.txt).
+- [ ] Fill in the Play Console forms using the checklist; take 4–8 phone screenshots
+      per the shot list.
 - [ ] Upload the AAB to the **closed testing** track; enroll Google Play App Signing.
 - [ ] Get **12+ testers opted in** and confirm the 14-day counter is running.
 - [ ] Set up a feedback channel (Google Form or Discord).
@@ -134,15 +138,19 @@ IAP without delaying the launch date.
 
 ### Sprint 3 — Monetization (built during the mandatory 14-day wait)
 
-- [ ] Integrate `@capacitor-community/admob`: UMP consent flow on first launch, then
-      the three rewarded placements with daily caps. Test with AdMob **test ad units**
-      until launch day.
-- [ ] Integrate RevenueCat + Play Billing: define the six SKUs in Play Console, wire
-      purchase + restore flows, persist entitlements into the save object.
-- [ ] Add a **Store section** (in the existing "More" tab or a new tab) listing IAPs
-      and rewarded-bonus buttons, styled to the CRT aesthetic.
-- [ ] Implement the theme pack (CSS variable themes) and time-warp grant logic.
-- [ ] Test purchases end-to-end with **license testers** on the closed track.
+- [x] `@capacitor-community/admob` integrated via `js/monetize.js`: UMP consent on
+      first launch, three rewarded placements (double offline earnings, ×2 boost
+      10m — 3/day, summon surge — 2/day). Running on Google **test ad units**;
+      swap the `TODO(launch)` IDs in `js/monetize.js` + `AndroidManifest.xml`.
+- [x] Play Billing integrated via `cordova-plugin-purchase`: all six SKUs wired with
+      purchase + restore flows; entitlements persist in the save (idempotent grants).
+- [x] **Power Store** section in the More tab (CRT-styled), revealed only inside the
+      native shell; supporter daily claim; restore-purchases button.
+- [x] Theme pack implemented (Amber / Ice / Vapor CSS-variable themes, picker in
+      settings once owned) and time-warp grant logic.
+- [ ] Create the six SKUs in Play Console (names/prices in
+      `store/play-console-checklist.md`) and add license testers.
+- [ ] Test ads + purchases end-to-end on a device on the closed track.
 - [ ] Push the monetization build to closed testing; gather balance/UX feedback.
 
 **Exit criteria:** rewarded ads and all six IAPs working in the closed-test build.
