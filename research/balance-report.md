@@ -267,8 +267,14 @@ cascades), (2) purchase cadence (should grow gently, never collapse to seconds),
 ## Appendix C — Reproduce
 
 ```bash
-node scripts/sim-balance.mjs --hours 96                                  # live, no prestige
-node scripts/sim-balance.mjs --hours 96  --prestige                      # live (collapses @39.5h)
-node scripts/sim-balance.mjs --hours 168 --prestige --root cbrt --softcap 10   # recommended
+# (sim defaults now match the shipped v2 curve: cbrt + softcap 10)
+node scripts/sim-balance.mjs --hours 96                                  # lifetime pacing, no prestige
+node scripts/sim-balance.mjs --hours 168 --prestige                      # shipped curve (Omega ~110h50m)
+node scripts/sim-balance.mjs --hours 96  --prestige --root sqrt --softcap 0    # pre-fix (collapses @39.5h)
 node scripts/sim-balance.mjs --hours 168 --prestige --root log2          # rejected variant
 ```
+
+> **Status: P0 implemented.** `js/game.js` now ships the cbrt gain +
+> ×10-softcap multiplier (`prestigeV: 2`), with a one-time save migration
+> (`coresEarned → coresEarned^(2/3)`) and UI percentages derived from the
+> effective (softcapped) multiplier.

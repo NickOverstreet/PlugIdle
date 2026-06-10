@@ -183,6 +183,7 @@
     lastSeen: Date.now(),
     settings: { sound: true, floats: true, sci: false, haptics: true },
     bulk: 1,             // 1, 10, 100, or 'max'
+    prestigeV: 2,        // prestige-curve schema (v2 = cbrt gain + softcap)
     // ---- monetization (Android only; harmless extras on web) ----
     iap: {},             // non-consumable sku -> true (granted entitlements)
     theme: '',           // '' (green) | 'amber' | 'ice' | 'vapor'
@@ -197,14 +198,22 @@
   // (older saves used `cores` as the lifetime-bonus source, with no coresEarned).
   function normalizeState(s) {
     s = s || {};
-    // Detect legacy saves (no coresEarned field) BEFORE defaults overwrite it.
+    // Detect legacy saves (no coresEarned / prestigeV) BEFORE defaults backfill.
     const hadCoresEarned = s.coresEarned != null;
+    const hadPrestigeV = s.prestigeV != null;
     s = Object.assign(defaultState(), s);
     s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, s.settings || {});
     if (!hadCoresEarned) s.coresEarned = s.cores || 0;
     if (s.coreUpgrades == null) s.coreUpgrades = {};
     if (s.iap == null) s.iap = {};
     if (s.adUses == null) s.adUses = {};
+    // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
+    // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
+    // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
+    if (!hadPrestigeV) {
+      s.coresEarned = Math.round(Math.pow(Math.max(0, s.coresEarned || 0), 2 / 3));
+      s.prestigeV = 2;
+    }
     return s;
   }
 
@@ -223,10 +232,20 @@
   function prestigeGainMult() { return co('recycler') ? 1.5 : 1; }
   function autoTapRate() { return co('autotap') ? 5 : 0; }
   function prestigeKeepFrac() { return co('jumpstart') ? 0.05 : 0; }
-  function lifetimeBonusPct() { return Math.round(corePer() * 100 * (state.coresEarned || 0)); }
+  function lifetimeBonusPct() { return Math.round((prestigeMult() - 1) * 100); }
 
+  // Per-core bonus is linear up to a ×10 total multiplier, then square-root
+  // dampened — keeps late-game prestige meaningful without the runaway loop
+  // (see research/balance-report.md). UI percentages derive from the EFFECTIVE
+  // multiplier via prestigeMultFor, so the display never overstates.
+  const PRESTIGE_SOFTCAP = 10;
+  function prestigeMultFor(coresN) {
+    const raw = 1 + corePer() * coresN;
+    if (raw <= PRESTIGE_SOFTCAP) return raw;
+    return PRESTIGE_SOFTCAP * Math.sqrt(raw / PRESTIGE_SOFTCAP);
+  }
   function prestigeMult() {
-    return 1 + corePer() * (state.coresEarned || 0);
+    return prestigeMultFor(state.coresEarned || 0);
   }
 
   // An upgrade's multiplier applies to a cord's WHOLE output — every unit you
@@ -346,9 +365,11 @@
   }
 
   function prestigeGain() {
-    // Cores "deserved" follows a sqrt curve (×Recycler's Edge bonus); you
-    // collect the difference vs. cores already earned this lifetime.
-    const potential = Math.floor(Math.sqrt(state.totalEarned / 1e9) * prestigeGainMult());
+    // Cores "deserved" follows a cube-root curve (×Recycler's Edge bonus); you
+    // collect the difference vs. cores already earned this lifetime. Cube root
+    // (Cookie Clicker's shape) needs ~8x more lifetime earnings per doubling,
+    // keeping late-game cores meaningful instead of cascading.
+    const potential = Math.floor(Math.cbrt(state.totalEarned / 1e9) * prestigeGainMult());
     return Math.max(0, potential - (state.coresEarned || 0));
   }
 
@@ -957,7 +978,7 @@
   function doPrestige() {
     const gain = prestigeGain();
     if (gain <= 0) { toast('Earn more before recycling'); return; }
-    const newPct = Math.round(corePer() * 100 * ((state.coresEarned || 0) + gain));
+    const newPct = Math.round((prestigeMultFor((state.coresEarned || 0) + gain) - 1) * 100);
     const kept = Math.floor((state.watts || 0) * prestigeKeepFrac());
     showModal(`
       <h2 class="danger">♻ RECYCLE?</h2>

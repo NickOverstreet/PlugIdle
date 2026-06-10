@@ -7,7 +7,8 @@
    Usage: node scripts/sim-balance.mjs [--hours N] [--divisor X] [--root sqrt|cbrt]
      --hours    simulated play time per run (default 96)
      --divisor  prestige divisor (default 1e9, the live value)
-     --root     prestige root shape (default sqrt, the live value)
+     --root     prestige shape: cbrt (live) | sqrt (pre-v2) | log2
+     --softcap  prestige-mult softcap knee (default 10, the live value; 0 = off)
 */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -39,7 +40,7 @@ const opt = (name, dflt) => {
 };
 const HOURS = parseFloat(opt('hours', '96'));
 const DIVISOR = parseFloat(opt('divisor', '1e9'));
-const ROOT = opt('root', 'sqrt');
+const ROOT = opt('root', 'cbrt');
 // 'log2': each successive core needs 2x more lifetime earnings than the last —
 // a geometric core ladder (Realm Grinder / Egg Inc style) with no singularity.
 const rootFn = ROOT === 'cbrt' ? Math.cbrt
@@ -74,7 +75,7 @@ function cordMultiplier(id) {
 }
 // --softcap X: full +5%/core up to a ×X total multiplier, then square-root
 // dampening beyond the knee (Antimatter-Dimensions-style softcap).
-const SOFTCAP = parseFloat(opt('softcap', '0')); // 0 = off
+const SOFTCAP = parseFloat(opt('softcap', '10')); // 0 = off
 const prestigeMult = () => {
   const raw = 1 + CORE_PCT * coresEarned;
   if (!SOFTCAP || raw <= SOFTCAP) return raw;
