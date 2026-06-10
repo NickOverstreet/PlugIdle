@@ -53,6 +53,8 @@ const CORE_PCT = parseFloat(opt('corepct', '0.05'));   // per-core bonus
 /* ---------- state ---------- */
 let owned = {}; let ups = {};
 let watts = 0, totalEarned = 0, clicks = 0, t = 0; // t in seconds
+let runEarned = 0;        // totalEarned resets each prestige in the real game;
+                          // core potential is computed from the CURRENT run only
 let coresEarned = 0;
 const prestiges = [];                                   // {t, gained, total}
 
@@ -103,7 +105,7 @@ function clickPower() {
 const nextCordCost = (c) => Math.ceil(c.baseCost * Math.pow(COST_GROWTH, owned[c.id] || 0));
 const cordUnlocked = (i) => i === 0 || (owned[CORDS[i].id] || 0) > 0 || (owned[CORDS[i - 1].id] || 0) > 0;
 const upUnlocked = (u) => !u.req || (owned[u.req.cord] || 0) >= u.req.n;
-const cores = () => Math.floor(rootFn(totalEarned / DIVISOR));
+const cores = () => Math.floor(rootFn(runEarned / DIVISOR));
 
 /* ---------- greedy run ---------- */
 const TAP_RATE = 4;            // taps/sec while "active" (first 15 min + after each wall)
@@ -142,6 +144,7 @@ while (t < END) {
     dt = Math.max(dt, 0.05);
     watts += rate * dt;
     totalEarned += rate * dt;
+    runEarned += rate * dt;
     if (tapping) { clicks += TAP_RATE * dt; tapSecondsLeft = Math.max(0, tapSecondsLeft - dt); }
     t += dt;
     while (totalEarned >= nextDecade) { decades.push({ t, v: nextDecade }); nextDecade *= 10; }
@@ -158,7 +161,7 @@ while (t < END) {
     if (gain >= Math.max(1, coresEarned)) {
       coresEarned += gain;
       prestiges.push({ t, gained: gain, total: coresEarned });
-      owned = {}; ups = {}; watts = 0;
+      owned = {}; ups = {}; watts = 0; runEarned = 0;
       tapSecondsLeft = ACTIVE_TAP_BUDGET;   // player is active right after a reset
     }
   }
@@ -194,5 +197,5 @@ if (PRESTIGE) {
 console.log(`\n## End state @ ${hm(t)}`);
 console.log(`  totalEarned ${sci(totalEarned)}  wps ${sci(totalWps())}  purchases ${purchases}`);
 console.log(`  cores deserved ${cores().toLocaleString()}, earned ${coresEarned.toLocaleString()}  (prestige mult ×${(1 + CORE_PCT * Math.max(cores(), coresEarned)).toExponential(2)})`);
-const omega = firstBuy[CORDS[CORDS.length - 1].id];
-console.log(`  Omega Cord first bought: ${omega != null ? hm(omega) : 'never'}`);
+const last = CORDS[CORDS.length - 1];
+console.log(`  ${last.name} (final tier) first bought: ${firstBuy[last.id] != null ? hm(firstBuy[last.id]) : 'never'}`);

@@ -278,3 +278,11 @@ node scripts/sim-balance.mjs --hours 168 --prestige --root log2          # rejec
 > ×10-softcap multiplier (`prestigeV: 2`), with a one-time save migration
 > (`coresEarned → coresEarned^(2/3)`) and UI percentages derived from the
 > effective (softcapped) multiplier.
+>
+> **Sim fidelity correction (post-publication):** the original sim let
+> `totalEarned` accumulate across prestiges; the real game resets it per run
+> (core potential is per-run high-water). With that corrected, the headline
+> numbers shift slightly and conclusions are unchanged: old curve collapse
+> ~42h00m (was 39h37m); shipped curve final tier ~113–115h. P1 features
+> (Grid Bonus, challenges, streak, surge chains, post-Omega tiers) shipped
+> in v1.11 alongside the rebalance.

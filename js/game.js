@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.10.0';       // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.11.0';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -40,6 +40,8 @@
     { id: 'multivrs',icon: '🪐', name: 'Multiversal Hub',  baseCost: 7e24,    wps: 1e18,   desc: 'Plugs into every timeline at once.' },
     { id: 'divine',  icon: '😇', name: 'Divine Connector', baseCost: 1e26,    wps: 9e18,   desc: 'The port the universe booted from.' },
     { id: 'omega',   icon: '🅾️', name: 'Omega Cord',       baseCost: 1.5e27,  wps: 8e19, desc: 'The final plug. Nothing connects beyond.' },
+    { id: 'axiom',   icon: '📐', name: 'Axiom Wire',       baseCost: 2.5e29,  wps: 7e20, desc: 'Plugs pure logic straight into the wall.' },
+    { id: 'genesis', icon: '🌱', name: 'Genesis Patch',    baseCost: 4e31,    wps: 6.5e21, desc: 'The cable the next universe boots from.' },
   ];
 
   /* ---------- Content: upgrades ----------
@@ -91,6 +93,11 @@
     { id: 'u_multivrs',icon: '🪐', name: 'Brane Alignment',   cost: 2e26,  kind: 'cord', cord: 'multivrs', mult: 2, req: { cord: 'multivrs', n: 5 }, desc: 'Multiversal Hub output x2.' },
     { id: 'u_divine',  icon: '😇', name: 'Holy Soldering',    cost: 3e27,  kind: 'cord', cord: 'divine',   mult: 2, req: { cord: 'divine',   n: 5 }, desc: 'Divine Connector output x2.' },
     { id: 'u_omega',   icon: '🅾️', name: 'Final Firmware',    cost: 5e28,  kind: 'cord', cord: 'omega',    mult: 2, req: { cord: 'omega',    n: 5 }, desc: 'Omega Cord output x2.' },
+    // Post-Omega wave (v1.11): two new tiers + a global + a synergy.
+    { id: 'u_glob8',   icon: '🌌', name: 'Universal Mains',   cost: 1e29,  kind: 'global', mult: 5, desc: 'All cords x5.' },
+    { id: 'u_axiom',   icon: '📐', name: 'Lemma Lattice',     cost: 8e30,  kind: 'cord', cord: 'axiom',    mult: 2, req: { cord: 'axiom',    n: 5 }, desc: 'Axiom Wire output x2.' },
+    { id: 'syn5',      icon: '🧬', name: 'Seed Crystal',      cost: 5e31,  kind: 'synergy', cord: 'genesis', from: 'omega', per: 0.01, req: { cord: 'omega', n: 10 }, desc: '+1% Genesis Patch per Omega Cord owned.' },
+    { id: 'u_genesis', icon: '🌱', name: 'Bootstrap Loom',    cost: 1.3e33,kind: 'cord', cord: 'genesis',  mult: 2, req: { cord: 'genesis',  n: 5 }, desc: 'Genesis Patch output x2.' },
   ];
 
   /* ---------- Content: core upgrades (prestige shop) ----------
@@ -110,6 +117,21 @@
     { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
     { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
   ];
+
+  /* ---------- Content: challenges ----------
+     Special runs with one rule mutated (started from the More tab after the
+     first prestige). Resets the run like recycling, no cores gained; reaching
+     the goal lifts the rule and unlocks a PERMANENT perk. */
+  const CHALLENGES = [
+    { id: 'solo',       icon: '1️⃣', name: 'SOLO CIRCUIT', rule: 'Only USB-A cables can be bought.',          goal: 1e8,  reward: 'GOLD PINS — USB-A output ×5, forever.' },
+    { id: 'unplugged',  icon: '🚫', name: 'UNPLUGGED',    rule: 'Hand-plugging earns nothing.',              goal: 1e9,  reward: 'JUMP LEADS — every run starts with 5 USB-A cables.' },
+    { id: 'minimalist', icon: '🧘', name: 'MINIMALIST',   rule: 'Upgrades cannot be bought.',                goal: 5e9,  reward: 'PREWIRED — runs start with Reinforced Thumbs owned.' },
+    { id: 'darkgrid',   icon: '🌑', name: 'DARK GRID',    rule: 'Power surges never appear.',                goal: 1e10, reward: 'SURGE BEACON — surges arrive 20% sooner.' },
+    { id: 'overpriced', icon: '💸', name: 'OVERPRICED',   rule: 'Cord costs grow 18% per buy (not 12%).',    goal: 1e11, reward: 'WHOLESALE — all cords cost 3% less.' },
+    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys your cheapest cord (toggle in Settings).' },
+  ];
+  const ch = () => (state && state.challenge) || '';
+  const chDone = (id) => !!(state && state.challengesDone && state.challengesDone[id]);
 
   // Cord output milestones: every CORD_MILESTONE owned grants ×2, except every
   // BIG_MILESTONE owned grants ×BIG_MILESTONE_MULT instead — near-term goals
@@ -156,7 +178,7 @@
     { id: 'sing',     icon: '⚫', name: 'Point of No Return',desc: 'Own a Singularity Bus.',                 cond: () => (state.owned.singular || 0) >= 1 },
     { id: 'multi',    icon: '🪐', name: 'Across Realities', desc: 'Own a Multiversal Hub.',                  cond: () => (state.owned.multivrs || 0) >= 1 },
     { id: 'omega1',   icon: '🅾️', name: 'The Final Plug',  desc: 'Own an Omega Cord.',                      cond: () => (state.owned.omega || 0) >= 1 },
-    { id: 'allcord24',icon: '🧰', name: 'Master Electrician',desc: 'Own one of all 24 cord types.',          cond: () => CORDS.every(c => (state.owned[c.id] || 0) >= 1), prog: () => [CORDS.filter(c => (state.owned[c.id] || 0) >= 1).length, CORDS.length] },
+    { id: 'allcord24',icon: '🧰', name: 'Master Electrician',desc: `Own one of all ${CORDS.length} cord types.`, cond: () => CORDS.every(c => (state.owned[c.id] || 0) >= 1), prog: () => [CORDS.filter(c => (state.owned[c.id] || 0) >= 1).length, CORDS.length] },
     { id: 'surge100', icon: '🌪️', name: 'Tempest',         desc: 'Catch 100 power surges.',                 cond: () => (state.surgesCollected || 0) >= 100, prog: () => [state.surgesCollected || 0, 100] },
     { id: 'syn1ach',  icon: '🔗', name: 'Synergist',       desc: 'Buy a synergy upgrade.',                  cond: () => UPGRADES.some(u => u.kind === 'synergy' && state.upgrades[u.id]) },
     { id: 'up15',     icon: '🔩', name: 'Master Tinkerer',  desc: 'Buy 15 upgrades.',                       cond: () => Object.keys(state.upgrades).length >= 15, prog: () => [Object.keys(state.upgrades).length, 15] },
@@ -165,6 +187,12 @@
     { id: 'prest100', icon: '🟣', name: 'Core Overlord',   desc: 'Earn 100 prestige cores.',                cond: () => (state.coresEarned || 0) >= 100, prog: () => [state.coresEarned || 0, 100] },
     { id: 'core1',    icon: '◆', name: 'Spend to Ascend',  desc: 'Buy your first core upgrade.',            cond: () => Object.keys(state.coreUpgrades || {}).length >= 1 },
     { id: 'coreAll',  icon: '💟', name: 'Core Completionist',desc: 'Buy every core upgrade.',                cond: () => Object.keys(state.coreUpgrades || {}).length >= CORE_UPGRADES.length, prog: () => [Object.keys(state.coreUpgrades || {}).length, CORE_UPGRADES.length] },
+    { id: 'axiom1',   icon: '📐', name: 'Beyond the End',  desc: 'Own an Axiom Wire. ("Nothing connects beyond," they said.)', cond: () => (state.owned.axiom || 0) >= 1 },
+    { id: 'genesis1', icon: '🌱', name: 'New Game Seed',   desc: 'Own a Genesis Patch.',                    cond: () => (state.owned.genesis || 0) >= 1 },
+    { id: 'w1sp',     icon: '🌌', name: 'Septillion Spark',desc: 'Earn 1 septillion total watts.',          cond: () => state.totalEarned >= 1e24, prog: () => [state.totalEarned, 1e24] },
+    { id: 'chal1',    icon: '🧪', name: 'Lab Rat',         desc: 'Complete a challenge.',                   cond: () => Object.keys(state.challengesDone || {}).length >= 1 },
+    { id: 'chalAll',  icon: '🏅', name: 'Grid Scientist',  desc: 'Complete every challenge.',               cond: () => Object.keys(state.challengesDone || {}).length >= CHALLENGES.length, prog: () => [Object.keys(state.challengesDone || {}).length, CHALLENGES.length] },
+    { id: 'streak7',  icon: '🔥', name: 'Week of Power',   desc: 'Reach a 7-day check-in streak.',          cond: () => (state.streak || 0) >= 7, prog: () => [state.streak || 0, 7] },
   ];
 
   /* ---------- State ---------- */
@@ -181,9 +209,15 @@
     surgesCollected: 0,  // lifetime power surges caught
     startedAt: Date.now(),
     lastSeen: Date.now(),
-    settings: { sound: true, floats: true, sci: false, haptics: true },
+    settings: { sound: true, floats: true, sci: false, haptics: true, autobuy: false },
     bulk: 1,             // 1, 10, 100, or 'max'
     prestigeV: 2,        // prestige-curve schema (v2 = cbrt gain + softcap)
+    challenge: '',       // active challenge id (cleared by completion/abandon/prestige)
+    challengesDone: {},  // challengeId -> true (permanent perks)
+    streak: 0,           // daily check-in streak (48h forgiveness window)
+    streakAt: 0,         // ms timestamp of the last streak claim
+    streakDay: '',       // local date of the last streak claim
+    streakUntil: 0,      // streak production buff expiry
     // ---- monetization (Android only; harmless extras on web) ----
     iap: {},             // non-consumable sku -> true (granted entitlements)
     theme: '',           // '' (green) | 'amber' | 'ice' | 'vapor'
@@ -202,11 +236,12 @@
     const hadCoresEarned = s.coresEarned != null;
     const hadPrestigeV = s.prestigeV != null;
     s = Object.assign(defaultState(), s);
-    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, s.settings || {});
+    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true, autobuy: false }, s.settings || {});
     if (!hadCoresEarned) s.coresEarned = s.cores || 0;
     if (s.coreUpgrades == null) s.coreUpgrades = {};
     if (s.iap == null) s.iap = {};
     if (s.adUses == null) s.adUses = {};
+    if (s.challengesDone == null) s.challengesDone = {};
     // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
     // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
     // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
@@ -260,6 +295,7 @@
       // Synergy: this cord gains +per per unit of another cord owned.
       if (u.kind === 'synergy' && u.cord === cordId) m *= 1 + u.per * (state.owned[u.from] || 0);
     }
+    if (cordId === 'usba' && chDone('solo')) m *= 5;   // GOLD PINS challenge perk
     // Ownership milestones: ×2 per CORD_MILESTONE, ×BIG_MILESTONE_MULT per BIG_MILESTONE.
     m *= cordMilestoneMult(state.owned[cordId] || 0);
     return m;
@@ -302,7 +338,8 @@
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
-    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod');
+    const challengePenalty = ch() === 'brownout' ? 0.5 : 1;
+    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod') * challengePenalty;
   }
 
   // ---- Tap power: keep hand-plugging relevant for the whole game ----
@@ -327,6 +364,7 @@
   }
 
   function clickPower() {
+    if (ch() === 'unplugged') return 0;   // UNPLUGGED challenge rule
     let p = 1;
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'click') p *= u.mult;
@@ -341,20 +379,24 @@
     return (flat + fromWps) * buffMult('click');
   }
 
+  // OVERPRICED challenge steepens cost growth; its WHOLESALE perk discounts.
+  function costGrowth() { return ch() === 'overpriced' ? 1.18 : COST_GROWTH; }
+  function costDiscount() { return chDone('overpriced') ? 0.97 : 1; }
+
   function cordCost(cord, count) {
     // cost of buying `count` more, starting from current owned
     const owned = state.owned[cord.id] || 0;
-    const r = COST_GROWTH;
+    const r = costGrowth();
     let total = 0;
     for (let i = 0; i < count; i++) {
       total += cord.baseCost * Math.pow(r, owned + i);
     }
-    return Math.ceil(total);
+    return Math.ceil(total * costDiscount());
   }
 
   function maxAffordable(cord) {
     const owned = state.owned[cord.id] || 0;
-    const r = COST_GROWTH;
+    const r = costGrowth();
     const base = cord.baseCost * Math.pow(r, owned);
     // geometric series: watts >= base*(r^k - 1)/(r-1)
     const w = state.watts;
@@ -588,13 +630,20 @@
   /* ---------- Power surges (Golden-Cookie style bonus events) ---------- */
   let surgeActive = false;
   let surgeHideTimer = null;
+  let surgeChain = 0;       // consecutive catches within 60s of each other
+  let lastSurgeCatch = 0;
+  let stormUntil = 0;       // GRID STORM: surges rush in for 90s
 
   function scheduleSurge() {
-    const delay = (60000 + Math.random() * 90000) * surgeDelayMult(); // 60–150s (Surge Magnet: ×0.6)
+    const storm = stormUntil > Date.now();
+    const delay = storm
+      ? 8000 + Math.random() * 6000
+      : (60000 + Math.random() * 90000) * surgeDelayMult()       // 60–150s (Surge Magnet: ×0.6)
+        * (chDone('darkgrid') ? 0.8 : 1);                        // SURGE BEACON challenge perk
     setTimeout(trySpawnSurge, delay);
   }
   function trySpawnSurge() {
-    if (document.hidden || surgeActive) { scheduleSurge(); return; }
+    if (document.hidden || surgeActive || ch() === 'darkgrid') { scheduleSurge(); return; }
     spawnSurge();
   }
   function spawnSurge() {
@@ -619,19 +668,31 @@
   function collectSurge(node) {
     removeSurge(node);
     const now = Date.now();
+    // Chain: catches within 60s of each other compound — rewards being present.
+    surgeChain = now - lastSurgeCatch <= 60000 ? surgeChain + 1 : 1;
+    lastSurgeCatch = now;
+    const chainMult = Math.min(1 + 0.25 * (surgeChain - 1), 3);      // up to ×3
+    const chainExtraMs = Math.min((surgeChain - 1) * 2000, 10000);   // buffs last longer
     const roll = Math.random();
     if (roll < 0.5) {
-      const bonus = Math.max(totalWps() * 90, clickPower() * 60, 50) * surgeRewardMult();
+      const bonus = Math.max(totalWps() * 90, clickPower() * 60, 50) * surgeRewardMult() * chainMult;
       state.watts += bonus;
       state.totalEarned += bonus;
       spawnFloater(bonus);
       toast('⚡ OVERLOAD! +' + fmt(bonus) + ' W', true);
     } else if (roll < 0.75) {
-      buffs.push({ kind: 'prod', mult: 7, until: now + 15000, icon: '🔥', label: 'FRENZY ×7' });
+      buffs.push({ kind: 'prod', mult: 7, until: now + 15000 + chainExtraMs, icon: '🔥', label: 'FRENZY ×7' });
       toast('🔥 PRODUCTION FRENZY ×7!', true);
     } else {
-      buffs.push({ kind: 'click', mult: 10, until: now + 12000, icon: '👆', label: 'CLICK ×10' });
+      buffs.push({ kind: 'click', mult: 10, until: now + 12000 + chainExtraMs, icon: '👆', label: 'CLICK ×10' });
       toast('👆 CLICK FRENZY ×10!', true);
+    }
+    if (surgeChain >= 2) toast(`⛓️ SURGE CHAIN ×${surgeChain}!`, true);
+    // Rare GRID STORM: surges rush in every ~10s for 90 seconds.
+    if (Math.random() < 0.07 && stormUntil < now) {
+      stormUntil = now + 90000;
+      buffs.push({ kind: 'storm', mult: 1, until: stormUntil, icon: '🌩️', label: 'GRID STORM', src: 'storm' });
+      toast('🌩️ GRID STORM! Surges rushing in for 90s', true);
     }
     state.surgesCollected = (state.surgesCollected || 0) + 1;
     blip(1200, 0.18, 'square', 0.06);
@@ -646,15 +707,18 @@
   function renderBuffs() {
     const now = Date.now();
     buffs = buffs.filter((b) => b.until > now);
-    if (!buffs.length) { el.buffBar.classList.remove('show'); el.buffBar.innerHTML = ''; return; }
+    const chal = state.challenge ? CHALLENGES.find((x) => x.id === state.challenge) : null;
+    if (!buffs.length && !chal) { el.buffBar.classList.remove('show'); el.buffBar.innerHTML = ''; return; }
     el.buffBar.classList.add('show');
-    el.buffBar.innerHTML = buffs
+    let html = buffs
       .map((b) => {
         const left = Math.ceil((b.until - now) / 1000);
         const t = left >= 60 ? `${Math.floor(left / 60)}m${left % 60 ? (left % 60) + 's' : ''}` : `${left}s`;
         return `<span class="buff">${b.icon} ${b.label} · ${t}</span>`;
       })
       .join('');
+    if (chal) html += `<span class="buff">${chal.icon} ${chal.name} · ${fmt(Math.min(state.totalEarned, chal.goal))}/${fmt(chal.goal)}</span>`;
+    el.buffBar.innerHTML = html;
   }
 
   /* ---------- Achievements ---------- */
@@ -745,6 +809,7 @@
   }
 
   function buyCord(cord) {
+    if (ch() === 'solo' && cord.id !== 'usba') { toast('🔒 SOLO CIRCUIT: USB-A only'); blip(120, 0.06); return; }
     const count = buyCount(cord);
     if (count <= 0) return;
     const cost = cordCost(cord, count);
@@ -770,6 +835,7 @@
   }
 
   function buyUpgrade(u) {
+    if (ch() === 'minimalist') { toast('🔒 MINIMALIST: no upgrades'); blip(120, 0.06); return; }
     if (state.upgrades[u.id]) return;
     if (state.watts < u.cost) { toast('Not enough watts'); blip(120, 0.06); return; }
     state.watts -= u.cost;
@@ -940,20 +1006,26 @@
   }
 
   function syncSettingsUI() {
-    document.querySelectorAll('.sw').forEach((b) => {
+    // [data-set] only — the theme-picker buttons also use .sw and must not
+    // have their labels clobbered with ON/OFF.
+    document.querySelectorAll('.sw[data-set]').forEach((b) => {
       const v = b.dataset.set === 'sound' ? state.settings.sound
               : b.dataset.set === 'haptic' ? state.settings.haptics
               : b.dataset.set === 'anim' ? state.settings.floats
+              : b.dataset.set === 'autobuy' ? state.settings.autobuy
               : state.settings.sci;
       b.classList.toggle('on', !!v);
       b.textContent = v ? 'ON' : 'OFF';
     });
+    const abRow = document.getElementById('autobuyRow');
+    if (abRow) abRow.hidden = !chDone('brownout');   // AUTO-PLUGGER perk gate
     document.body.classList.toggle('noanim', !state.settings.floats);
   }
 
   function renderAll() {
     renderShop();
     renderCoreShop();
+    renderChallenges();
     renderGoals();
     renderBuffs();
     renderStatsLite();
@@ -987,6 +1059,33 @@
   function showModal(html) { el.mbox.innerHTML = html; el.modal.classList.add('show'); }
   function hideModal() { el.modal.classList.remove('show'); }
 
+  /* ---------- Run resets (prestige & challenges) ---------- */
+  // Everything that survives a run reset. Monetization entitlements and streak
+  // history are account/device facts, not run progress — losing them on
+  // recycle would be a bug (and was: pre-v1.11 prestige dropped IAP grants).
+  function carryState(extra) {
+    return Object.assign({
+      cores: state.cores || 0,
+      coresEarned: state.coresEarned || 0,
+      coreUpgrades: state.coreUpgrades,
+      settings: state.settings,
+      achievements: state.achievements,
+      surgesCollected: state.surgesCollected,
+      startedAt: state.startedAt,
+      iap: state.iap, theme: state.theme,
+      adDay: state.adDay, adUses: state.adUses,
+      boostUntil: state.boostUntil, supporterDay: state.supporterDay,
+      streak: state.streak, streakAt: state.streakAt,
+      streakDay: state.streakDay, streakUntil: state.streakUntil,
+      challengesDone: state.challengesDone,
+    }, extra || {});
+  }
+  // Challenge-perk head starts applied to every fresh run.
+  function applyRunStartPerks() {
+    if (chDone('unplugged')) state.owned.usba = Math.max(state.owned.usba || 0, 5);  // JUMP LEADS
+    if (chDone('minimalist') && ch() !== 'minimalist') state.upgrades.u_click1 = true; // PREWIRED
+  }
+
   /* ---------- Prestige ---------- */
   function doPrestige() {
     const gain = prestigeGain();
@@ -995,7 +1094,7 @@
     const kept = Math.floor((state.watts || 0) * prestigeKeepFrac());
     showModal(`
       <h2 class="danger">♻ RECYCLE?</h2>
-      <p class="dim">Reset watts, cords &amp; upgrades.<br>Cores, core upgrades &amp; goals are kept.</p>
+      <p class="dim">Reset watts, cords &amp; upgrades.<br>Cores, core upgrades &amp; goals are kept.${ch() ? '<br><b>Abandons the active challenge!</b>' : ''}</p>
       <p class="big">+${fmt(gain)} ◆ Cores</p>
       <p>New bonus: <b style="color:var(--green)">+${newPct}%</b>${kept > 0 ? `<br><span class="dim">Jump Start keeps ${fmt(kept)} W</span>` : ''}</p>
       <div class="row2" style="margin-top:14px">
@@ -1003,18 +1102,15 @@
         <button class="smbtn" id="mNo">CANCEL</button>
       </div>`);
     document.getElementById('mYes').addEventListener('click', () => {
-      const carry = {
+      state = Object.assign(defaultState(), carryState({
         cores: (state.cores || 0) + gain,
         coresEarned: (state.coresEarned || 0) + gain,
-        coreUpgrades: state.coreUpgrades,
-        settings: state.settings,
-        achievements: state.achievements,
-        surgesCollected: state.surgesCollected,
-        startedAt: state.startedAt,
-      };
-      state = Object.assign(defaultState(), carry);
+      }));
       state.watts = kept;
       buffs = [];
+      syncBoostBuff();
+      syncStreakBuff();
+      applyRunStartPerks();
       save();
       hideModal();
       blip(220, 0.3, 'sawtooth', 0.06);
@@ -1025,6 +1121,114 @@
       renderAll();
     });
     document.getElementById('mNo').addEventListener('click', hideModal);
+  }
+
+  /* ---------- Challenges ---------- */
+  function startChallenge(c) {
+    if (ch()) { toast('Finish or abandon the current challenge first'); return; }
+    showModal(`
+      <h2>${c.icon} ${c.name}</h2>
+      <p class="dim">${c.rule}</p>
+      <p>Goal: earn <b style="color:var(--amber)">${fmt(c.goal)} W</b> in one run</p>
+      <p class="dim">Starts a fresh run like recycling (no cores gained).<br>Reward: ${c.reward}</p>
+      <div class="row2" style="margin-top:14px">
+        <button class="bigbtn" id="mYes">START</button>
+        <button class="smbtn" id="mNo">CANCEL</button>
+      </div>`);
+    document.getElementById('mYes').addEventListener('click', () => {
+      state = Object.assign(defaultState(), carryState({ challenge: c.id }));
+      buffs = [];
+      syncBoostBuff();
+      syncStreakBuff();
+      applyRunStartPerks();
+      // UNPLUGGED disables tapping entirely — without a starter cord the run
+      // could never earn its first watt (softlock).
+      if (c.id === 'unplugged') state.owned.usba = Math.max(state.owned.usba || 0, 1);
+      save();
+      hideModal();
+      blip(700, 0.16, 'sawtooth', 0.05);
+      toast(`${c.icon} ${c.name} — GO!`, true);
+      renderAll();
+    });
+    document.getElementById('mNo').addEventListener('click', hideModal);
+  }
+
+  function abandonChallenge() {
+    if (!ch()) return;
+    state.challenge = '';
+    toast('Challenge abandoned — run continues normally');
+    save();
+    renderAll();
+  }
+
+  // Called each tick: lifts the rule and grants the permanent perk on success.
+  function checkChallenge() {
+    if (!state.challenge) return;
+    const c = CHALLENGES.find((x) => x.id === state.challenge);
+    if (!c || state.totalEarned < c.goal) return;
+    state.challengesDone[c.id] = true;
+    state.challenge = '';
+    toast(`${c.icon} CHALLENGE COMPLETE! ${c.reward.split(' — ')[0]} unlocked`, true);
+    blip(1320, 0.2, 'triangle', 0.06);
+    buzz([0, 30, 50, 30, 50, 60]);
+    screenShake(1.2);
+    checkAchievements();
+    save();
+    renderAll();
+  }
+
+  function renderChallenges() {
+    const block = document.getElementById('challengeBlock');
+    if (!block) return;
+    const unlocked = (state.coresEarned || 0) >= 1 || Object.keys(state.challengesDone || {}).length > 0;
+    block.hidden = !unlocked;
+    if (!unlocked) return;
+    const active = CHALLENGES.find((c) => c.id === ch());
+    const ca = document.getElementById('chActive');
+    if (ca) {
+      ca.hidden = !active;
+      if (active) {
+        ca.innerHTML = `<p>${active.icon} <b class="hi">${active.name}</b> in progress — earn ${fmt(active.goal)} W this run.</p>
+          <button class="smbtn danger" id="chAbandon" style="width:100%">ABANDON CHALLENGE</button>`;
+      }
+    }
+    const list = document.getElementById('chlist');
+    if (list) {
+      list.innerHTML = CHALLENGES.map((c) => {
+        const done = chDone(c.id);
+        const cls = done ? 'bought' : active ? 'no' : 'ok';
+        return `
+          <button class="upg ${cls}" data-ch="${c.id}" ${done || active ? 'disabled' : ''}>
+            <div class="un">${c.icon} ${c.name}</div>
+            <div class="ud">${c.rule}<br>Goal: ${fmt(c.goal)} W · ${c.reward}</div>
+            <div class="uc">${done ? '✓ DONE' : 'START'}</div>
+          </button>`;
+      }).join('');
+    }
+  }
+
+  /* ---------- Daily streak (48h forgiveness — miss one day, keep the streak) ---------- */
+  function streakMult() { return 1 + 0.05 * Math.min(state.streak || 0, 10); }
+  function syncStreakBuff() {
+    buffs = buffs.filter((b) => b.src !== 'streak');
+    if ((state.streakUntil || 0) > Date.now() && (state.streak || 0) > 0) {
+      buffs.push({ kind: 'prod', mult: streakMult(), until: state.streakUntil, icon: '🔥', label: `STREAK ×${streakMult().toFixed(2)}`, src: 'streak' });
+    }
+    renderBuffs();
+  }
+  function claimDailyStreak() {
+    const today = localDay();
+    if (state.streakDay === today) { syncStreakBuff(); return; }   // already claimed today
+    const now = Date.now();
+    const kept = state.streakAt && now - state.streakAt <= 48 * 3600000;
+    state.streak = kept ? (state.streak || 0) + 1 : 1;
+    state.streakAt = now;
+    state.streakDay = today;
+    state.streakUntil = now + 30 * 60000;
+    syncStreakBuff();
+    toast(`🔥 DAY ${state.streak} STREAK · production ×${streakMult().toFixed(2)} for 30m`, true);
+    checkAchievements();
+    save();
   }
 
   /* ---------- Offline earnings ---------- */
@@ -1289,7 +1493,7 @@
       if (tab.dataset.tab === 'goals') renderGoals();
       else if (tab.dataset.tab === 'up') renderUpgrades();
       else if (tab.dataset.tab === 'plug') renderCords();
-      else if (tab.dataset.tab === 'more') { renderCoreShop(); renderStatsLite(); syncSettingsUI(); renderStore(); }
+      else if (tab.dataset.tab === 'more') { renderCoreShop(); renderChallenges(); renderStatsLite(); syncSettingsUI(); renderStore(); }
     });
   });
 
@@ -1342,13 +1546,25 @@
   el.importBtn.addEventListener('click', importSave);
   el.wipeBtn.addEventListener('click', hardReset);
 
+  // challenges: start / abandon (delegated)
+  const chBlock = document.getElementById('challengeBlock');
+  if (chBlock) chBlock.addEventListener('click', (e) => {
+    if (e.target.closest('#chAbandon')) { abandonChallenge(); return; }
+    const btn = e.target.closest('[data-ch]');
+    if (btn && !btn.disabled) {
+      const c = CHALLENGES.find((x) => x.id === btn.dataset.ch);
+      if (c) startChallenge(c);
+    }
+  });
+
   // settings switches
-  document.querySelectorAll('.sw').forEach((b) => {
+  document.querySelectorAll('.sw[data-set]').forEach((b) => {
     b.addEventListener('click', () => {
       const k = b.dataset.set;
       if (k === 'sound') state.settings.sound = !state.settings.sound;
       else if (k === 'haptic') { state.settings.haptics = !state.settings.haptics; if (state.settings.haptics) buzz(20); }
       else if (k === 'anim') state.settings.floats = !state.settings.floats;
+      else if (k === 'autobuy') state.settings.autobuy = !state.settings.autobuy;
       else state.settings.sci = !state.settings.sci;
       syncSettingsUI();
       renderStatsLite();
@@ -1385,6 +1601,27 @@
   }
 
   /* ---------- Main loop ---------- */
+  // AUTO-PLUGGER (BROWNOUT challenge perk): quietly buys the cheapest
+  // affordable cord every ~3s when the setting is on. No sounds/toasts — it
+  // runs constantly; milestone celebrations still fire on manual buys.
+  function autoBuyTick() {
+    if (!state.settings.autobuy || !chDone('brownout')) return;
+    let best = null;
+    CORDS.forEach((cord, i) => {
+      if (ch() === 'solo' && cord.id !== 'usba') return;
+      const owned = state.owned[cord.id] || 0;
+      const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
+      if (!(owned > 0 || prevOwned > 0)) return;
+      const cost = cordCost(cord, 1);
+      if (cost <= state.watts && (!best || cost < best.cost)) best = { cord, cost };
+    });
+    if (best) {
+      state.watts -= best.cost;
+      state.owned[best.cord.id] = (state.owned[best.cord.id] || 0) + 1;
+      lastSig = '';           // force the shop's affordability re-render
+    }
+  }
+
   let lastTick = Date.now();
   let tickCount = 0;
   let autoTapAccum = 0;   // fractional auto-taps carried between ticks
@@ -1409,6 +1646,8 @@
       state.totalEarned += gain;
     }
     tickCount++;
+    if (tickCount % 30 === 0) autoBuyTick();   // ~every 3s
+    checkChallenge();
     renderBuffs();            // count down / clear expired surge buffs
     checkAchievements();      // catches threshold (watts/time) unlocks
     renderStatsLite();
@@ -1427,6 +1666,7 @@
     await requestPersistence();
     applyOffline();
     syncBoostBuff();     // resurrect a still-running 2x boost after restart
+    claimDailyStreak();  // daily check-in bonus (48h forgiveness)
     applyTheme();
     window.Monetize?.init?.({
       skus: IAP_PRODUCTS.map((p) => ({ id: p.id, consumable: p.consumable })),

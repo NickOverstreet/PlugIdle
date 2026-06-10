@@ -174,12 +174,20 @@ IAP without delaying the launch date.
 
 ### Sprint 5+ — Content & growth (recurring post-launch)
 
-Update cadence target: a meaningful update every 4–6 weeks. Backlog, roughly in order:
+Update cadence target: a meaningful update every 4–6 weeks.
 
-- **v1.1 — Retention:** daily login rewards, 7-day streak bonus, push-notification
-  opt-in ("your rig is at the offline cap").
-- **v1.2 — Content:** new cord tiers beyond Omega, ~20 new upgrades, new achievement
-  wave, second prestige layer ("Grid Ascension").
+**Shipped early (pre-launch, v1.11):** prestige rebalance (cbrt + softcap — see
+`research/balance-report.md`), achievements → +1% production each (Grid Bonus),
+6 challenge runs with permanent perks (incl. auto-buy), daily streak with 48h
+forgiveness, surge chains + Grid Storm, 2 post-Omega cord tiers + 4 upgrades +
+6 achievements.
+
+Remaining backlog, roughly in order:
+
+- **v1.1 — Retention:** push-notification opt-in ("your rig is at the offline cap").
+- **v1.2 — Content:** second prestige layer ("Grid Ascension" — consumes/resets
+  cores for Grid Points; timed for when veterans clear a run in ~15 min), more
+  challenges, another cord wave.
 - **v1.3 — Social:** Google Play Games Services — achievements, leaderboards
   (total watts, fastest prestige), **cloud save** (replaces manual codes on Android).
 - **v1.4 — Events:** timed weekend events (e.g., "Surge Storm" — 2× surge frequency),
