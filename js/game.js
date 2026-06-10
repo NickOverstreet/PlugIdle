@@ -8,7 +8,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.7.0';        // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '1.8.0';        // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
@@ -103,6 +103,8 @@
     { id: 'nightshift',icon: '🌙', name: 'Night Shift',        cost: 10, desc: 'Offline efficiency 50% → 75%.' },
     { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
     { id: 'autotap',   icon: '🤖', name: 'Auto-Tapper',        cost: 15, desc: 'Auto-plugs 5×/sec, free forever.' },
+    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 20, desc: 'Auto-buys cords for you — fast, many at once.' },
+    { id: 'autoupg',   icon: '🛠️', name: 'Auto-Upgrader',      cost: 25, desc: 'Auto-buys upgrades the moment you can afford them.' },
   ];
 
   // Every CORD_MILESTONE owned of a cord doubles that cord's output — milestone
@@ -671,6 +673,46 @@
     renderStatsLite();
   }
 
+  /* ---------- Auto-buy (core upgrades) ----------
+     Auto-Buyer / Auto-Upgrader spend watts for you on every tick. They run
+     "silently" — no per-purchase toast, sound or re-render — so they can move
+     fast and grab many things at once; the main loop re-renders once after. */
+  const AUTO_BUY_PER_CORD = 25; // cords the Auto-Buyer grabs per cord, per tick
+
+  function autoBuyCords() {
+    let bought = 0;
+    // Highest tier first, so watts flow to the best cords; the one-tick unlock
+    // lag for a newly-revealed tier is invisible at 10 ticks/sec.
+    for (let i = CORDS.length - 1; i >= 0; i--) {
+      const cord = CORDS[i];
+      const owned = state.owned[cord.id] || 0;
+      const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
+      if (owned === 0 && prevOwned === 0) continue; // not unlocked yet
+      const k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
+      if (k <= 0) continue;
+      const cost = cordCost(cord, k);
+      if (state.watts < cost) continue;
+      state.watts -= cost;
+      state.owned[cord.id] = owned + k;
+      bought += k;
+    }
+    return bought;
+  }
+
+  function autoBuyUpgrades() {
+    let bought = 0;
+    const avail = UPGRADES
+      .filter(u => !state.upgrades[u.id] && upgradeUnlocked(u))
+      .sort((a, b) => a.cost - b.cost); // cheapest first, so cheap ones aren't starved
+    for (const u of avail) {
+      if (state.watts < u.cost) continue;
+      state.watts -= u.cost;
+      state.upgrades[u.id] = true;
+      bought++;
+    }
+    return bought;
+  }
+
   /* ---------- Rendering ---------- */
   function renderShop() {
     renderCords();
@@ -1049,6 +1091,18 @@
     if (gain > 0) {
       state.watts += gain;
       state.totalEarned += gain;
+    }
+    // Auto-buy core upgrades: spend watts for you, fast (silent bulk buys).
+    if (co('autobuy')) {
+      if (autoBuyCords() > 0 && document.getElementById('p-plug').classList.contains('active')) renderCords();
+    }
+    if (co('autoupg')) {
+      const n = autoBuyUpgrades();
+      if (n > 0) {
+        toast('🛠️ Auto-bought ' + n + ' upgrade' + (n === 1 ? '' : 's'));
+        blip(880, 0.1, 'sawtooth', 0.04);
+        if (document.getElementById('p-up').classList.contains('active')) renderUpgrades();
+      }
     }
     tickCount++;
     renderBuffs();            // count down / clear expired surge buffs

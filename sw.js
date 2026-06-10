@@ -1,5 +1,5 @@
 /* Live Wire service worker — offline-first caching. */
-const CACHE = 'live-wire-v8';
+const CACHE = 'live-wire-v9';
 const ASSETS = [
   './',
   './index.html',

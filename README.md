@@ -27,7 +27,7 @@ python3 -m http.server 8000
 - **🏆 Goals**: 44 achievements that unlock as you hit milestones, giving you something to chase.
 - **Offline earnings**: your cords keep working while you're away (50% efficiency, capped at 24h), shown in a "Welcome back" summary.
 - **Recycle Plant (prestige)**: melt your whole operation into Prestige Cores for a permanent per-core production bonus (achievements, core upgrades, and surge stats carry over).
-- **◆ Core Upgrades**: spend Prestige Cores on **permanent** boosts — bigger taps, more production, longer offline cap, faster/stronger surges, auto-tapping, and more. Your per-core bonus is based on cores *ever earned*, so spending never lowers it.
+- **◆ Core Upgrades**: spend Prestige Cores on **permanent** boosts — bigger taps, more production, longer offline cap, faster/stronger surges, auto-tapping, auto-buying cords &amp; upgrades, and more. Your per-core bonus is based on cores *ever earned*, so spending never lowers it.
 - **Settings**: toggle sound, haptics (vibration), animations, and scientific notation.
 
 ### Designed to be fun, not manipulative
