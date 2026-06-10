@@ -1,4 +1,4 @@
-# 🔌 Cord Tycoon
+# ⚡ Live Wire
 
 An installable **idle game about plugging in cords**, built as a Progressive Web App (PWA). Tap the socket to plug in cords, buy auto-pluggers, unlock upgrades, catch power surges, chase achievements, and recycle your empire for permanent prestige bonuses. Pure vanilla JS — no frameworks, no build step, no dependencies. Works offline and installs to your phone's home screen.
 

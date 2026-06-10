@@ -1,7 +1,7 @@
 {
-  "name": "Cord Tycoon",
-  "short_name": "Cord Tycoon",
-  "description": "An idle game about plugging in every type of cord imaginable.",
+  "name": "Live Wire",
+  "short_name": "Live Wire",
+  "description": "A retro CRT idle game about plugging in every type of cord imaginable.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

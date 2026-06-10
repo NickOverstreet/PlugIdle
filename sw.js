@@ -1,5 +1,5 @@
-/* Cord Tycoon service worker — offline-first caching. */
-const CACHE = 'cord-tycoon-v7';
+/* Live Wire service worker — offline-first caching. */
+const CACHE = 'live-wire-v8';
 const ASSETS = [
   './',
   './index.html',

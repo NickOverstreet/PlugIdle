@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Cord Tycoon PWA icons with no third-party deps (raw PNG encoder).
+"""Generate Live Wire PWA icons with no third-party deps (raw PNG encoder).
 
 Draws a stylized electrical socket: navy background, glowing yellow socket
 face with two prong slots and a ground hole. Outputs 192, 512, and a
