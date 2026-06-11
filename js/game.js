@@ -498,7 +498,9 @@
     return f;
   }
 
-  function clickPower() {
+  // Flat tap power — everything except the "% of W/s" share. Scales with click
+  // & global upgrades, prestige and tap milestones, but NOT directly with W/s.
+  function clickPowerFlat() {
     if (ch() === 'unplugged') return 0;   // UNPLUGGED challenge rule
     let p = 1;
     for (const u of UPGRADES) {
@@ -509,9 +511,23 @@
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'global') glob *= u.mult;
     }
-    const flat = p * glob * prestigeMult() * PROD_MULT * coreClickMult() * tapMilestoneMult();
+    return p * glob * prestigeMult() * PROD_MULT * coreClickMult() * tapMilestoneMult();
+  }
+  function clickPower() {
+    if (ch() === 'unplugged') return 0;   // UNPLUGGED challenge rule
     const fromWps = tapWpsFrac() * totalWps();   // scales with income, keeps taps useful
-    return (flat + fromWps) * buffMult('click');
+    return (clickPowerFlat() + fromWps) * buffMult('click');
+  }
+
+  // Watts earned per second by the Auto-Tapper. Flat tap power applies to every
+  // tap, but the "% of W/s" share is capped (AUTO_TAP_WPS_CAP) so very high tap
+  // rates — e.g. 1000/sec × Static Discharge — can't balloon production.
+  const AUTO_TAP_WPS_CAP = 1;   // auto-taps' W/s share tops out at +100% of W/s
+  function autoTapGainPerSec() {
+    const taps = autoTapRate();
+    if (taps <= 0 || ch() === 'unplugged') return 0;   // UNPLUGGED: hand-plugs earn nothing
+    const wpsShare = Math.min(tapWpsFrac() * taps, AUTO_TAP_WPS_CAP);
+    return (clickPowerFlat() * taps + wpsShare * totalWps()) * buffMult('click');
   }
 
   // OVERPRICED challenge steepens cost growth; its WHOLESALE perk discounts.
@@ -2176,12 +2192,11 @@
     const dt = (now - lastTick) / 1000;
     lastTick = now;
     let gain = totalWps() * dt;
-    // Auto-Tapper core upgrade: free passive taps, treated exactly like manual taps.
+    // Auto-Tapper: passive taps. Flat tap power scales with the rate; the W/s
+    // share is capped (see autoTapGainPerSec). Taps still count toward milestones.
     const taps = autoTapRate();
     if (taps > 0) {
-      // Auto-taps use full clickPower() (so every tap upgrade applies) and count
-      // toward state.clicks, so they progress the tap milestones just like manual taps.
-      gain += clickPower() * taps * dt;
+      gain += autoTapGainPerSec() * dt;
       autoTapAccum += taps * dt;
       const whole = Math.floor(autoTapAccum);
       if (whole > 0) { autoTapAccum -= whole; awardClicks(whole); }
