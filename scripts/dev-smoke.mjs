@@ -75,7 +75,7 @@ const hook = `
     buyCoreUpgrade, zapEnemy, buyWeapon, buyZapUpgrade, switchWorld,
     totalZps, zapPower, bossWattsMult, gridZpsBoost, prestigeGain, prestigeMult,
     carryState, defaultState, normalizeState, applyZapDamage, spawnEnemy,
-    autoBuyTick, autoBuyUpgrades, autoTapRate,
+    autoBuyTick, autoBuyUpgrades, autoTapRate, autoTapGainPerSec, clickPowerFlat, totalWps,
   };
 })();`;
 if (!src.endsWith('})();\n')) throw new Error('unexpected game.js tail');
@@ -202,6 +202,14 @@ S().coreUpgrades.autotap = true;
 check('autotap: base rate is 5', T.autoTapRate() === 5);
 ['autotap10', 'autotap20', 'autotap50', 'autotap100', 'autotap1000'].forEach(id => { S().coreUpgrades[id] = true; });
 check('autotap: maxed rate is 1000', T.autoTapRate() === 1000);
+
+// W/s share of auto-taps is capped: 1000/sec × Static must NOT give ~40× W/s
+S().challenge = '';
+S().coreUpgrades.static = true;   // each tap earns 4% of W/s
+S().upgrades = {};
+S().owned = { usba: 1000 };       // gives a nonzero W/s to draw the share from
+const apShare = T.autoTapGainPerSec() - T.clickPowerFlat() * T.autoTapRate();
+check('autotap: W/s share is capped (no balloon)', apShare <= T.totalWps() * 1.001);
 
 // Ouroboros Cord: 0 watts, boosts prestige core gain, never auto-bought
 const ouro = T.CORDS.find(c => c.coreGain);
