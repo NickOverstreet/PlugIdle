@@ -701,13 +701,25 @@
   };
   if (el.version) el.version.textContent = `PlugIdle v${VERSION}`;
 
-  /* ---------- Toast (stacked) ---------- */
+  /* ---------- Toast (stacked, capped, deduped) ---------- */
+  const TOAST_MAX = 3;            // never bury the screen in notifications
+  const liveToasts = [];          // tracked here, not via DOM, so order is ours
   function toast(msg, gold) {
+    // repeating message (e.g. "Not enough watts" spam) replaces itself
+    const dup = liveToasts.findIndex((x) => x.msg === msg);
+    if (dup >= 0) liveToasts.splice(dup, 1)[0].node.remove();
+    while (liveToasts.length >= TOAST_MAX) liveToasts.shift().node.remove();
     const t = document.createElement('div');
     t.className = 'toast' + (gold ? ' gold' : '');
     t.textContent = msg;
     el.toast.appendChild(t);
-    setTimeout(() => t.remove(), 3000);
+    const entry = { msg, node: t };
+    liveToasts.push(entry);
+    setTimeout(() => {
+      t.remove();
+      const i = liveToasts.indexOf(entry);
+      if (i >= 0) liveToasts.splice(i, 1);
+    }, 3000);
   }
 
   /* ---------- Sound (tiny WebAudio blips) ---------- */

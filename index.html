@@ -34,6 +34,10 @@
     <!-- Active power-surge buffs (counts down across all tabs) -->
     <div id="buffBar" class="buff-bar" aria-live="polite"></div>
 
+    <!-- Toasts: zero-height anchor right under the header so notifications
+         drop in from the top and never cover the shop/upgrade buttons. -->
+    <div id="toast" class="toast-wrap" role="status" aria-live="polite"></div>
+
     <main>
       <!-- PLUG: socket + cord generators -->
       <section class="panel active" id="p-plug">
@@ -192,10 +196,9 @@
     </div>
   </div>
 
-  <!-- Floating tap numbers, power surges, toasts, modal -->
+  <!-- Floating tap numbers, power surges, modal -->
   <div id="floaters" class="floaters" aria-hidden="true"></div>
   <div id="surgeLayer" class="surge-layer"></div>
-  <div id="toast" class="toast-wrap" role="status" aria-live="polite"></div>
   <div id="modal" class="modal"><div class="mbox" id="mbox"></div></div>
 
   <script src="js/monetize.js"></script>
