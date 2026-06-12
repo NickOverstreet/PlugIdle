@@ -873,21 +873,63 @@
     scheduleSurge();
   }
 
-  function renderBuffs() {
+  // Persistent banners (streak, surge buffs, challenge) live in the strip
+  // under the header. With two or more they scroll horizontally like a ticker
+  // instead of wrapping; a single one just sits centered. The set of pills
+  // ("sig") only changes when a buff is added or expires, so the per-tick
+  // path patches each pill's live value (seconds left / challenge progress)
+  // in place — the marquee keeps scrolling and never jumps back to start.
+  const TICKER_SPEED = 42;        // px/sec — constant regardless of pill count
+  let buffSig = '';
+  let buffVals = [];              // .bt nodes (both ticker copies), in order
+  function buffEntries() {
     const now = Date.now();
-    buffs = buffs.filter((b) => b.until > now);
+    const list = buffs.map((b) => ({
+      key: (b.src || b.kind || b.label),
+      head: `${b.icon} ${b.label} · `,
+      val: () => {
+        const left = Math.ceil((b.until - Date.now()) / 1000);
+        return left >= 60 ? `${Math.floor(left / 60)}m${left % 60 ? (left % 60) + 's' : ''}` : `${left}s`;
+      },
+    }));
     const chal = state.challenge ? CHALLENGES.find((x) => x.id === state.challenge) : null;
-    if (!buffs.length && !chal) { el.buffBar.classList.remove('show'); el.buffBar.innerHTML = ''; return; }
+    if (chal) list.push({
+      key: 'chal:' + chal.id,
+      head: `${chal.icon} ${chal.name} · `,
+      val: () => `${fmt(Math.min(state.totalEarned, chal.goal))}/${fmt(chal.goal)}`,
+    });
+    void now;
+    return list;
+  }
+  function renderBuffs() {
+    buffs = buffs.filter((b) => b.until > Date.now());
+    const entries = buffEntries();
+    if (!entries.length) {
+      el.buffBar.classList.remove('show', 'animate');
+      el.buffBar.innerHTML = ''; buffSig = ''; buffVals = [];
+      return;
+    }
     el.buffBar.classList.add('show');
-    let html = buffs
-      .map((b) => {
-        const left = Math.ceil((b.until - now) / 1000);
-        const t = left >= 60 ? `${Math.floor(left / 60)}m${left % 60 ? (left % 60) + 's' : ''}` : `${left}s`;
-        return `<span class="buff">${b.icon} ${b.label} · ${t}</span>`;
-      })
-      .join('');
-    if (chal) html += `<span class="buff">${chal.icon} ${chal.name} · ${fmt(Math.min(state.totalEarned, chal.goal))}/${fmt(chal.goal)}</span>`;
-    el.buffBar.innerHTML = html;
+    const sig = entries.map((e) => e.key).join('|');
+    if (sig === buffSig && buffVals.length) {           // same pills: patch values only
+      const n = entries.length;
+      buffVals.forEach((node, i) => { node.textContent = entries[i % n].val(); });
+      return;
+    }
+    buffSig = sig;
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const ticker = entries.length >= 2 && state.settings.floats && !reduce;
+    el.buffBar.classList.toggle('animate', ticker);
+    const pills = entries.map((e) => `<span class="buff">${e.head}<i class="bt">${e.val()}</i></span>`).join('');
+    // Ticker duplicates the pill run so the loop is seamless (translateX -50%).
+    const inner = ticker ? pills + pills : pills;
+    el.buffBar.innerHTML = `<div class="buff-track">${inner}</div>`;
+    buffVals = Array.from(el.buffBar.querySelectorAll('.bt') || []);
+    if (ticker) {
+      const track = el.buffBar.querySelector('.buff-track');
+      const copyW = (track.scrollWidth || 0) / 2;        // width of one pill run
+      if (copyW > 0) track.style.animationDuration = (copyW / TICKER_SPEED) + 's';
+    }
   }
 
   /* ---------- Achievements ---------- */

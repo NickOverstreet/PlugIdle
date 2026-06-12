@@ -70,21 +70,32 @@ body.noanim .surge{ animation:none; }
 .taprate{ font-size:16px; color:var(--dim); margin-top:2px; }
 .coresline{ font-size:16px; color:var(--magenta); margin-top:2px; }
 
-/* ---------- Active surge buffs ---------- */
+/* ---------- Active surge buffs (single-row ticker) ---------- */
 .buff-bar{
-  display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center;
+  display:flex; justify-content:center; align-items:center;
   max-height:0; overflow:hidden; transition:max-height .2s ease, padding .2s ease;
   background:#070b11; border-bottom:2px solid transparent;
 }
-.buff-bar.show{ max-height:96px; padding:6px 10px; border-bottom-color:var(--line); }
+.buff-bar.show{ max-height:52px; padding:6px 10px; border-bottom-color:var(--line); }
 /* a live toast borrows the banner slot: pills collapse, then slide back */
 .buff-bar.show.suppressed{ max-height:0; padding:0 10px; border-bottom-color:transparent; }
+/* 2+ pills with motion on: scroll like a ticker. Without motion (reduced
+   motion / anim off) they stay a single row the user can swipe instead. */
+.buff-bar.show:not(.animate){ overflow-x:auto; scrollbar-width:none; }
+.buff-bar.show:not(.animate)::-webkit-scrollbar{ display:none; }
+.buff-track{ display:flex; align-items:center; flex:0 0 auto; }
+.buff-bar.animate .buff-track{ animation:ticker linear infinite; will-change:transform; }
+@keyframes ticker{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+body.noanim .buff-bar.animate .buff-track{ animation:none; }
+@media (prefers-reduced-motion: reduce){ .buff-bar.animate .buff-track{ animation:none; } }
 .buff{
-  font-family:var(--pixel); font-size:8px; letter-spacing:.5px; padding:6px 11px;
+  font-family:var(--pixel); font-size:8px; letter-spacing:.5px; padding:6px 11px; margin-right:8px;
   background:linear-gradient(90deg, rgba(54,224,255,.15), rgba(255,194,61,.15));
   border:1px solid var(--amber); border-radius:999px; color:var(--amber); white-space:nowrap;
-  text-shadow:0 0 6px rgba(255,194,61,.4);
+  text-shadow:0 0 6px rgba(255,194,61,.4); flex:0 0 auto;
 }
+/* centered single/short row: no trailing gap throwing off the centering */
+.buff-bar:not(.animate) .buff-track .buff:last-child{ margin-right:0; }
 
 /* ---------- Main / panels ---------- */
 main{ flex:1; overflow:hidden; display:flex; }
