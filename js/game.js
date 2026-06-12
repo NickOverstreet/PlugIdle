@@ -125,7 +125,7 @@
     { id: 'autotap50',  icon: '🤖', name: 'Auto-Tapper IV',    cost: 80,  req: 'autotap20',  desc: 'Auto-plugs 50×/sec.' },
     { id: 'autotap100', icon: '🤖', name: 'Auto-Tapper V',     cost: 150, req: 'autotap50',  desc: 'Auto-plugs 100×/sec.' },
     { id: 'autotap1000',icon: '🤖', name: 'Auto-Tapper VI',    cost: 400, req: 'autotap100', desc: 'Auto-plugs 1000×/sec.' },
-    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys the most expensive cords you can afford.' },
+    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys cords, prioritizing the furthest down the list.' },
     { id: 'autoupg',   icon: '🛠️', name: 'Auto-Upgrader',      cost: 22, desc: 'Auto-buys upgrades the moment you can afford them.' },
     // Late-game core accelerators — the ladder that makes ??? reachable.
     { id: 'fission',   icon: '☢️', name: 'Core Fission',       cost: 5e9,  desc: 'Prestige core gains ×5.' },
@@ -996,7 +996,7 @@
       screenShake(1);
     }
     checkAchievements();
-    renderCords();
+    updateCords();
     renderStatsLite();
   }
 
@@ -1010,7 +1010,8 @@
     buzz([0, 15, 30, 15]);
     toast('⬆ ' + u.name + ' purchased!');
     checkAchievements();
-    renderShop();
+    updateCords();
+    updateUpgrades();
     renderStatsLite();
   }
 
@@ -1037,7 +1038,8 @@
     toast('◆ ' + cu.name + '!', true);
     checkAchievements();
     renderCoreShop();
-    renderShop();        // production multipliers may have changed
+    updateCords();       // production multipliers may have changed
+    updateUpgrades();
     syncSettingsUI();    // reveal the Auto-Buyer / Auto-Upgrader toggle if just bought
     renderStatsLite();
   }
@@ -1048,6 +1050,22 @@
     renderUpgrades();
   }
 
+  // a cord is shown once the previous one is owned (or it's the first)
+  function visibleCords() {
+    return CORDS.filter((cord, i) => {
+      const owned = state.owned[cord.id] || 0;
+      const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
+      return owned > 0 || prevOwned > 0;
+    });
+  }
+
+  // Full rebuilds replace every node, which eats any tap that's mid-press
+  // (pointerdown landed on a button that no longer exists by pointerup).
+  // So rebuilds cache their nodes + a structure key, and the per-tick path
+  // (updateCords/updateUpgrades below) patches text/classes in place,
+  // only falling back to a rebuild when the set of visible items changes.
+  let cordStructKey = '';
+  let cordNodes = [];
   function renderCords() {
     const bulkBar = `
       <div class="bulk-bar">
@@ -1057,14 +1075,9 @@
       </div>`;
 
     let html = bulkBar;
-    let anyUnlocked = false;
-    CORDS.forEach((cord, i) => {
+    const vis = visibleCords();
+    vis.forEach((cord) => {
       const owned = state.owned[cord.id] || 0;
-      // unlock a cord once the previous one has at least 1, or it's the first
-      const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
-      const visible = owned > 0 || prevOwned > 0;
-      if (!visible) return;
-      anyUnlocked = true;
       const count = buyCount(cord);
       const cost = cordCost(cord, count);
       const can = state.watts >= cost;
@@ -1105,17 +1118,59 @@
           </div>
         </button>`;
     });
-    if (!anyUnlocked) html += `<p class="empty-note">Tap the socket to earn your first watts!</p>`;
+    if (!vis.length) html += `<p class="empty-note">Tap the socket to earn your first watts!</p>`;
     el.cordlist.innerHTML = html;
+    cordStructKey = state.bulk + '|' + vis.map((c) => c.id).join(',');
+    cordNodes = Array.from(el.cordlist.querySelectorAll('[data-cord]') || []).map((node) => ({
+      node,
+      owned: node.querySelector('.owned'),
+      cost: node.querySelector('.cost'),
+      mnote: node.querySelector('.mnote'),
+      pos: node.querySelector('.pos'),
+      ms: node.querySelector('.milestone i'),
+    }));
   }
 
-  function renderUpgrades() {
-    // Show every unlocked upgrade; purchased ones stay visible but greyed.
-    const list = UPGRADES
+  function updateCords() {
+    const vis = visibleCords();
+    const key = state.bulk + '|' + vis.map((c) => c.id).join(',');
+    if (key !== cordStructKey || cordNodes.length !== vis.length ||
+        (cordNodes[0] && !cordNodes[0].node.isConnected)) { renderCords(); return; }
+    vis.forEach((cord, i) => {
+      const n = cordNodes[i];
+      const owned = state.owned[cord.id] || 0;
+      const cost = cordCost(cord, buyCount(cord));
+      n.owned.textContent = 'own ' + fmt(owned);
+      n.cost.textContent = fmt(cost) + ' W';
+      n.cost.className = 'cost ' + (state.watts >= cost ? 'ok' : 'no');
+      if (cord.coreGain) {
+        const totalPct = Math.min(cord.coreGain * owned, 1) * 100;
+        n.mnote.textContent = `+${fmt(totalPct)}% ◆`;
+        return;
+      }
+      const each = cord.wps * cordMultiplier(cord.id) * prestigeMult() * PROD_MULT;
+      if (n.pos) n.pos.textContent = `${fmt(each)} W/s each`;
+      const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
+      const nextMult = nextMs % BIG_MILESTONE === 0 ? BIG_MILESTONE_MULT : 2;
+      if (n.ms) n.ms.style.width = ((owned % CORD_MILESTONE) / CORD_MILESTONE * 100) + '%';
+      n.mnote.textContent = owned > 0 ? `×${nextMult} @ ${fmt(nextMs)}` : ' ';
+    });
+  }
+
+  // Show every unlocked upgrade; purchased ones stay visible but greyed.
+  function unlockedUpgrades() {
+    return UPGRADES
       .filter(u => state.upgrades[u.id] || upgradeUnlocked(u))
       .sort((a, b) => a.cost - b.cost);
+  }
+
+  let upgStructKey = '';
+  let upgNodes = [];
+  function renderUpgrades() {
+    const list = unlockedUpgrades();
     if (list.length === 0) {
       el.uplist.innerHTML = `<p class="empty-note">Buy more cords to unlock upgrades…</p>`;
+      upgStructKey = ''; upgNodes = [];
       return;
     }
     let html = '';
@@ -1131,6 +1186,25 @@
         </button>`;
     }
     el.uplist.innerHTML = html;
+    upgStructKey = list.map((u) => u.id).join(',');
+    upgNodes = Array.from(el.uplist.querySelectorAll('[data-upgrade]') || []).map((node) => ({
+      node, uc: node.querySelector('.uc'),
+    }));
+  }
+
+  function updateUpgrades() {
+    const list = unlockedUpgrades();
+    if (!list.length) { if (upgStructKey) renderUpgrades(); return; }
+    const key = list.map((u) => u.id).join(',');
+    if (key !== upgStructKey || upgNodes.length !== list.length ||
+        (upgNodes[0] && !upgNodes[0].node.isConnected)) { renderUpgrades(); return; }
+    list.forEach((u, i) => {
+      const n = upgNodes[i];
+      const bought = !!state.upgrades[u.id];
+      const can = !bought && state.watts >= u.cost;
+      n.node.className = 'upg ' + (bought ? 'bought' : can ? 'ok' : 'no');
+      n.uc.textContent = bought ? '✓ OWNED' : fmt(u.cost) + ' W';
+    });
   }
 
   function renderCoreShop() {
@@ -1282,7 +1356,10 @@
     }
     if (sig !== lastSig) {
       lastSig = sig;
-      renderShop();
+      // patch-in-place: a full rebuild here would destroy whatever button the
+      // player is mid-tap on (the auto-buyer dirties this up to 10x/sec)
+      updateCords();
+      updateUpgrades();
       if (state.wormhole) { renderWeapons(); renderZapUpgrades(); }
     }
   }
@@ -1998,18 +2075,50 @@
   }
 
   /* ---------- Event wiring ---------- */
+  // Tap delegation for rebuilt lists. A plain delegated 'click' is unreliable
+  // here: if the list re-renders between pointerdown and pointerup (the
+  // auto-buyer/auto-upgrader can do that every tick), the pressed button is
+  // gone before the gesture ends and the browser never fires the click. So
+  // we resolve the item at pointerdown — while it still exists — and commit
+  // on pointerup unless the finger moved (that's a scroll, not a tap).
+  function delegateTap(list, attr, fn) {
+    if (!list) return;
+    if (typeof window.PointerEvent === 'undefined') {   // ancient WebView fallback
+      list.addEventListener('click', (e) => {
+        const item = e.target && e.target.closest && e.target.closest(`[${attr}]`);
+        if (item) fn(item.getAttribute(attr));
+      });
+      return;
+    }
+    let armed = null, sx = 0, sy = 0;
+    list.addEventListener('pointerdown', (e) => {
+      armed = null;
+      if (e.button) return;                       // primary button / touch only
+      const item = e.target && e.target.closest && e.target.closest(`[${attr}]`);
+      if (!item) return;
+      armed = item.getAttribute(attr); sx = e.clientX; sy = e.clientY;
+    });
+    list.addEventListener('pointerup', (e) => {
+      const id = armed; armed = null;
+      if (id == null) return;
+      if (Math.hypot(e.clientX - sx, e.clientY - sy) > 14) return;
+      fn(id);
+    });
+    list.addEventListener('pointercancel', () => { armed = null; });
+    // keyboard activation still arrives as a click with detail 0
+    list.addEventListener('click', (e) => {
+      if (e.detail) return;
+      const item = e.target && e.target.closest && e.target.closest(`[${attr}]`);
+      if (item) fn(item.getAttribute(attr));
+    });
+  }
+
   el.socket.addEventListener('click', plug);
   el.socketMini.addEventListener('click', plug); // tap button on the Upgrades tab
   if (el.enemyBtn) el.enemyBtn.addEventListener('click', zapEnemy);
   if (el.worldBtn) el.worldBtn.addEventListener('click', switchWorld);
-  if (el.weaponlist) el.weaponlist.addEventListener('click', (e) => {
-    const item = e.target.closest('[data-weapon]');
-    if (item) buyWeapon(WEAPONS.find((w) => w.id === item.dataset.weapon));
-  });
-  if (el.zuplist) el.zuplist.addEventListener('click', (e) => {
-    const item = e.target.closest('[data-zupgrade]');
-    if (item) buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === item.dataset.zupgrade));
-  });
+  delegateTap(el.weaponlist, 'data-weapon', (id) => buyWeapon(WEAPONS.find((w) => w.id === id)));
+  delegateTap(el.zuplist, 'data-zupgrade', (id) => buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === id)));
   // iOS suppresses :active styling unless a touchstart listener exists.
   document.body.addEventListener('touchstart', () => {}, { passive: true });
 
@@ -2034,27 +2143,15 @@
     tab.addEventListener('click', () => activateTab(tab.dataset.tab));
   });
 
-  // delegated shop clicks
-  el.cordlist.addEventListener('click', (e) => {
-    const bulkBtn = e.target.closest('[data-bulk]');
-    if (bulkBtn) {
-      const v = bulkBtn.dataset.bulk;
-      state.bulk = v === 'max' ? 'max' : parseInt(v, 10);
-      lastSig = '';
-      renderCords();
-      return;
-    }
-    const item = e.target.closest('[data-cord]');
-    if (item) buyCord(CORDS.find(c => c.id === item.dataset.cord));
+  // delegated shop taps
+  delegateTap(el.cordlist, 'data-bulk', (v) => {
+    state.bulk = v === 'max' ? 'max' : parseInt(v, 10);
+    lastSig = '';
+    renderCords();
   });
-  el.uplist.addEventListener('click', (e) => {
-    const item = e.target.closest('[data-upgrade]');
-    if (item) buyUpgrade(UPGRADES.find(u => u.id === item.dataset.upgrade));
-  });
-  el.corelist.addEventListener('click', (e) => {
-    const item = e.target.closest('[data-core]');
-    if (item) buyCoreUpgrade(CORE_UPGRADES.find(cu => cu.id === item.dataset.core));
-  });
+  delegateTap(el.cordlist, 'data-cord', (id) => buyCord(CORDS.find(c => c.id === id)));
+  delegateTap(el.uplist, 'data-upgrade', (id) => buyUpgrade(UPGRADES.find(u => u.id === id)));
+  delegateTap(el.corelist, 'data-core', (id) => buyCoreUpgrade(CORE_UPGRADES.find(cu => cu.id === id)));
 
   // Power Store: rewarded bonuses, purchases, restore (delegated; the block
   // only becomes visible inside the native Android shell)
@@ -2146,29 +2243,48 @@
     return (co('autobuy') || chDone('brownout')) && state.settings.autobuyOn;
   }
 
-  // AUTO-BUYER: every tick, greedily spend watts on the MOST EXPENSIVE cord it
-  // can afford, in batches, until nothing's affordable (or the per-tick guard
-  // trips). Skips the Ouroboros Cord (wps 0) so it never starves production.
-  // Silent — no sounds/toasts; milestone celebrations still fire on manual buys.
+  // AUTO-BUYER: prioritizes the cord FURTHEST DOWN the list. Each tick it
+  // buys the deepest unlocked cord the moment it's affordable (in batches),
+  // and keeps that cord's unit cost banked as a reserve — shallower cords are
+  // only bought with surplus watts, so the frontier is never starved by
+  // cheap purchases. Skips the Ouroboros Cord (wps 0) so it never starves
+  // production. Silent — no sounds/toasts; milestone fanfare stays manual.
   const AUTO_BUY_PER_CORD = 25;     // cords per batch
+  function autoBuyAllowed(cord, i) {
+    if (cord.wps <= 0) return false;                           // skip non-producing cords
+    if (ch() === 'solo' && cord.id !== 'usba') return false;   // SOLO CIRCUIT: USB-A only
+    const owned = state.owned[cord.id] || 0;
+    const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
+    return owned > 0 || prevOwned > 0;                         // unlocked
+  }
   function autoBuyTick() {
     if (!autoBuyActive()) return;
     let bought = false;
     let guard = 60;                 // cap batches per tick
     while (guard-- > 0) {
-      let pick = -1;
+      // the frontier: deepest unlocked, producing cord — first claim on watts
+      let frontier = -1;
       for (let i = CORDS.length - 1; i >= 0; i--) {
-        const cord = CORDS[i];
-        if (cord.wps <= 0) continue;                           // skip non-producing cords
-        if (ch() === 'solo' && cord.id !== 'usba') continue;   // SOLO CIRCUIT: USB-A only
-        const owned = state.owned[cord.id] || 0;
-        const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
-        if (!(owned > 0 || prevOwned > 0)) continue;           // not unlocked yet
-        if (state.watts >= cordCost(cord, 1)) { pick = i; break; }
+        if (autoBuyAllowed(CORDS[i], i)) { frontier = i; break; }
       }
-      if (pick < 0) break;                                     // nothing affordable
+      if (frontier < 0) break;
+      const reserve = cordCost(CORDS[frontier], 1);
+      let pick = -1;
+      if (state.watts >= reserve) pick = frontier;
+      else {
+        // frontier not affordable yet: spend only the surplus above its
+        // price, deepest-first, so we keep saving toward it
+        for (let i = frontier - 1; i >= 0; i--) {
+          if (!autoBuyAllowed(CORDS[i], i)) continue;
+          if (state.watts - cordCost(CORDS[i], 1) >= reserve) { pick = i; break; }
+        }
+      }
+      if (pick < 0) break;                                     // nothing buyable
       const cord = CORDS[pick];
-      const k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
+      let k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
+      if (pick !== frontier) {
+        while (k > 1 && state.watts - cordCost(cord, k) < reserve) k--;
+      }
       if (k <= 0) break;
       const cost = cordCost(cord, k);
       if (state.watts < cost) break;
