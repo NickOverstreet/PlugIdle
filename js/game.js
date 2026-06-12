@@ -701,24 +701,26 @@
   };
   if (el.version) el.version.textContent = `PlugIdle v${VERSION}`;
 
-  /* ---------- Toast (stacked, capped, deduped) ---------- */
-  const TOAST_MAX = 3;            // never bury the screen in notifications
-  const liveToasts = [];          // tracked here, not via DOM, so order is ours
+  /* ---------- Toast (banner slot shared with the buff bar) ---------- */
+  // Temporary notifications take over the banner strip under the header:
+  // the buff pills (streak, surges, challenge) collapse while one shows and
+  // slide back when it expires. One toast at a time — the newest wins — so
+  // notifications never stack over the shop or upgrade buttons.
+  let toastTimer = null;
   function toast(msg, gold) {
-    // repeating message (e.g. "Not enough watts" spam) replaces itself
-    const dup = liveToasts.findIndex((x) => x.msg === msg);
-    if (dup >= 0) liveToasts.splice(dup, 1)[0].node.remove();
-    while (liveToasts.length >= TOAST_MAX) liveToasts.shift().node.remove();
     const t = document.createElement('div');
     t.className = 'toast' + (gold ? ' gold' : '');
     t.textContent = msg;
+    el.toast.innerHTML = '';
     el.toast.appendChild(t);
-    const entry = { msg, node: t };
-    liveToasts.push(entry);
-    setTimeout(() => {
-      t.remove();
-      const i = liveToasts.indexOf(entry);
-      if (i >= 0) liveToasts.splice(i, 1);
+    el.toast.classList.add('show');
+    el.buffBar.classList.add('suppressed');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastTimer = null;
+      el.toast.innerHTML = '';
+      el.toast.classList.remove('show');
+      el.buffBar.classList.remove('suppressed');
     }, 3000);
   }
 
