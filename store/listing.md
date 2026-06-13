@@ -28,13 +28,13 @@ permanent prestige bonuses.
 It looks like a CRT terminal, plays like a pocket power plant, and respects
 your time AND your wallet.
 
-🔌 26 CORD GENERATORS
+🔌 27 CORD GENERATORS
 Start with USB cables and audio jacks. End with quantum links, wormhole
 jacks, and cosmic strings — and discover what plugs in BEYOND the final
 plug. Every cord plugs itself in and earns watts per second — even while
 you're away.
 
-⬆️ 41 UPGRADES + SYNERGIES
+⬆️ 46 UPGRADES + SYNERGIES
 Boost your tap power, double individual cords, multiply everything at once,
 and unlock synergies where one cord's fleet supercharges another.
 
