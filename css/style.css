@@ -107,23 +107,23 @@ main{ flex:1; overflow:hidden; display:flex; }
 main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ background:var(--line2); border-radius:3px; }
 
 /* ---------- Socket (PLUG tab) ---------- */
-.socket-wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 0 4px; position:relative; }
+.socket-wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4px 0 2px; position:relative; }
 .socket-btn{
-  width:190px; height:190px; border:none; background:transparent; cursor:pointer; position:relative;
+  width:140px; height:140px; border:none; background:transparent; cursor:pointer; position:relative;
   display:flex; align-items:center; justify-content:center;
 }
 .socket-btn:active{ transform:translateY(2px) scale(.985); }
 .socket-ring{
   position:absolute; inset:0; border-radius:50%;
   background:radial-gradient(circle at 50% 42%, #16331f, #0a1a10 70%, #060d08 100%);
-  border:5px solid var(--green-dim); box-shadow:0 0 0 4px #0a1410, 0 0 28px rgba(61,252,107,.25), inset 0 0 30px rgba(0,0,0,.7);
+  border:4px solid var(--green-dim); box-shadow:0 0 0 3px #0a1410, 0 0 22px rgba(61,252,107,.25), inset 0 0 24px rgba(0,0,0,.7);
 }
 .pulse{ position:absolute; inset:-6px; border-radius:50%; border:3px solid var(--green); opacity:0; }
 .tapping .pulse{ animation:ring .5s ease-out; }
 @keyframes ring{ 0%{opacity:.6; transform:scale(.95)} 100%{opacity:0; transform:scale(1.25)} }
-.socket-svg{ width:120px; height:120px; position:relative; z-index:2; filter:drop-shadow(0 0 6px rgba(61,252,107,.5)); }
-.taphint{ font-family:var(--pixel); font-size:10px; color:var(--dim); margin-top:8px; letter-spacing:1px; }
-.tapinfo{ font-family:var(--term); font-size:15px; color:var(--cyan); margin-top:5px; text-align:center; min-height:18px; padding:0 8px; }
+.socket-svg{ width:86px; height:86px; position:relative; z-index:2; filter:drop-shadow(0 0 6px rgba(61,252,107,.5)); }
+.taphint{ font-family:var(--pixel); font-size:9px; color:var(--dim); margin-top:6px; letter-spacing:1px; }
+.tapinfo{ font-family:var(--term); font-size:15px; color:var(--cyan); margin-top:4px; text-align:center; min-height:18px; padding:0 8px; }
 /* Auto-Tapper: persistent badge + a ring pulse on the socket each auto-tap. */
 .autotap-badge{
   margin-top:8px; font-family:var(--pixel); font-size:8px; letter-spacing:1px; color:var(--green);
