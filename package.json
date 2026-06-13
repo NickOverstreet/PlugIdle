@@ -1,6 +1,6 @@
 {
   "name": "plugidle",
-  "version": "1.12.0",
+  "version": "1.14.0",
   "description": "PlugIdle — a retro CRT idle game about plugging in every type of cord imaginable.",
   "private": true,
   "scripts": {
