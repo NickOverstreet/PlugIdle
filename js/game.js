@@ -6,7 +6,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.14.0';       // shown on the settings page; bump alongside sw.js CACHE
+  const VERSION = '0.14.0';       // shown on the settings page; bump alongside sw.js CACHE
   const SAVE_KEY = 'cordTycoon.save.v1';
   const TICK_MS = 100;            // sim resolution
   const SAVE_EVERY_MS = 5000;     // autosave cadence
