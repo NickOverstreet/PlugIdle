@@ -683,6 +683,7 @@
     socket: $('#socket'), socketSvg: $('#socketSvg'), tapinfo: $('#tapinfo'), autotapBadge: $('#autotapBadge'),
     socketMini: $('#socketMini'), tapvalMini: $('#tapvalMini'),
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
+    dotUp: $('#dotUp'), dotMore: $('#dotMore'), dotArsenal: $('#dotArsenal'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
     corelist: $('#corelist'),
     statTotal: $('#statTotal'), statClicks: $('#statClicks'), statWps: $('#statWps'),
@@ -1371,6 +1372,24 @@
     if (state.wormhole) { renderWeapons(); renderZapUpgrades(); renderSlayerLite(); }
     renderStatsLite();
     syncSettingsUI();
+    updateTabDots();
+  }
+
+  /* ---------- Tab notification dots (something here is buyable) ---------- */
+  function updateTabDots() {
+    if (el.dotUp) {
+      el.dotUp.hidden = ch() === 'minimalist' || !UPGRADES.some((u) =>
+        !state.upgrades[u.id] && upgradeUnlocked(u) && state.watts >= u.cost);
+    }
+    if (el.dotMore) {
+      el.dotMore.hidden = !CORE_UPGRADES.some((cu) =>
+        !state.coreUpgrades[cu.id] && (!cu.req || co(cu.req)) && (state.cores || 0) >= cu.cost);
+    }
+    if (el.dotArsenal) {
+      const s = sl();
+      el.dotArsenal.hidden = !state.wormhole || !ZAP_UPGRADES.some((u) =>
+        !s.upgrades[u.id] && zapUpgradeUnlocked(u) && s.volts >= u.cost);
+    }
   }
 
   /* ---------- Affordability refresh (cheap, runs each tick) ---------- */
@@ -2385,6 +2404,7 @@
     checkAchievements();      // catches threshold (watts/time) unlocks
     renderStatsLite();
     refreshAffordability();
+    updateTabDots();
     // Live-refresh the Goals tab's progress bars while it's open (~2x/sec).
     if (tickCount % 5 === 0 && document.getElementById('p-goals').classList.contains('active')) {
       renderGoals();
