@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "build:www": "node scripts/build-www.mjs",
+    "bump": "node scripts/bump-version.mjs",
     "sync": "npm run build:www && cap sync android",
     "open:android": "cap open android",
     "android": "npm run sync && npm run open:android",

@@ -113,6 +113,66 @@ workflows:
         # a TestFlight build to App Store review.
         submit_to_app_store: false
 
+  # Android counterpart to ios-release. The Android Xcode-equivalent (the
+  # android/ Gradle project) IS committed, so this build just stages web assets,
+  # syncs, and bundles a signed AAB on Linux. It shares the v*.*.* tag trigger
+  # with ios-release, so one tag push publishes to BOTH stores at once. Unlike
+  # the iOS build, AdMob is kept in (Android ships rewarded ads at launch).
+  android-release:
+    name: PlugIdle Android Release
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        # Reference name of the upload keystore added in the Codemagic UI
+        # (Team settings -> Code signing identities -> Android keystores).
+        # Codemagic exposes it to Gradle as CM_KEYSTORE_PATH / CM_KEYSTORE_PASSWORD
+        # / CM_KEY_ALIAS / CM_KEY_PASSWORD, which android/app/build.gradle reads.
+        - plugidle_upload_keystore
+      groups:
+        # Secure env var group holding GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (the
+        # Google Play service-account JSON). Created in the Codemagic UI.
+        - google_play
+      node: 20
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*.*.*'
+          include: true
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+
+      - name: Stage web assets
+        script: npm run build:www
+
+      - name: Sync web assets into the Android project
+        script: npx cap sync android
+
+      # versionCode comes from Codemagic's per-PROJECT build counter so it
+      # strictly increases on every Android upload (a Play requirement),
+      # independent of the human-facing versionName carried by the git tag.
+      # build.gradle reads -PversionCode with a local fallback. PROJECT (not
+      # per-workflow) is required: a per-workflow counter would restart at 1,
+      # below the versionCode already uploaded, and Play would reject it.
+      - name: Build signed release AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease -PversionCode=$PROJECT_BUILD_NUMBER
+    artifacts:
+      - android/app/build/outputs/bundle/release/*.aab
+      # Only emitted once R8/shrinking is enabled (minifyEnabled is false today);
+      # the missing glob is skipped harmlessly until then.
+      - android/app/build/outputs/mapping/release/mapping.txt
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        # Land the upload as a draft on the internal track rather than
+        # auto-rolling it out to testers. Set to false to push live immediately.
+        submit_as_draft: true
+
 # ----------------------------------------------------------------------------
 # Codemagic setup (one-time, done by the user in the Codemagic UI — never in
 # this public repo):
@@ -126,6 +186,33 @@ workflows:
 #      exist in App Store Connect (see store/app-store-connect-checklist.md)
 #      before the first publishing build.
 #
-# No environment variable groups are required: automatic signing and TestFlight
-# publishing both read the single App Store Connect integration above.
+# For ios-release, no environment variable groups are required: automatic
+# signing and TestFlight publishing both read the App Store Connect integration.
+#
+# android-release additionally needs (one-time, in the Codemagic UI + Google):
+#
+#   3. Generate an upload keystore locally (keep it private; never commit it):
+#        keytool -genkeypair -v -keystore plugidle-upload.keystore \
+#          -alias plugidle-upload -keyalg RSA -keysize 2048 \
+#          -validity 10000 -storetype JKS
+#
+#   4. Team settings -> Code signing identities -> Android keystores: upload the
+#      .keystore with its store password, key alias (plugidle-upload), and key
+#      password. Set the reference name to "plugidle_upload_keystore" to match
+#      `android_signing` above (or rename both to match).
+#
+#   5. Create a Google Cloud service account, add a JSON key, and enable the
+#      "Google Play Android Developer API" for that project. In Play Console
+#      (Users & permissions) invite the service-account email and grant it
+#      release access to testing tracks.
+#
+#   6. Application/Team settings -> Environment variables: create a group named
+#      "google_play" (matches `groups` above) and add GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+#      with the entire service-account JSON as its value, marked Secure.
+#
+#   7. HARD GOOGLE CONSTRAINT: the Play Developer API rejects automated uploads
+#      until the app has had a first AAB uploaded MANUALLY in Play Console.
+#      Download the AAB artifact from one Codemagic run (or build locally) and
+#      upload it by hand to Internal testing once, enrolling in Play App Signing.
+#      After that, this workflow's publishing step succeeds on every tag.
 # ----------------------------------------------------------------------------
