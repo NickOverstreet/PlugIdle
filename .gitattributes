@@ -1,0 +1,6 @@
+# Files executed on Linux/macOS CI runners must keep LF line endings, even when
+# edited on Windows — a CRLF shell script breaks (`bad interpreter`) and CRLF can
+# trip CI YAML tooling.
+*.sh   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
