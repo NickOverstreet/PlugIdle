@@ -7,8 +7,11 @@ into `android/`. See `README.md` for gameplay/tech and `GOAL.md` for the launch 
 
 ## Versioning — every place the app version lives
 
-When changing the app version, update **all** of these so the store build, the
-package metadata, and the version shown on the in-game settings page agree:
+Run `npm run bump -- <major.minor.patch>` to update all of these at once
+(`scripts/bump-version.mjs`); add `--tag` to also commit, tag `v<version>`, and
+push — which triggers the Codemagic build of **both** stores. The fields it edits,
+which must agree so the store build, the package metadata, and the in-game
+settings page all match:
 
 | Where | Field | Notes |
 |---|---|---|
@@ -21,8 +24,10 @@ Current version: **0.14.0** (pre-release; intentionally on the 0.x line until la
 
 ### Do NOT confuse these with the app version
 - `android/app/build.gradle` → `versionCode`: a monotonic **integer** counter for
-  Play Store uploads (currently 3). It is NOT a semver — bump it (increment by 1)
-  for every new upload to any Play track, independently of `versionName`.
+  Play Store uploads. It is NOT a semver. **You no longer bump this by hand** —
+  the `android-release` Codemagic workflow passes `-PversionCode=$PROJECT_BUILD_NUMBER`,
+  so each upload gets a unique, strictly-increasing code automatically. The
+  committed value (`3`) is just the local fallback for builds outside CI.
 - `android/variables.gradle` → `androidxWebkitVersion`: an AndroidX **library**
   version that has coincidentally matched the app version before. Never touch it
   when bumping the app version.
@@ -65,6 +70,14 @@ from declarative config** and never committed.
   `npx cap sync ios` → `pod install` → automatic signing (App Store Connect API
   key) → `build-ipa` → publish to TestFlight. Signing secrets live in Codemagic,
   never in the repo.
+- **One tag publishes both stores.** `codemagic.yaml` also has an `android-release`
+  workflow on the same `v*.*.*` trigger: it stages the web assets, `cap sync android`,
+  builds a signed AAB on Linux (keeping AdMob in, unlike iOS), and uploads to the
+  Google Play **internal** track via a service-account JSON. So `npm run bump -- X --tag`
+  fires both the iOS and Android builds at once. The Android upload keystore and the
+  `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` JSON live in Codemagic; see the setup footer in
+  `codemagic.yaml`. Note Google rejects API uploads until the **first** AAB is uploaded
+  to Play Console by hand.
 - **Monetization is platform-gated** (`js/monetize.js`): a single `storePlatform()`
   helper resolves to `Platform.GOOGLE_PLAY` on Android and `Platform.APPLE_APPSTORE`
   on iOS; the same six product-ID strings are reused so the catalog never diverges.
