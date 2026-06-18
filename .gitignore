@@ -5,5 +5,8 @@
 node_modules/
 www/
 
+# Capacitor iOS project (CI-generated each build; never committed)
+ios/
+
 # Python
 __pycache__/

@@ -1,9 +1,9 @@
 /* ============================================================
-   PlugIdle — native monetization bridge (Android only).
-   Thin facade over @capacitor-community/admob (rewarded ads) and
-   cordova-plugin-purchase (Google Play Billing). On the web, or if
-   the plugins are missing, everything reports unavailable and the
-   game renders no monetization UI at all.
+   PlugIdle — native monetization bridge (Android + iOS).
+   Thin facade over @capacitor-community/admob (rewarded ads, Android
+   only) and cordova-plugin-purchase (Google Play / Apple App Store
+   IAP). On the web, or if the plugins are missing, everything reports
+   unavailable and the game renders no monetization UI at all.
 
    Loaded before js/game.js; the game talks only to window.Monetize.
    ============================================================ */
@@ -11,7 +11,9 @@
   'use strict';
 
   const NATIVE = !!(window.Capacitor?.isNativePlatform?.());
-  const AdMob = NATIVE ? window.Capacitor?.Plugins?.AdMob : null;
+  const PLATFORM = window.Capacitor?.getPlatform?.();
+  // Ads ship on Android only at launch; iOS excludes the AdMob SDK entirely.
+  const AdMob = (NATIVE && PLATFORM === 'android') ? window.Capacitor?.Plugins?.AdMob : null;
 
   // TODO(launch): replace with the real AdMob rewarded ad unit ID before
   // shipping to production. This is Google's public TEST rewarded unit —
@@ -22,6 +24,13 @@
   let adLoaded = false;
   let adPreparing = false;
   let iapReady = false;
+
+  // The store platform for cordova-plugin-purchase: Apple on iOS, Google Play
+  // everywhere else. Resolved at call time so all three IAP functions agree.
+  function storePlatform() {
+    const P = window.CdvPurchase?.Platform;
+    return PLATFORM === 'ios' ? P.APPLE_APPSTORE : P.GOOGLE_PLAY;
+  }
 
   /* ---------- Rewarded ads ---------- */
 
@@ -94,17 +103,17 @@
     });
   }
 
-  /* ---------- In-app purchases (Google Play Billing) ---------- */
+  /* ---------- In-app purchases (Google Play / Apple App Store) ---------- */
 
   function initIap() {
     const CP = window.CdvPurchase;
     if (!CP?.store) return;
-    const { store, ProductType, Platform } = CP;
+    const { store, ProductType } = CP;
 
     store.register(cfg.skus.map((s) => ({
       id: s.id,
       type: s.consumable ? ProductType.CONSUMABLE : ProductType.NON_CONSUMABLE,
-      platform: Platform.GOOGLE_PLAY,
+      platform: storePlatform(),
     })));
 
     // No server, no receipt validator: approve -> finish locally. Entitlement
@@ -123,7 +132,7 @@
       }
     });
 
-    store.initialize([Platform.GOOGLE_PLAY])
+    store.initialize([storePlatform()])
       .then(() => { iapReady = true; pushPrices(); })
       .catch(() => {});
   }
@@ -133,7 +142,7 @@
     if (!CP?.store || !cfg?.onPrices) return;
     const prices = {};
     for (const s of cfg.skus) {
-      const p = CP.store.get(s.id, CP.Platform.GOOGLE_PLAY);
+      const p = CP.store.get(s.id, storePlatform());
       const offer = p?.getOffer?.();
       const amount = offer?.pricingPhases?.[0]?.price;
       if (amount) prices[s.id] = amount;
@@ -144,7 +153,7 @@
   function buy(sku) {
     const CP = window.CdvPurchase;
     if (!CP?.store || !iapReady) { cfg?.notify?.('Store not ready yet'); return; }
-    const p = CP.store.get(sku, CP.Platform.GOOGLE_PLAY);
+    const p = CP.store.get(sku, storePlatform());
     const offer = p?.getOffer?.();
     if (!offer) { cfg?.notify?.('Product unavailable'); return; }
     offer.order().then((err) => {

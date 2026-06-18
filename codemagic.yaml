@@ -1,0 +1,131 @@
+# Codemagic pipeline for the Mac-free iOS release of PlugIdle.
+#
+# The ios/ Xcode project is NOT committed — it is generated fresh from
+# declarative config on every build (capacitor.config.json + scripts/patch-ios-plist.sh
+# + assets/), so this archive is fully reproducible from Windows. See
+# docs/superpowers/specs/2026-06-18-ios-app-store-launch-design.md.
+#
+# Signing is automatic via an App Store Connect API key managed in the Codemagic
+# UI; no signing material lives in this repo. See "Codemagic setup" at the bottom
+# for the exact integrations/secrets the user must configure.
+
+workflows:
+  ios-release:
+    name: PlugIdle iOS Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # Label of the App Store Connect API key added in the Codemagic UI
+      # (Team settings -> Integrations -> Developer Portal -> Manage keys).
+      # This is just a reference name, not the secret itself.
+      app_store_connect: PlugIdle ASC Key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.nickoverstreet.plugidle
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+      node: 20
+      xcode: latest
+      cocoapods: default
+    triggering:
+      # Manual runs are always available from the Codemagic UI (no YAML needed).
+      # This auto-triggers on version tags like v1.0.0.
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*.*.*'
+          include: true
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+
+      # AdMob exclusion (spec 6.3): Capacitor pods every Capacitor plugin present
+      # in node_modules, and @capacitor-community/admob transitively links the
+      # Google Mobile Ads SDK (IDFA symbols -> mandatory GADApplicationIdentifier).
+      # Removing it from the ephemeral CI node_modules BEFORE `cap add ios` keeps
+      # the pod out of the generated Podfile entirely. --no-save leaves
+      # package.json untouched so the committed Android path is unaffected.
+      - name: Exclude AdMob from the iOS build (IAP-only launch)
+        script: npm rm --no-save @capacitor-community/admob
+
+      - name: Stage web assets
+        script: npm run build:www
+
+      - name: Add iOS platform (ephemeral; ios/ is not committed)
+        script: npx cap add ios
+
+      - name: Generate iOS icon set + splash from assets/
+        script: |
+          npx @capacitor/assets generate --ios \
+            --iconBackgroundColor '#070a0f' \
+            --iconBackgroundColorDark '#070a0f' \
+            --splashBackgroundColor '#070a0f' \
+            --splashBackgroundColorDark '#070a0f'
+
+      - name: Patch Info.plist (display name, portrait lock, export compliance)
+        script: bash scripts/patch-ios-plist.sh
+
+      - name: Sync web assets into the iOS project
+        script: npx cap sync ios
+
+      # Capacitor generates the Podfile above, so pod install must run AFTER
+      # cap add/sync (unlike samples that assume a committed ios/).
+      - name: CocoaPods install
+        script: cd ios/App && pod install
+
+      - name: Verify AdMob pod is absent
+        script: |
+          if grep -q -e 'CapacitorCommunityAdmob' -e 'Google-Mobile-Ads-SDK' ios/App/Podfile ios/App/Podfile.lock; then
+            echo "AdMob pod leaked into the iOS build" >&2
+            exit 1
+          fi
+          echo "confirmed: no AdMob / Google Mobile Ads SDK in the iOS build"
+
+      - name: Set up code signing
+        script: xcode-project use-profiles
+
+      # Apple rejects duplicate build numbers; Codemagic's built-in $BUILD_NUMBER
+      # is monotonic and needs no App Store app id.
+      - name: Set build number
+        script: |
+          cd "$CM_BUILD_DIR/ios/App"
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      # Run from ios/App so build-ipa's default --ipa-directory (the relative
+      # build/ios/ipa) resolves under ios/App, matching the artifact glob below.
+      - name: Build IPA
+        script: |
+          cd "$CM_BUILD_DIR/ios/App"
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Flip to true (optionally add beta_groups / release_type) when promoting
+        # a TestFlight build to App Store review.
+        submit_to_app_store: false
+
+# ----------------------------------------------------------------------------
+# Codemagic setup (one-time, done by the user in the Codemagic UI — never in
+# this public repo):
+#
+#   1. Team settings -> Integrations -> Developer Portal -> Manage keys:
+#      upload the App Store Connect API key .p8 plus its Issuer ID and Key ID.
+#      Name the key exactly "PlugIdle ASC Key" to match `integrations` above
+#      (or rename both to match).
+#
+#   2. The App ID com.nickoverstreet.plugidle and the app record must already
+#      exist in App Store Connect (see store/app-store-connect-checklist.md)
+#      before the first publishing build.
+#
+# No environment variable groups are required: automatic signing and TestFlight
+# publishing both read the single App Store Connect integration above.
+# ----------------------------------------------------------------------------

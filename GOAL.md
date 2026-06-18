@@ -1,16 +1,20 @@
-# GOAL.md — PlugIdle: Android Launch & Growth Plan
+# GOAL.md — PlugIdle: Launch & Growth Plan
 
 ## Vision
 
-Ship **PlugIdle** to the Google Play Store as a free Android game built entirely with
-web technologies, earn revenue through **opt-in rewarded ads** and **fair
-microtransactions**, and grow a player base with regular content updates.
+Ship **PlugIdle** to the mobile app stores as a free game built entirely with
+web technologies — **Google Play first, then the Apple App Store** — earn revenue
+through **opt-in rewarded ads** and **fair microtransactions**, and grow a player
+base with regular content updates.
 
-One codebase serves both targets:
+One codebase serves every target:
 
 - **Web (today):** GitHub Pages PWA at https://nickoverstreet.github.io/PlugIdle/
-- **Android (new):** the same HTML/CSS/JS wrapped in a **Capacitor** native shell,
-  with the web assets bundled inside the APK so the game works fully offline.
+- **Android:** the same HTML/CSS/JS wrapped in a **Capacitor** native shell, with the
+  web assets bundled inside the APK so the game works fully offline.
+- **iOS (next):** the same Capacitor app, with the Xcode project **generated in cloud
+  CI (Codemagic)** so it builds Mac-free. The iOS v1.0 ships **in-app purchases only**;
+  rewarded ads follow in v1.1. See **"## iOS App Store Launch"** below.
 
 Version 1 of the game is feature-complete (24 cord generators, 37 upgrades,
 44 achievements, prestige loop, power surges, offline earnings). The work below is
@@ -203,6 +207,67 @@ Remaining backlog, roughly in order:
 
 ---
 
+## iOS App Store Launch
+
+Ship the same Capacitor app to the **Apple App Store**, built **Mac-free**. The dev is
+on Windows with no Mac, so the Xcode project is **generated in cloud CI (Codemagic) on
+every build from declarative config** and **never committed** (only `android/` is
+committed; `ios/` and `www/` are build outputs). Full design:
+`docs/superpowers/specs/2026-06-18-ios-app-store-launch-design.md`.
+
+### Scope & posture
+
+- **IAP only at launch.** The same six SKUs as Android, via **Apple IAP**, sharing the
+  product-ID strings. Rewarded **AdMob ads are deferred to v1.1** so the first
+  submission carries **no IDFA / App Tracking Transparency / ad-privacy surface**
+  (App Privacy = "Data Not Collected", no ATT prompt).
+- **AdMob excluded from the iOS build.** The Google Mobile Ads SDK is kept out of the
+  archive (no `GADApplicationIdentifier`-or-crash, no IDFA symbols); ads return in v1.1
+  with a proper ATT flow.
+- Bundle id `com.nickoverstreet.plugidle` (matches Android). Portrait-locked;
+  export-compliance exempt (`ITSAppUsesNonExemptEncryption = NO`).
+
+### Prerequisites the user must provide
+
+1. App Store Connect API key (`.p8`), issuer id, key id — added to **Codemagic** (not
+   the repo) for automatic signing.
+2. Apple Team ID.
+3. **Paid Apps agreement signed + banking + tax complete** — hard prerequisite; IAP
+   will not load or pass review until the contract is **Active**.
+4. A sandbox tester Apple ID for IAP testing via TestFlight.
+
+### Sprint steps
+
+- [ ] Add `@capacitor/ios` + an `ios` block to `capacitor.config.json`; commit
+      `codemagic.yaml`, `scripts/patch-ios-plist.sh`, and `assets/icon.png`.
+- [ ] Platform-gate monetization in `js/monetize.js` (`Platform.GOOGLE_PLAY` vs
+      `APPLE_APPSTORE`); exclude AdMob from the iOS build.
+- [ ] **Codemagic** pipeline: `npm ci` → AdMob-pod exclusion → `build:www` →
+      `cap add ios` → `@capacitor/assets generate --ios` → `patch-ios-plist.sh` →
+      `cap sync ios` → `pod install` → automatic signing → `build-ipa` →
+      **TestFlight**. Trigger on `v*` tags + manual.
+- [ ] App Store Connect setup per `store/app-store-connect-checklist.md`: App ID, app
+      record, Paid Apps agreement, the six IAP products, App Privacy (Data Not
+      Collected), age rating (4+), 6.9″ iPhone screenshots, privacy-policy URL.
+- [ ] Listing copy from `store/app-store-listing.md` (no rewarded-ad wording; leads
+      with "no forced ads / no pay-to-win").
+- [ ] TestFlight smoke test on a real device: loads, saves persist, portrait lock,
+      CRT splash, no AdMob/crash; **IAP end-to-end** with a sandbox Apple ID.
+- [ ] Submit for review with **App Review notes** pre-empting Guideline 4.2
+      (offline native game, not a web wrapper) and confirming 3.1.1 (digital goods via
+      Apple IAP).
+
+**Exit criteria:** signed iOS build on TestFlight, six IAPs working with a sandbox
+Apple ID, App Store version submitted for review.
+
+### Post-launch (iOS)
+
+- **v1.1:** rewarded AdMob ads on iOS with an ATT consent flow + SKAdNetwork +
+  `app-ads.txt` (mirrors the Android rewarded placements).
+- iPad-optimized UI, Game Center, and cloud save mirror the Android backlog.
+
+---
+
 ## Risks & gotchas
 
 | Risk | Mitigation |
@@ -215,6 +280,10 @@ Remaining backlog, roughly in order:
 | Web ↔ Android save divergence | Keep one save schema; gate native-only fields; export/import codes remain the bridge until cloud save |
 | AdMob account limited for invalid traffic | Use test ad units for all development; never tap your own production ads |
 | Data Safety / ads-declaration mismatch → rejection | Declare AdMob data collection in Sprint 2, before the ads build ships |
+| **iOS Guideline 4.2** web-wrapper rejection | App genuinely works offline; App Review notes stress native depth, no login, no website to mirror |
+| iOS Paid Apps agreement not Active → IAP fails | Hard prerequisite before any IAP test or submission; sequenced first in the App Store Connect checklist |
+| AdMob SDK in the iOS binary → `GADApplicationIdentifier` crash / privacy surface | Exclude the pod from the iOS build; iOS v1.0 ships IAP-only, no IDFA/ATT |
+| Ephemeral `ios/` drift / non-reproducible config | All iOS native config is declarative (`capacitor.config.json` + `patch-ios-plist.sh` + `assets/`); no manual Xcode edits |
 
 ## Success metrics
 
