@@ -125,7 +125,7 @@
     { id: 'autotap50',  icon: '🤖', name: 'Auto-Tapper IV',    cost: 80,  req: 'autotap20',  desc: 'Auto-plugs 50×/sec.' },
     { id: 'autotap100', icon: '🤖', name: 'Auto-Tapper V',     cost: 150, req: 'autotap50',  desc: 'Auto-plugs 100×/sec.' },
     { id: 'autotap1000',icon: '🤖', name: 'Auto-Tapper VI',    cost: 400, req: 'autotap100', desc: 'Auto-plugs 1000×/sec.' },
-    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys cords, prioritizing the furthest down the list.' },
+    { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys cords for you — cheapest first, many at once.' },
     { id: 'autoupg',   icon: '🛠️', name: 'Auto-Upgrader',      cost: 22, desc: 'Auto-buys upgrades the moment you can afford them.' },
     // Late-game core accelerators — the ladder that makes ??? reachable.
     { id: 'fission',   icon: '☢️', name: 'Core Fission',       cost: 5e9,  desc: 'Prestige core gains ×5.' },
@@ -2306,13 +2306,12 @@
     return (co('autobuy') || chDone('brownout')) && state.settings.autobuyOn;
   }
 
-  // AUTO-BUYER: prioritizes the cord FURTHEST DOWN the list. Each tick it
-  // buys the deepest unlocked cord the moment it's affordable (in batches),
-  // and keeps that cord's unit cost banked as a reserve — shallower cords are
-  // only bought with surplus watts, so the frontier is never starved by
-  // cheap purchases. Skips the Ouroboros Cord (wps 0) so it never starves
-  // production. Silent — no sounds/toasts; milestone fanfare stays manual.
-  const AUTO_BUY_PER_CORD = 25;     // cords per batch
+  // AUTO-BUYER: buys the CHEAPEST cords first. Each tick it makes a single pass
+  // up the list (cheapest → most expensive), grabbing a batch of every unlocked,
+  // affordable cord, so spare watts cascade up to pricier tiers. Skips the
+  // Ouroboros Cord (wps 0) so it never starves production. Silent — no
+  // sounds/toasts; milestone fanfare stays manual.
+  const AUTO_BUY_PER_CORD = 25;     // cords per tier, per tick
   function autoBuyAllowed(cord, i) {
     if (cord.wps <= 0) return false;                           // skip non-producing cords
     if (ch() === 'solo' && cord.id !== 'usba') return false;   // SOLO CIRCUIT: USB-A only
@@ -2323,34 +2322,13 @@
   function autoBuyTick() {
     if (!autoBuyActive()) return;
     let bought = false;
-    let guard = 60;                 // cap batches per tick
-    while (guard-- > 0) {
-      // the frontier: deepest unlocked, producing cord — first claim on watts
-      let frontier = -1;
-      for (let i = CORDS.length - 1; i >= 0; i--) {
-        if (autoBuyAllowed(CORDS[i], i)) { frontier = i; break; }
-      }
-      if (frontier < 0) break;
-      const reserve = cordCost(CORDS[frontier], 1);
-      let pick = -1;
-      if (state.watts >= reserve) pick = frontier;
-      else {
-        // frontier not affordable yet: spend only the surplus above its
-        // price, deepest-first, so we keep saving toward it
-        for (let i = frontier - 1; i >= 0; i--) {
-          if (!autoBuyAllowed(CORDS[i], i)) continue;
-          if (state.watts - cordCost(CORDS[i], 1) >= reserve) { pick = i; break; }
-        }
-      }
-      if (pick < 0) break;                                     // nothing buyable
-      const cord = CORDS[pick];
-      let k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
-      if (pick !== frontier) {
-        while (k > 1 && state.watts - cordCost(cord, k) < reserve) k--;
-      }
-      if (k <= 0) break;
+    for (let i = 0; i < CORDS.length; i++) {                   // cheapest first
+      const cord = CORDS[i];
+      if (!autoBuyAllowed(cord, i)) continue;                  // unlocked, producing, SOLO rule
+      const k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
+      if (k <= 0) continue;
       const cost = cordCost(cord, k);
-      if (state.watts < cost) break;
+      if (state.watts < cost) continue;
       state.watts -= cost;
       state.owned[cord.id] = (state.owned[cord.id] || 0) + k;
       bought = true;
