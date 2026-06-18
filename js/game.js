@@ -297,7 +297,7 @@
     { id: 'genesis1', icon: '🌱', name: 'New Game Seed',   desc: 'Own a Genesis Patch.',                    cond: () => (state.owned.genesis || 0) >= 1 },
     { id: 'w1sp',     icon: '🌌', name: 'Septillion Spark',desc: 'Earn 1 septillion total watts.',          cond: () => state.totalEarned >= 1e24, prog: () => [state.totalEarned, 1e24] },
     { id: 'chal1',    icon: '🧪', name: 'Lab Rat',         desc: 'Complete a challenge.',                   cond: () => Object.keys(state.challengesDone || {}).length >= 1 },
-    { id: 'chalAll',  icon: '🏅', name: 'Grid Scientist',  desc: 'Complete every challenge.',               cond: () => Object.keys(state.challengesDone || {}).length >= CHALLENGES.length, prog: () => [Object.keys(state.challengesDone || {}).length, CHALLENGES.length] },
+    { id: 'chalAll',  icon: '🏅', name: 'Grid Scientist',  desc: 'Complete every Grid challenge.',           cond: () => CHALLENGES.filter((c) => c.world === 'grid' && (state.challengesDone || {})[c.id]).length >= CHALLENGES.filter((c) => c.world === 'grid').length, prog: () => [CHALLENGES.filter((c) => c.world === 'grid' && (state.challengesDone || {})[c.id]).length, CHALLENGES.filter((c) => c.world === 'grid').length] },
     { id: 'streak7',  icon: '🔥', name: 'Week of Power',   desc: 'Reach a 7-day check-in streak.',          cond: () => (state.streak || 0) >= 7, prog: () => [state.streak || 0, 7] },
     // Voltlands
     { id: 'worm1',    icon: '🌀', name: 'What Does It Do?',desc: 'Plug in the thing you were told not to.', cond: () => !!state.wormhole },
@@ -310,7 +310,7 @@
     { id: 'volt1m',   icon: '🔋', name: 'Million Volt Smile', desc: 'Earn 1 million total volts.',          cond: () => (state.slayer?.totalVolts || 0) >= 1e6, prog: () => [state.slayer?.totalVolts || 0, 1e6] },
     { id: 'reinc1',   icon: '⚡', name: 'Storm Reborn',      desc: 'Reincarnate for your first Storm Shard.', cond: () => (state.slayer?.shardsEarned || 0) >= 1 },
     { id: 'shard10',  icon: '🌩️', name: 'Shard Collector',   desc: 'Earn 10 Storm Shards.',                   cond: () => (state.slayer?.shardsEarned || 0) >= 10, prog: () => [state.slayer?.shardsEarned || 0, 10] },
-    { id: 'voltchal', icon: '🧪', name: 'Storm Scientist',   desc: 'Complete a Voltlands challenge.',          cond: () => CHALLENGES.some((c) => c.world === 'volt' && (state.challengesDone || {})[c.id]) },
+    { id: 'voltchal', icon: '🧪', name: 'Storm Scientist',   desc: 'Complete every Voltlands challenge.',      cond: () => CHALLENGES.filter((c) => c.world === 'volt' && (state.challengesDone || {})[c.id]).length >= CHALLENGES.filter((c) => c.world === 'volt').length, prog: () => [CHALLENGES.filter((c) => c.world === 'volt' && (state.challengesDone || {})[c.id]).length, CHALLENGES.filter((c) => c.world === 'volt').length] },
   ];
 
   /* ---------- State ---------- */
@@ -2672,7 +2672,7 @@
   // cascade up to pricier tiers. Silent. Stage 5 adds the BARE KNUCKLES rule.
   function maxAffordableWeapon(w) {
     const owned = sl().weapons[w.id] || 0;
-    const r = COST_GROWTH;
+    const r = weaponCostGrowth();   // challenge-aware (POWER DRAIN steepens it), mirroring grid maxAffordable
     const base = w.baseCost * Math.pow(r, owned);
     const v = sl().volts;
     const k = Math.floor(Math.log((v * (r - 1)) / base + 1) / Math.log(r));
