@@ -240,7 +240,10 @@ main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ backgroun
 .block p.center{ text-align:center; margin-top:8px; }
 .block .hi{ color:var(--green); }
 .block .mag{ color:var(--magenta); }
+.block .cyn{ color:var(--cyan); }
 .coregain{ font-size:22px; color:var(--magenta); text-align:center; margin:6px 0; }
+/* Storm Shards (⚡) use the cyan accent to read as a separate currency from cores (◆). */
+.shardgain{ font-size:22px; color:var(--cyan); text-align:center; margin:6px 0; }
 .bigbtn{
   width:100%; font-family:var(--pixel); font-size:11px; padding:14px; cursor:pointer;
   background:linear-gradient(#13241a,#0c170f); color:var(--green); border:1px solid var(--green);

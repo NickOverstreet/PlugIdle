@@ -99,7 +99,7 @@
 
       <!-- MORE: prestige + stats + settings + save -->
       <section class="panel" id="p-more">
-        <div class="block">
+        <div class="block" id="recycleBlock">
           <h3>♻️ RECYCLE PLANT</h3>
           <p>Melt your whole operation into Prestige Cores. Each core grants a permanent <b class="hi">+5%</b> to all production (diminishing past ×10 total). Achievements &amp; surge stats are kept.</p>
           <div class="coregain">+<span id="coregain">0</span> ◆ Cores</div>
@@ -107,10 +107,26 @@
           <p class="center">Cores: <b class="mag" id="corecount">0</b> ◆ &nbsp;(lifetime <span id="prestigemult">+0%</span>)</p>
         </div>
 
-        <div class="block">
+        <div class="block" id="coreShopBlock">
           <h3>◆ CORE UPGRADES</h3>
           <p>Spend Prestige Cores on <b class="hi">permanent</b> boosts. Cores are spent here, but your per-core bonus is based on cores ever earned — so it never drops.</p>
           <div class="ugrid" id="corelist"></div>
+        </div>
+
+        <!-- Storm Reactor: the Voltlands prestige (gating wired per-world in JS) -->
+        <div class="block" id="voltPrestigeBlock" hidden>
+          <h3>⚡ STORM REACTOR</h3>
+          <p>Reincarnate the Voltlands into Storm Shards. Each shard grants a permanent <b class="hi">+5%</b> to all ZPS (diminishing past ×10 total). Storm upgrades, kills &amp; bosses are kept.</p>
+          <div class="shardgain">+<span id="shardgain">0</span> ⚡ Shards</div>
+          <button class="bigbtn danger" id="reincarnateBtn">REINCARNATE</button>
+          <p class="center">Shards: <b class="cyn" id="shardcount">0</b> ⚡ &nbsp;(lifetime <span id="shardmult">+0%</span>)</p>
+        </div>
+
+        <!-- Storm Upgrades: the Voltlands shard shop (gating wired per-world in JS) -->
+        <div class="block" id="voltShopBlock" hidden>
+          <h3>⚡ STORM UPGRADES</h3>
+          <p>Spend Storm Shards on <b class="hi">permanent</b> Voltlands boosts. Shards are spent here, but your per-shard ZPS bonus is based on shards ever earned — so it never drops.</p>
+          <div class="ugrid" id="stormlist"></div>
         </div>
 
         <!-- Challenges: unlocked after the first prestige -->
@@ -155,8 +171,11 @@
           <div class="toggle"><span>📳 Haptics</span><button class="sw" data-set="haptic">ON</button></div>
           <div class="toggle"><span>✨ Animations</span><button class="sw" data-set="anim">ON</button></div>
           <div class="toggle"><span>🔬 Sci. Notation</span><button class="sw" data-set="sci">OFF</button></div>
-          <div class="toggle" id="autobuyRow" hidden><span>🛒 Auto-Buyer</span><button class="sw" data-set="autobuyOn">ON</button></div>
-          <div class="toggle" id="autoupgRow" hidden><span>🛠️ Auto-Upgrader</span><button class="sw" data-set="autoupgOn">ON</button></div>
+          <div class="toggle" id="autobuyRow" hidden><span>🛒 Auto-Buyer</span><button class="sw" data-set="grid.autobuyOn">ON</button></div>
+          <div class="toggle" id="autoupgRow" hidden><span>🛠️ Auto-Upgrader</span><button class="sw" data-set="grid.autoupgOn">ON</button></div>
+          <div class="toggle" id="autoArsenalRow" hidden><span>🛒 Auto-Arsenal</span><button class="sw" data-set="volt.autobuyOn">ON</button></div>
+          <div class="toggle" id="autoTinkerRow" hidden><span>🛠️ Auto-Tinker</span><button class="sw" data-set="volt.autoupgOn">ON</button></div>
+          <div class="toggle" id="autoclickRow" hidden><span>⚡ Auto-Zapper</span><button class="sw" data-set="volt.autoclickOn">ON</button></div>
           <div class="toggle" id="themeRow" hidden><span>🎨 CRT Theme</span><span id="themeBtns"></span></div>
           <p class="muted" id="storageStatus">Checking storage…</p>
           <p class="muted"><a href="how-to-play.html" style="color:inherit">How to play</a></p>

@@ -134,19 +134,52 @@
     { id: 'mystery',   icon: '🌀', name: '???',                cost: 1e15, desc: '[DATA CORRUPTED] Do not plug in.' },
   ];
 
+  /* ---------- Content: storm upgrades (Voltlands prestige shop) ----------
+     Bought with Storm Shards (⚡). Mirrors CORE_UPGRADES — shards are spent,
+     but the per-shard ZPS bonus is based on shards ever EARNED, so it never
+     drops. Costs reuse the proven Core Upgrade ladder against a comparably
+     paced shard income. The auto* entries just set ownership here; their
+     logic lands in the automation stage. The w3teaser is a non-purchasable
+     world-3 placeholder, rendered greyed at the bottom. */
+  const STORM_UPGRADES = [
+    { id: 'livewire',    icon: '🔌', name: 'Live Wire',       cost: 1,   desc: 'Tap-zap power ×3.' },
+    { id: 'conduction',  icon: '🧲', name: 'Conduction',      cost: 3,   desc: 'All weapons ×1.5.' },
+    { id: 'capbank',     icon: '🔋', name: 'Capacitor Bank',  cost: 3,   desc: 'Offline volts cap +24h (48h total).' },
+    { id: 'chaser',      icon: '🌪️', name: 'Storm Chaser',    cost: 6,   desc: 'Storm Shard gains ×1.5.' },
+    { id: 'resocore',    icon: '💠', name: 'Resonant Core',   cost: 8,   desc: 'Each shard gives +8% instead of +5%.' },
+    { id: 'overvolt',    icon: '🔥', name: 'Overvoltage',     cost: 12,  desc: 'All ZPS ×2.' },
+    { id: 'autozap',     icon: '🤖', name: 'Auto-Zapper',     cost: 15,  desc: 'Auto tap-zaps 5×/sec, free forever.' },
+    { id: 'autoarsenal', icon: '🛒', name: 'Auto-Arsenal',    cost: 18,  desc: 'Auto-buys weapons — cheapest first.' },
+    { id: 'autotinker',  icon: '🛠️', name: 'Auto-Tinker',     cost: 22,  desc: 'Auto-buys zap upgrades the moment you can afford them.' },
+    { id: 'stormfission',icon: '☢️', name: 'Storm Fission',   cost: 5e9, desc: 'Storm Shard gains ×5.' },
+    { id: 'w3teaser',    icon: '🌌', name: '???',             disabled: true, desc: 'Coming soon…' },
+  ];
+
   /* ---------- Content: challenges ----------
      Special runs with one rule mutated (started from the More tab after the
      first prestige). Resets the run like recycling, no cores gained; reaching
      the goal lifts the rule and unlocks a PERMANENT perk. */
   const CHALLENGES = [
-    { id: 'solo',       icon: '1️⃣', name: 'SOLO CIRCUIT', rule: 'Only USB-A cables can be bought.',          goal: 1e8,  reward: 'GOLD PINS — USB-A output ×5, forever.' },
-    { id: 'unplugged',  icon: '🚫', name: 'UNPLUGGED',    rule: 'Hand-plugging earns nothing.',              goal: 1e9,  reward: 'JUMP LEADS — every run starts with 5 USB-A cables.' },
-    { id: 'minimalist', icon: '🧘', name: 'MINIMALIST',   rule: 'Upgrades cannot be bought.',                goal: 5e9,  reward: 'PREWIRED — runs start with Reinforced Thumbs owned.' },
-    { id: 'darkgrid',   icon: '🌑', name: 'DARK GRID',    rule: 'Power surges never appear.',                goal: 1e10, reward: 'SURGE BEACON — surges arrive 20% sooner.' },
-    { id: 'overpriced', icon: '💸', name: 'OVERPRICED',   rule: 'Cord costs grow 18% per buy (not 12%).',    goal: 1e11, reward: 'WHOLESALE — all cords cost 3% less.' },
-    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys cords for you, fast (toggle in Settings).' },
+    { id: 'solo',       icon: '1️⃣', name: 'SOLO CIRCUIT', world: 'grid', rule: 'Only USB-A cables can be bought.',          goal: 1e8,  reward: 'GOLD PINS — USB-A output ×5, forever.' },
+    { id: 'unplugged',  icon: '🚫', name: 'UNPLUGGED',    world: 'grid', rule: 'Hand-plugging earns nothing.',              goal: 1e9,  reward: 'JUMP LEADS — every run starts with 5 USB-A cables.' },
+    { id: 'minimalist', icon: '🧘', name: 'MINIMALIST',   world: 'grid', rule: 'Upgrades cannot be bought.',                goal: 5e9,  reward: 'PREWIRED — runs start with Reinforced Thumbs owned.' },
+    { id: 'darkgrid',   icon: '🌑', name: 'DARK GRID',    world: 'grid', rule: 'Power surges never appear.',                goal: 1e10, reward: 'SURGE BEACON — surges arrive 20% sooner.' },
+    { id: 'overpriced', icon: '💸', name: 'OVERPRICED',   world: 'grid', rule: 'Cord costs grow 18% per buy (not 12%).',    goal: 1e11, reward: 'WHOLESALE — all cords cost 3% less.' },
+    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     world: 'grid', rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys cords for you, fast (toggle in Settings).' },
+    // Voltlands challenges (world:'volt'). Goals are runVolts thresholds; perks are
+    // permanent and applied in their respective rule sites / applyReincarnatePerks.
+    { id: 'bareknuckle', icon: '✊', name: 'BARE KNUCKLES', world: 'volt', rule: 'Only the Static Glove can be bought.',   goal: 1e3, reward: 'KNUCKLE BUSTER — Static Glove zaps ×5, forever.' },
+    { id: 'numbfingers', icon: '🧊', name: 'NUMB FINGERS',  world: 'volt', rule: 'Tap-zapping earns nothing.',             goal: 5e3, reward: 'CONDUCTIVE GRIP — each reincarnation starts with 5 Static Gloves.' },
+    { id: 'notools',     icon: '🚱', name: 'NO TOOLS',      world: 'volt', rule: 'Zap upgrades cannot be bought.',          goal: 2e4, reward: 'BARE WIRE — runs start with Rubber Gloves Off owned.' },
+    { id: 'suddendeath', icon: '💀', name: 'SUDDEN DEATH',  world: 'volt', rule: 'Bosses have ×3 HP.',                      goal: 1e5, reward: 'GIANT SLAYER — boss volt rewards ×2.' },
+    { id: 'staticcling', icon: '🧲', name: 'STATIC CLING',  world: 'volt', rule: 'All ZPS halved.',                         goal: 5e5, reward: 'STATIC FIELD — auto tap-zaps (toggle in Settings).' },
+    { id: 'powerdrain',  icon: '🪫', name: 'POWER DRAIN',   world: 'volt', rule: 'Weapon costs grow 18% per buy (not 12%).', goal: 2e6, reward: 'SURPLUS — all weapons cost 3% less.' },
   ];
-  const ch = () => (state && state.challenge) || '';
+  // World-aware active-challenge accessor: defaults to the active world so existing
+  // grid rule checks (`ch() === 'solo'`) keep working; pass 'volt' for tick-time
+  // funcs that run regardless of the active world. `activeWorld` is defined later but
+  // only ever called at runtime here (late binding is safe).
+  const ch = (w) => (state && state.challenges && state.challenges[w || activeWorld()]) || '';
   const chDone = (id) => !!(state && state.challengesDone && state.challengesDone[id]);
 
   /* ---------- Content: the Voltlands (idle slayer) ----------
@@ -275,6 +308,9 @@
     { id: 'weap5',    icon: '🔫', name: 'Armed to the Teeth', desc: 'Own 5 different weapons.',             cond: () => WEAPONS.filter(w => (state.slayer?.weapons[w.id] || 0) >= 1).length >= 5, prog: () => [WEAPONS.filter(w => (state.slayer?.weapons[w.id] || 0) >= 1).length, 5] },
     { id: 'weapAll',  icon: '🏛️', name: 'Full Arsenal',    desc: `Own all ${WEAPONS.length} weapons.`,      cond: () => WEAPONS.every(w => (state.slayer?.weapons[w.id] || 0) >= 1), prog: () => [WEAPONS.filter(w => (state.slayer?.weapons[w.id] || 0) >= 1).length, WEAPONS.length] },
     { id: 'volt1m',   icon: '🔋', name: 'Million Volt Smile', desc: 'Earn 1 million total volts.',          cond: () => (state.slayer?.totalVolts || 0) >= 1e6, prog: () => [state.slayer?.totalVolts || 0, 1e6] },
+    { id: 'reinc1',   icon: '⚡', name: 'Storm Reborn',      desc: 'Reincarnate for your first Storm Shard.', cond: () => (state.slayer?.shardsEarned || 0) >= 1 },
+    { id: 'shard10',  icon: '🌩️', name: 'Shard Collector',   desc: 'Earn 10 Storm Shards.',                   cond: () => (state.slayer?.shardsEarned || 0) >= 10, prog: () => [state.slayer?.shardsEarned || 0, 10] },
+    { id: 'voltchal', icon: '🧪', name: 'Storm Scientist',   desc: 'Complete a Voltlands challenge.',          cond: () => CHALLENGES.some((c) => c.world === 'volt' && (state.challengesDone || {})[c.id]) },
   ];
 
   /* ---------- State ---------- */
@@ -291,10 +327,10 @@
     surgesCollected: 0,  // lifetime power surges caught
     startedAt: Date.now(),
     lastSeen: Date.now(),
-    settings: { sound: true, floats: true, sci: false, haptics: true, autobuyOn: true, autoupgOn: true },
+    settings: { sound: true, floats: true, sci: false, haptics: true, world: { grid: { autobuyOn: true, autoupgOn: true }, volt: { autobuyOn: true, autoupgOn: true, autoclickOn: true } } },
     bulk: 1,             // 1, 10, 100, or 'max'
     prestigeV: 2,        // prestige-curve schema (v2 = cbrt gain + softcap)
-    challenge: '',       // active challenge id (cleared by completion/abandon/prestige)
+    challenges: { grid: '', volt: '' },  // active challenge id per world (cleared by completion/abandon/prestige)
     challengesDone: {},  // challengeId -> true (permanent perks)
     streak: 0,           // daily check-in streak (48h forgiveness window)
     streakAt: 0,         // ms timestamp of the last streak claim
@@ -325,6 +361,10 @@
       hp: 0, maxHp: 0,   // current enemy
       weapons: {},       // weaponId -> count
       upgrades: {},      // zapUpgradeId -> true
+      runVolts: 0,       // volts earned this reincarnation — drives shard gain
+      shards: 0,         // spendable Storm Shards ⚡
+      shardsEarned: 0,   // lifetime shards — drives the permanent ZPS multiplier
+      shardUpgrades: {}, // stormUpgradeId -> true (persists across reincarnation)
     };
   }
 
@@ -338,8 +378,29 @@
     const hadCoresEarned = s.coresEarned != null;
     const hadPrestigeV = s.prestigeV != null;
     const hadLifetime = s.lifetimeEarned != null;
+    // Capture legacy per-world fields BEFORE the defaults merge backfills them
+    // with the new empty/object shapes.
+    const hadChallenges = s.challenges != null;
+    const legacyChallenge = typeof s.challenge === 'string' ? s.challenge : '';
     s = Object.assign(defaultState(), s);
-    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true, autobuyOn: true, autoupgOn: true }, s.settings || {});
+    // Device prefs stay top-level/global. Automation toggles are per-world; merge
+    // the nested `world` object so partial saves don't drop the volt subtree.
+    const savedSettings = s.settings || {};
+    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, savedSettings);
+    s.settings.world = {
+      grid: Object.assign({ autobuyOn: true, autoupgOn: true }, (savedSettings.world && savedSettings.world.grid) || {}),
+      volt: Object.assign({ autobuyOn: true, autoupgOn: true, autoclickOn: true }, (savedSettings.world && savedSettings.world.volt) || {}),
+    };
+    // Migrate legacy flat autobuyOn/autoupgOn into the grid automation subtree.
+    if (savedSettings.autobuyOn != null) s.settings.world.grid.autobuyOn = !!savedSettings.autobuyOn;
+    if (savedSettings.autoupgOn != null) s.settings.world.grid.autoupgOn = !!savedSettings.autoupgOn;
+    delete s.settings.autobuyOn; delete s.settings.autoupgOn;
+    // Per-world challenges: migrate legacy single `state.challenge` into the grid slot.
+    if (!hadChallenges) s.challenges = { grid: legacyChallenge, volt: '' };
+    if (s.challenges == null) s.challenges = { grid: '', volt: '' };
+    if (typeof s.challenges.grid !== 'string') s.challenges.grid = '';
+    if (typeof s.challenges.volt !== 'string') s.challenges.volt = '';
+    delete s.challenge;
     if (!hadCoresEarned) s.coresEarned = s.cores || 0;
     if (s.coreUpgrades == null) s.coreUpgrades = {};
     if (s.iap == null) s.iap = {};
@@ -347,6 +408,7 @@
     if (s.challengesDone == null) s.challengesDone = {};
     if (!hadLifetime) s.lifetimeEarned = s.totalEarned || 0;   // best available seed
     s.slayer = Object.assign(defaultSlayer(), s.slayer || {});
+    if (s.slayer.shardUpgrades == null || typeof s.slayer.shardUpgrades !== 'object') s.slayer.shardUpgrades = {};
     // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
     // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
     // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
@@ -361,6 +423,12 @@
 
   /* ---------- Derived values ---------- */
   const co = (id) => !!(state.coreUpgrades && state.coreUpgrades[id]);
+  // Storm-Upgrade-owned helper (mirror of `co` for the Voltlands shard shop).
+  const su = (id) => !!(state.slayer && state.slayer.shardUpgrades && state.slayer.shardUpgrades[id]);
+  // Per-shard ZPS bonus (lifetime shards), boosted by Resonant Core.
+  function shardPer() { return su('resocore') ? 0.08 : 0.05; }
+  // Storm Shard gain multiplier (mirror of prestigeGainMult).
+  function shardGainMult() { let m = 1; if (su('chaser')) m *= 1.5; if (su('stormfission')) m *= 5; return m; }
   // Per-core production bonus (lifetime cores), boosted by Core Resonance.
   function corePer() { return co('resonance') ? 0.08 : 0.05; }
   function coreClickMult() { return co('thumbs') ? 3 : 1; }
@@ -407,6 +475,20 @@
   }
   function prestigeMult() {
     return prestigeMultFor(state.coresEarned || 0);
+  }
+
+  // Voltlands prestige (Storm Reactor): lifetime Storm Shards drive a permanent,
+  // softcapped ZPS multiplier — the volt analog of prestigeMult. Same softcap
+  // shape as the Grid (linear to ×10, then sqrt-dampened).
+  const STORM_THRESHOLD = 2e3;
+  const STORM_SOFTCAP = 10;
+  function shardMultFor(shardsN) {
+    const raw = 1 + shardPer() * shardsN;
+    if (raw <= STORM_SOFTCAP) return raw;
+    return STORM_SOFTCAP * Math.sqrt(raw / STORM_SOFTCAP);
+  }
+  function shardMult() {
+    return shardMultFor((state.slayer && state.slayer.shardsEarned) || 0);
   }
 
   // An upgrade's multiplier applies to a cord's WHOLE output — every unit you
@@ -473,7 +555,7 @@
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
-    const challengePenalty = ch() === 'brownout' ? 0.5 : 1;
+    const challengePenalty = ch('grid') === 'brownout' ? 0.5 : 1;
     return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod') * challengePenalty * bossWattsMult();
   }
 
@@ -501,7 +583,7 @@
   // Flat tap power — everything except the "% of W/s" share. Scales with click
   // & global upgrades, prestige and tap milestones, but NOT directly with W/s.
   function clickPowerFlat() {
-    if (ch() === 'unplugged') return 0;   // UNPLUGGED challenge rule
+    if (ch('grid') === 'unplugged') return 0;   // UNPLUGGED challenge rule
     let p = 1;
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'click') p *= u.mult;
@@ -514,7 +596,7 @@
     return p * glob * prestigeMult() * PROD_MULT * coreClickMult() * tapMilestoneMult();
   }
   function clickPower() {
-    if (ch() === 'unplugged') return 0;   // UNPLUGGED challenge rule
+    if (ch('grid') === 'unplugged') return 0;   // UNPLUGGED challenge rule
     const fromWps = tapWpsFrac() * totalWps();   // scales with income, keeps taps useful
     return (clickPowerFlat() + fromWps) * buffMult('click');
   }
@@ -525,13 +607,13 @@
   const AUTO_TAP_WPS_CAP = 1;   // auto-taps' W/s share tops out at +100% of W/s
   function autoTapGainPerSec() {
     const taps = autoTapRate();
-    if (taps <= 0 || ch() === 'unplugged') return 0;   // UNPLUGGED: hand-plugs earn nothing
+    if (taps <= 0 || ch('grid') === 'unplugged') return 0;   // UNPLUGGED: hand-plugs earn nothing
     const wpsShare = Math.min(tapWpsFrac() * taps, AUTO_TAP_WPS_CAP);
     return (clickPowerFlat() * taps + wpsShare * totalWps()) * buffMult('click');
   }
 
   // OVERPRICED challenge steepens cost growth; its WHOLESALE perk discounts.
-  function costGrowth() { return ch() === 'overpriced' ? 1.18 : COST_GROWTH; }
+  function costGrowth() { return ch('grid') === 'overpriced' ? 1.18 : COST_GROWTH; }
   function costDiscount() { return chDone('overpriced') ? 0.97 : 1; }
 
   function cordCost(cord, count) {
@@ -573,6 +655,13 @@
     // keeping late-game cores meaningful instead of cascading.
     const potential = Math.floor(Math.cbrt(state.totalEarned / 1e9) * prestigeGainMult() * coreCordGainMult());
     return Math.max(0, potential - (state.coresEarned || 0));
+  }
+
+  // Storm Shards "deserved" this reincarnation: a cube-root curve over the volts
+  // earned THIS run (×Storm Chaser/Fission bonus). Unlike grid cores, shards are
+  // pure gain per run — there is no lifetime subtraction.
+  function reincarnateGain() {
+    return Math.max(0, Math.floor(Math.cbrt(((state.slayer && state.slayer.runVolts) || 0) / STORM_THRESHOLD) * shardGainMult()));
   }
 
   /* ---------- Number formatting ---------- */
@@ -685,12 +774,16 @@
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     dotUp: $('#dotUp'), dotMore: $('#dotMore'), dotArsenal: $('#dotArsenal'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
-    corelist: $('#corelist'),
+    corelist: $('#corelist'), stormlist: $('#stormlist'),
     statTotal: $('#statTotal'), statClicks: $('#statClicks'), statWps: $('#statWps'),
     statGens: $('#statGens'), statSurges: $('#statSurges'), statAch: $('#statAch'),
     statTime: $('#statTime'), statCores: $('#statCores'),
     coregain: $('#coregain'), corecount: $('#corecount'), prestigemult: $('#prestigemult'),
     prestigeBtn: $('#prestigeBtn'),
+    shardgain: $('#shardgain'), shardcount: $('#shardcount'), shardmult: $('#shardmult'),
+    reincarnateBtn: $('#reincarnateBtn'),
+    recycleBlock: $('#recycleBlock'), coreShopBlock: $('#coreShopBlock'),
+    voltPrestigeBlock: $('#voltPrestigeBlock'), voltShopBlock: $('#voltShopBlock'),
     toast: $('#toast'), modal: $('#modal'), mbox: $('#mbox'),
     savebox: $('#savebox'), exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), wipeBtn: $('#wipeBtn'),
     storageStatus: $('#storageStatus'), version: $('#version'),
@@ -814,7 +907,7 @@
     setTimeout(trySpawnSurge, delay);
   }
   function trySpawnSurge() {
-    if (document.hidden || surgeActive || ch() === 'darkgrid') { scheduleSurge(); return; }
+    if (document.hidden || surgeActive || ch('grid') === 'darkgrid') { scheduleSurge(); return; }
     spawnSurge();
   }
   function spawnSurge() {
@@ -893,11 +986,14 @@
         return left >= 60 ? `${Math.floor(left / 60)}m${left % 60 ? (left % 60) + 's' : ''}` : `${left}s`;
       },
     }));
-    const chal = state.challenge ? CHALLENGES.find((x) => x.id === state.challenge) : null;
+    const chal = ch() ? CHALLENGES.find((x) => x.id === ch()) : null;
     if (chal) list.push({
       key: 'chal:' + chal.id,
       head: `${chal.icon} ${chal.name} · `,
-      val: () => `${fmt(Math.min(state.totalEarned, chal.goal))}/${fmt(chal.goal)}`,
+      val: () => {
+        const prog = (chal.world === 'volt') ? (sl().runVolts || 0) : state.totalEarned;
+        return `${fmt(Math.min(prog, chal.goal))}/${fmt(chal.goal)}`;
+      },
     });
     void now;
     return list;
@@ -1089,6 +1185,24 @@
     renderStatsLite();
   }
 
+  // Storm Upgrade purchase (mirror of buyCoreUpgrade, spent with Storm Shards).
+  // The w3teaser is non-purchasable — it returns silently.
+  function buyStormUpgrade(su_) {
+    if (!su_ || su_.disabled) return;     // world-3 placeholder can never be bought
+    if (state.slayer.shardUpgrades[su_.id]) return;
+    if (su_.req && !su(su_.req)) return;  // locked until its prerequisite is owned
+    if ((sl().shards || 0) < su_.cost) { toast('Not enough shards'); blip(120, 0.06); return; }
+    sl().shards -= su_.cost;
+    sl().shardUpgrades[su_.id] = true;
+    blip(700, 0.16, 'sawtooth', 0.05);
+    buzz([0, 20, 40, 20]);
+    toast('⚡ ' + su_.name + '!', true);
+    checkAchievements();
+    renderStormShop();
+    syncSettingsUI();    // reveal the Auto-* toggle if just bought
+    renderStatsLite();
+  }
+
   /* ---------- Rendering ---------- */
   function renderShop() {
     renderCords();
@@ -1271,6 +1385,36 @@
     el.corelist.innerHTML = html;
   }
 
+  function renderStormShop() {
+    if (!el.stormlist) return;
+    let html = '';
+    for (const su_ of STORM_UPGRADES) {
+      // req-gated upgrades stay hidden until their prerequisite is owned.
+      if (su_.req && !su(su_.req) && !state.slayer.shardUpgrades[su_.id]) continue;
+      // World-3 placeholder: a greyed, non-purchasable card (no data-storm,
+      // so the delegated handler ignores it).
+      if (su_.disabled) {
+        html += `
+        <div class="upg core no">
+          <div class="un">${su_.icon} ${su_.name}</div>
+          <div class="ud">${su_.desc}</div>
+          <div class="uc">🔒 SOON</div>
+        </div>`;
+        continue;
+      }
+      const bought = !!state.slayer.shardUpgrades[su_.id];
+      const can = !bought && (sl().shards || 0) >= su_.cost;
+      const cls = bought ? 'bought' : can ? 'ok' : 'no';
+      html += `
+        <button class="upg core ${cls}" data-storm="${su_.id}">
+          <div class="un">${su_.icon} ${su_.name}</div>
+          <div class="ud">${su_.desc}</div>
+          <div class="uc">${bought ? '✓ OWNED' : '⚡ ' + su_.cost}</div>
+        </button>`;
+    }
+    el.stormlist.innerHTML = html;
+  }
+
   // lightweight per-frame updates (numbers only, no list rebuild)
   function renderStatsLite() {
     const wps = totalWps();
@@ -1328,6 +1472,24 @@
     el.corecount.textContent = fmtInt(state.cores || 0);
     el.prestigemult.textContent = '+' + lifetimeBonusPct() + '%';
     el.prestigeBtn.classList.toggle('dis', pg < 1);
+    // Voltlands prestige numbers (Storm Reactor) — only meaningful past the wormhole
+    if (state.wormhole && el.reincarnateBtn) {
+      const rg = reincarnateGain();
+      if (el.shardgain) el.shardgain.textContent = fmtInt(rg);
+      if (el.shardcount) el.shardcount.textContent = fmtInt(sl().shards || 0);
+      if (el.shardmult) el.shardmult.textContent = '+' + Math.round((shardMult() - 1) * 100) + '%';
+      el.reincarnateBtn.classList.toggle('dis', rg < 1);
+    }
+  }
+
+  // Per-world More-tab gating: each world shows only its own prestige + shop;
+  // Power Store / System Stats / Settings / Save Data stay visible in both.
+  function renderMoreGating() {
+    const volt = activeWorld() === 'volt';
+    if (el.recycleBlock) el.recycleBlock.hidden = volt;
+    if (el.coreShopBlock) el.coreShopBlock.hidden = volt;
+    if (el.voltPrestigeBlock) el.voltPrestigeBlock.hidden = !state.wormhole || !volt;
+    if (el.voltShopBlock) el.voltShopBlock.hidden = !state.wormhole || !volt;
   }
 
   function fmtDuration(ms) {
@@ -1342,24 +1504,38 @@
     return `${sec}s`;
   }
 
+  // Read a settings value by [data-set] key. World-scoped automation keys use a
+  // "world.path" form (e.g. "grid.autobuyOn", "volt.autoclickOn"); device prefs
+  // are flat (sound/haptic/anim/sci).
+  function settingVal(k) {
+    const dot = k.indexOf('.');
+    if (dot > 0) return state.settings.world[k.slice(0, dot)][k.slice(dot + 1)];
+    return k === 'sound' ? state.settings.sound
+         : k === 'haptic' ? state.settings.haptics
+         : k === 'anim' ? state.settings.floats
+         : state.settings.sci;
+  }
+
   function syncSettingsUI() {
     // [data-set] only — the theme-picker buttons also use .sw and must not
     // have their labels clobbered with ON/OFF.
     document.querySelectorAll('.sw[data-set]').forEach((b) => {
-      const v = b.dataset.set === 'sound' ? state.settings.sound
-              : b.dataset.set === 'haptic' ? state.settings.haptics
-              : b.dataset.set === 'anim' ? state.settings.floats
-              : b.dataset.set === 'autobuyOn' ? state.settings.autobuyOn
-              : b.dataset.set === 'autoupgOn' ? state.settings.autoupgOn
-              : state.settings.sci;
+      const v = settingVal(b.dataset.set);
       b.classList.toggle('on', !!v);
       b.textContent = v ? 'ON' : 'OFF';
     });
-    // Auto-buy toggles appear only once you can auto-buy.
+    // Automation toggles appear only once owned AND in their own world.
+    const volt = activeWorld() === 'volt';
     const abRow = document.getElementById('autobuyRow');
-    if (abRow) abRow.hidden = !(co('autobuy') || chDone('brownout'));
+    if (abRow) abRow.hidden = volt || !(co('autobuy') || chDone('brownout'));
     const auRow = document.getElementById('autoupgRow');
-    if (auRow) auRow.hidden = !co('autoupg');
+    if (auRow) auRow.hidden = volt || !co('autoupg');
+    const arRow = document.getElementById('autoArsenalRow');
+    if (arRow) arRow.hidden = !volt || !su('autoarsenal');
+    const tiRow = document.getElementById('autoTinkerRow');
+    if (tiRow) tiRow.hidden = !volt || !su('autotinker');
+    const acRow = document.getElementById('autoclickRow');
+    if (acRow) acRow.hidden = !volt || !(su('autozap') || chDone('staticcling'));
     document.body.classList.toggle('noanim', !state.settings.floats);
   }
 
@@ -1369,7 +1545,8 @@
     renderChallenges();
     renderGoals();
     renderBuffs();
-    if (state.wormhole) { renderWeapons(); renderZapUpgrades(); renderSlayerLite(); }
+    if (state.wormhole) { renderWeapons(); renderZapUpgrades(); renderSlayerLite(); renderStormShop(); }
+    renderMoreGating();
     renderStatsLite();
     syncSettingsUI();
     updateTabDots();
@@ -1460,6 +1637,11 @@
     if (chDone('unplugged')) state.owned.usba = Math.max(state.owned.usba || 0, 5);  // JUMP LEADS
     if (chDone('minimalist') && ch() !== 'minimalist') state.upgrades.u_click1 = true; // PREWIRED
   }
+  // Voltlands challenge-perk head starts applied to every reincarnation/run.
+  function applyReincarnatePerks() {
+    if (chDone('numbfingers')) sl().weapons.glove = Math.max(sl().weapons.glove || 0, 5);  // CONDUCTIVE GRIP
+    if (chDone('notools') && ch('volt') !== 'notools') sl().upgrades.z_zap1 = true;          // BARE WIRE
+  }
 
   /* ---------- Prestige ---------- */
   function doPrestige() {
@@ -1498,27 +1680,98 @@
     document.getElementById('mNo').addEventListener('click', hideModal);
   }
 
+  /* ---------- Reincarnation (Storm Reactor) ---------- */
+  // The Voltlands prestige: reset ONLY the slayer run for Storm Shards. Mutates
+  // the slayer in place (never Object.assign(defaultSlayer())) so Grid state and
+  // the keep-list — totalVolts/kills/bosses/shards/shardsEarned/shardUpgrades —
+  // are guaranteed untouched. Grid state is never read or written here.
+  function reincarnate() {
+    const gain = reincarnateGain();
+    if (gain <= 0) { toast('Slay more before reincarnating'); return; }
+    const s = sl();
+    s.shards += gain;
+    s.shardsEarned += gain;
+    // Reset only the per-run fields.
+    s.volts = 0;
+    s.runVolts = 0;
+    s.wave = 1;
+    s.killsThisWave = 0;
+    s.weapons = {};
+    s.upgrades = {};
+    state.challenges.volt = '';   // reincarnation clears the active volt challenge
+    applyReincarnatePerks();
+    spawnEnemy();
+    checkAchievements();
+    save();
+    blip(220, 0.3, 'sawtooth', 0.06);
+    buzz([0, 40, 60, 40, 60, 80]);
+    screenShake(1.5);
+    toast(`⚡ Reincarnated. +${gain} shards`, true);
+    renderAll();
+  }
+  function confirmReincarnate() {
+    const gain = reincarnateGain();
+    if (gain <= 0) { toast('Slay more before reincarnating'); return; }
+    const newPct = Math.round((shardMultFor((sl().shardsEarned || 0) + gain) - 1) * 100);
+    showModal(`
+      <h2 class="danger">⚡ REINCARNATE?</h2>
+      <p class="dim">Reset volts, weapons &amp; zap upgrades.<br>Shards, storm upgrades &amp; kills are kept.${(state.challenges && state.challenges.volt) ? '<br><b>Abandons the active challenge!</b>' : ''}</p>
+      <p class="big">+${fmt(gain)} ⚡ Shards</p>
+      <p>New bonus: <b style="color:var(--green)">+${newPct}%</b></p>
+      <div class="row2" style="margin-top:14px">
+        <button class="bigbtn" id="mYes">CONFIRM</button>
+        <button class="smbtn" id="mNo">CANCEL</button>
+      </div>`);
+    document.getElementById('mYes').addEventListener('click', () => { hideModal(); reincarnate(); });
+    document.getElementById('mNo').addEventListener('click', hideModal);
+  }
+
   /* ---------- Challenges ---------- */
+  // Reset only the slayer run fields (no shards awarded) — the volt analog of a
+  // fresh grid run, used when starting a Voltlands challenge.
+  function resetSlayerRun() {
+    const s = sl();
+    s.volts = 0;
+    s.runVolts = 0;
+    s.wave = 1;
+    s.killsThisWave = 0;
+    s.weapons = {};
+    s.upgrades = {};
+    applyReincarnatePerks();
+    spawnEnemy();
+  }
+
   function startChallenge(c) {
-    if (ch()) { toast('Finish or abandon the current challenge first'); return; }
+    const w = c.world || 'grid';
+    if (ch(w)) { toast('Finish or abandon the current challenge first'); return; }
+    const goalUnit = w === 'volt' ? 'V' : 'W';
     showModal(`
       <h2>${c.icon} ${c.name}</h2>
       <p class="dim">${c.rule}</p>
-      <p>Goal: earn <b style="color:var(--amber)">${fmt(c.goal)} W</b> in one run</p>
-      <p class="dim">Starts a fresh run like recycling (no cores gained).<br>Reward: ${c.reward}</p>
+      <p>Goal: earn <b style="color:var(--amber)">${fmt(c.goal)} ${goalUnit}</b> in one run</p>
+      <p class="dim">Starts a fresh run like ${w === 'volt' ? 'reincarnating' : 'recycling'} (no ${w === 'volt' ? 'shards' : 'cores'} gained).<br>Reward: ${c.reward}</p>
       <div class="row2" style="margin-top:14px">
         <button class="bigbtn" id="mYes">START</button>
         <button class="smbtn" id="mNo">CANCEL</button>
       </div>`);
     document.getElementById('mYes').addEventListener('click', () => {
-      state = Object.assign(defaultState(), carryState({ challenge: c.id }));
-      buffs = [];
-      syncBoostBuff();
-      syncStreakBuff();
-      applyRunStartPerks();
-      // UNPLUGGED disables tapping entirely — without a starter cord the run
-      // could never earn its first watt (softlock).
-      if (c.id === 'unplugged') state.owned.usba = Math.max(state.owned.usba || 0, 1);
+      if (w === 'volt') {
+        state.challenges.volt = c.id;
+        resetSlayerRun();
+        // NUMB FINGERS disables tap-zapping entirely — without a starter weapon the
+        // run could never deal its first damage (softlock).
+        if (c.id === 'numbfingers') sl().weapons.glove = Math.max(sl().weapons.glove || 0, 1);
+      } else {
+        state = Object.assign(defaultState(), carryState());
+        state.challenges.grid = c.id;
+        buffs = [];
+        syncBoostBuff();
+        syncStreakBuff();
+        applyRunStartPerks();
+        // UNPLUGGED disables tapping entirely — without a starter cord the run
+        // could never earn its first watt (softlock).
+        if (c.id === 'unplugged') state.owned.usba = Math.max(state.owned.usba || 0, 1);
+      }
       save();
       hideModal();
       blip(700, 0.16, 'sawtooth', 0.05);
@@ -1529,53 +1782,68 @@
   }
 
   function abandonChallenge() {
-    if (!ch()) return;
-    state.challenge = '';
+    const w = activeWorld();
+    if (!ch(w)) return;
+    state.challenges[w] = '';
     toast('Challenge abandoned — run continues normally');
     save();
     renderAll();
   }
 
-  // Called each tick: lifts the rule and grants the permanent perk on success.
+  // Called each tick: lifts the active challenge for the current world and grants
+  // the permanent perk on success. Volt goals compare runVolts; grid goals compare
+  // totalEarned. Both worlds always tick, so check each independently.
   function checkChallenge() {
-    if (!state.challenge) return;
-    const c = CHALLENGES.find((x) => x.id === state.challenge);
-    if (!c || state.totalEarned < c.goal) return;
-    state.challengesDone[c.id] = true;
-    state.challenge = '';
-    toast(`${c.icon} CHALLENGE COMPLETE! ${c.reward.split(' — ')[0]} unlocked`, true);
-    blip(1320, 0.2, 'triangle', 0.06);
-    buzz([0, 30, 50, 30, 50, 60]);
-    screenShake(1.2);
-    checkAchievements();
-    save();
-    renderAll();
+    for (const w of ['grid', 'volt']) {
+      const id = ch(w);
+      if (!id) continue;
+      const c = CHALLENGES.find((x) => x.id === id);
+      if (!c) continue;
+      const progress = w === 'volt' ? (sl().runVolts || 0) : state.totalEarned;
+      if (progress < c.goal) continue;
+      state.challengesDone[c.id] = true;
+      state.challenges[w] = '';
+      toast(`${c.icon} CHALLENGE COMPLETE! ${c.reward.split(' — ')[0]} unlocked`, true);
+      blip(1320, 0.2, 'triangle', 0.06);
+      buzz([0, 30, 50, 30, 50, 60]);
+      screenShake(1.2);
+      checkAchievements();
+      save();
+      renderAll();
+    }
   }
 
   function renderChallenges() {
     const block = document.getElementById('challengeBlock');
     if (!block) return;
-    const unlocked = (state.coresEarned || 0) >= 1 || Object.keys(state.challengesDone || {}).length > 0;
+    // World-scoped: grid unlocks after the first prestige, volt after the first
+    // reincarnation; each world shows only its own challenge set.
+    const world = activeWorld();
+    const unit = world === 'volt' ? 'V' : 'W';
+    const unlocked = world === 'volt'
+      ? (sl().shardsEarned || 0) >= 1 || CHALLENGES.some((c) => c.world === 'volt' && chDone(c.id))
+      : (state.coresEarned || 0) >= 1 || CHALLENGES.some((c) => c.world === 'grid' && chDone(c.id));
     block.hidden = !unlocked;
     if (!unlocked) return;
-    const active = CHALLENGES.find((c) => c.id === ch());
+    const set = CHALLENGES.filter((c) => (c.world || 'grid') === world);
+    const active = set.find((c) => c.id === ch(world));
     const ca = document.getElementById('chActive');
     if (ca) {
       ca.hidden = !active;
       if (active) {
-        ca.innerHTML = `<p>${active.icon} <b class="hi">${active.name}</b> in progress — earn ${fmt(active.goal)} W this run.</p>
+        ca.innerHTML = `<p>${active.icon} <b class="hi">${active.name}</b> in progress — earn ${fmt(active.goal)} ${unit} this run.</p>
           <button class="smbtn danger" id="chAbandon" style="width:100%">ABANDON CHALLENGE</button>`;
       }
     }
     const list = document.getElementById('chlist');
     if (list) {
-      list.innerHTML = CHALLENGES.map((c) => {
+      list.innerHTML = set.map((c) => {
         const done = chDone(c.id);
         const cls = done ? 'bought' : active ? 'no' : 'ok';
         return `
           <button class="upg ${cls}" data-ch="${c.id}" ${done || active ? 'disabled' : ''}>
             <div class="un">${c.icon} ${c.name}</div>
-            <div class="ud">${c.rule}<br>Goal: ${fmt(c.goal)} W · ${c.reward}</div>
+            <div class="ud">${c.rule}<br>Goal: ${fmt(c.goal)} ${unit} · ${c.reward}</div>
             <div class="uc">${done ? '✓ DONE' : 'START'}</div>
           </button>`;
       }).join('');
@@ -1620,8 +1888,16 @@
     const cycle = Math.floor(idx / ZONES.length);
     return ZONES[idx % ZONES.length] + (cycle > 0 ? ` ${cycle + 1}` : '');
   }
-  function enemyHp(wave) { return 10 * Math.pow(1.22, wave - 1) * (isBossWave(wave) ? 10 : 1); }
-  function voltReward(wave) { return Math.pow(1.19, wave - 1) * (isBossWave(wave) ? 12 : 1); }
+  function enemyHp(wave) {
+    const boss = isBossWave(wave);
+    const sudden = boss && ch('volt') === 'suddendeath' ? 3 : 1;   // SUDDEN DEATH rule
+    return 10 * Math.pow(1.22, wave - 1) * (boss ? 10 : 1) * sudden;
+  }
+  function voltReward(wave) {
+    const boss = isBossWave(wave);
+    const slayerBonus = boss && chDone('suddendeath') ? 2 : 1;     // GIANT SLAYER perk
+    return Math.pow(1.19, wave - 1) * (boss ? 12 : 1) * slayerBonus;
+  }
 
   // ---- cross-world synergy ----
   // Volt->Grid: every boss killed is a permanent +2% watts production.
@@ -1636,23 +1912,31 @@
       if (u.kind === 'weapon' && u.weapon === weaponId) m *= u.mult;
       if (u.kind === 'zglobal') m *= u.mult;
     }
+    if (su('conduction')) m *= 1.5;   // Storm Upgrade: all weapons ×1.5
+    if (weaponId === 'glove' && chDone('bareknuckle')) m *= 5;   // KNUCKLE BUSTER perk
     return m * cordMilestoneMult(sl().weapons[weaponId] || 0);   // same x2-per-25 milestones
   }
   function totalZps() {
     let sum = 0;
     for (const w of WEAPONS) sum += (sl().weapons[w.id] || 0) * w.zps * weaponMultiplier(w.id);
-    return sum * gridZpsBoost() * achMult() * buffMult('prod');
+    const cling = ch('volt') === 'staticcling' ? 0.5 : 1;   // STATIC CLING rule
+    return sum * gridZpsBoost() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * cling;
   }
   function zapPower() {
+    if (ch('volt') === 'numbfingers') return 0;   // NUMB FINGERS rule
     let p = 1;
     for (const u of ZAP_UPGRADES) if (sl().upgrades[u.id] && u.kind === 'zap') p *= u.mult;
+    if (su('livewire')) p *= 3;   // Storm Upgrade: tap-zap power ×3
     return p * gridZpsBoost() * achMult() * buffMult('click');
   }
+  function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : COST_GROWTH; }   // POWER DRAIN rule
+  function weaponCostDiscount() { return chDone('powerdrain') ? 0.97 : 1; }   // SURPLUS perk
   function weaponCost(w, count) {
     const owned = sl().weapons[w.id] || 0;
+    const r = weaponCostGrowth();
     let total = 0;
-    for (let i = 0; i < count; i++) total += w.baseCost * Math.pow(COST_GROWTH, owned + i);
-    return Math.ceil(total);
+    for (let i = 0; i < count; i++) total += w.baseCost * Math.pow(r, owned + i);
+    return Math.ceil(total * weaponCostDiscount());
   }
   function zapUpgradeUnlocked(u) {
     if (!u.req) return true;
@@ -1670,6 +1954,7 @@
     const reward = voltReward(s.wave);
     s.volts += reward;
     s.totalVolts += reward;
+    s.runVolts += reward;
     s.kills++;
     s.killsThisWave++;
     if (boss) {
@@ -1708,6 +1993,12 @@
     if (!state.wormhole) return;
     const zps = totalZps();
     if (zps > 0) applyZapDamage(zps * dt);
+    // AUTO-ZAPPER: passive tap-zaps at a fixed rate, gated by its per-world
+    // Settings toggle. Granted by the Auto-Zapper Storm Upgrade OR the STATIC
+    // CLING perk (STATIC FIELD). Silent — no floats/sound, just damage.
+    if ((su('autozap') || chDone('staticcling')) && state.settings.world.volt.autoclickOn) {
+      applyZapDamage(zapPower() * AUTO_ZAP_RATE * dt);
+    }
   }
 
   function zapEnemy() {
@@ -1734,6 +2025,7 @@
   }
 
   function buyWeapon(w) {
+    if (ch('volt') === 'bareknuckle' && w.id !== 'glove') { toast('🔒 BARE KNUCKLES: Static Glove only'); blip(120, 0.06); return; }
     const cost = weaponCost(w, 1);
     if (sl().volts < cost) { toast('Not enough volts'); blip(120, 0.06); return; }
     sl().volts -= cost;
@@ -1751,6 +2043,7 @@
   }
 
   function buyZapUpgrade(u) {
+    if (ch('volt') === 'notools') { toast('🔒 NO TOOLS: no zap upgrades'); blip(120, 0.06); return; }
     if (sl().upgrades[u.id]) return;
     if (sl().volts < u.cost) { toast('Not enough volts'); blip(120, 0.06); return; }
     sl().volts -= u.cost;
@@ -1775,16 +2068,23 @@
       const cost = weaponCost(w, 1);
       const can = sl().volts >= cost;
       const each = w.zps * weaponMultiplier(w.id) * gridZpsBoost();
+      // Ownership milestones (same ×2-per-25 / ×10-per-100 as cords) — show the
+      // next-milestone progress bar like cord cards. Display only; no math change.
+      const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
+      const nextMult = nextMs % BIG_MILESTONE === 0 ? BIG_MILESTONE_MULT : 2;
+      const msPct = (owned % CORD_MILESTONE) / CORD_MILESTONE * 100;
       html += `
         <button class="card buyable" data-weapon="${w.id}">
           <div class="ico">${w.icon}</div>
           <div class="body">
             <div class="nm">${w.name}</div>
             <div class="meta"><span class="pos">${fmt(each)} Z/s each</span> · ${w.desc}</div>
+            <div class="milestone"><i style="width:${msPct}%"></i></div>
           </div>
           <div class="right">
             <div class="owned">own ${fmtInt(owned)}</div>
             <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} V</div>
+            <div class="mnote">${owned > 0 ? `×${nextMult} @ ${fmt(nextMs)}` : '&nbsp;'}</div>
           </div>
         </button>`;
     });
@@ -1848,6 +2148,8 @@
     const active = document.querySelector('.tab.active');
     const tw = (active && active.dataset.tworld) || 'both';
     if (tw !== 'both' && tw !== w) activateTab(w === 'volt' ? 'zap' : 'plug', true);
+    renderMoreGating();
+    syncSettingsUI();
     renderStatsLite();
   }
 
@@ -1894,13 +2196,17 @@
     const earned = rate * (away / 1000) * eff;
     if (earned <= 0) return;
     gainWatts(earned);
-    // Voltlands earn too (ZPS keeps zapping; no wave progress offline)
+    // Voltlands earn too (ZPS keeps zapping; no wave progress offline).
+    // Capacitor Bank raises the Voltlands offline cap +24h independently of
+    // the Grid's (Battery Backup) cap.
     let voltLine = '';
     if (state.wormhole) {
-      const voltsEarned = totalZps() * (away / 1000) * eff;
+      const voltAway = Math.min(now - (state.lastSeen || now), offlineCapMs() + (su('capbank') ? 24 * 3600000 : 0));
+      const voltsEarned = totalZps() * (voltAway / 1000) * eff;
       if (voltsEarned > 0) {
         sl().volts += voltsEarned;
         sl().totalVolts += voltsEarned;
+        sl().runVolts += voltsEarned;
         voltLine = `<p class="big" style="font-size:22px">+${fmt(voltsEarned)} V</p>`;
       }
     }
@@ -2204,7 +2510,7 @@
     else if (name === 'plug') renderCords();
     else if (name === 'zap') { renderWeapons(); renderSlayerLite(); }
     else if (name === 'arsenal') renderZapUpgrades();
-    else if (name === 'more') { renderCoreShop(); renderChallenges(); renderStatsLite(); syncSettingsUI(); renderStore(); }
+    else if (name === 'more') { renderCoreShop(); if (state.wormhole) renderStormShop(); renderChallenges(); renderMoreGating(); renderStatsLite(); syncSettingsUI(); renderStore(); }
   }
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => activateTab(tab.dataset.tab));
@@ -2219,6 +2525,7 @@
   delegateTap(el.cordlist, 'data-cord', (id) => buyCord(CORDS.find(c => c.id === id)));
   delegateTap(el.uplist, 'data-upgrade', (id) => buyUpgrade(UPGRADES.find(u => u.id === id)));
   delegateTap(el.corelist, 'data-core', (id) => buyCoreUpgrade(CORE_UPGRADES.find(cu => cu.id === id)));
+  delegateTap(el.stormlist, 'data-storm', (id) => buyStormUpgrade(STORM_UPGRADES.find(su_ => su_.id === id)));
 
   // Power Store: rewarded bonuses, purchases, restore (delegated; the block
   // only becomes visible inside the native Android shell)
@@ -2243,6 +2550,7 @@
 
   // prestige + save buttons
   el.prestigeBtn.addEventListener('click', doPrestige);
+  if (el.reincarnateBtn) el.reincarnateBtn.addEventListener('click', confirmReincarnate);
   el.exportBtn.addEventListener('click', exportSave);
   el.importBtn.addEventListener('click', importSave);
   el.wipeBtn.addEventListener('click', hardReset);
@@ -2262,11 +2570,11 @@
   document.querySelectorAll('.sw[data-set]').forEach((b) => {
     b.addEventListener('click', () => {
       const k = b.dataset.set;
-      if (k === 'sound') state.settings.sound = !state.settings.sound;
+      const dot = k.indexOf('.');
+      if (dot > 0) { const a = k.slice(0, dot), p = k.slice(dot + 1); state.settings.world[a][p] = !state.settings.world[a][p]; }
+      else if (k === 'sound') state.settings.sound = !state.settings.sound;
       else if (k === 'haptic') { state.settings.haptics = !state.settings.haptics; if (state.settings.haptics) buzz(20); }
       else if (k === 'anim') state.settings.floats = !state.settings.floats;
-      else if (k === 'autobuyOn') state.settings.autobuyOn = !state.settings.autobuyOn;
-      else if (k === 'autoupgOn') state.settings.autoupgOn = !state.settings.autoupgOn;
       else state.settings.sci = !state.settings.sci;
       syncSettingsUI();
       renderStatsLite();
@@ -2307,7 +2615,7 @@
   // Auto-buy is available from the Auto-Buyer core upgrade or the BROWNOUT
   // challenge perk, and runs while its Settings toggle is on (default on).
   function autoBuyActive() {
-    return (co('autobuy') || chDone('brownout')) && state.settings.autobuyOn;
+    return (co('autobuy') || chDone('brownout')) && state.settings.world.grid.autobuyOn;
   }
 
   // AUTO-BUYER: buys the CHEAPEST cords first. Each tick it makes a single pass
@@ -2316,9 +2624,10 @@
   // Ouroboros Cord (wps 0) so it never starves production. Silent — no
   // sounds/toasts; milestone fanfare stays manual.
   const AUTO_BUY_PER_CORD = 25;     // cords per tier, per tick
+  const AUTO_ZAP_RATE = 5;          // Auto-Zapper: tap-zaps per second
   function autoBuyAllowed(cord, i) {
     if (cord.wps <= 0) return false;                           // skip non-producing cords
-    if (ch() === 'solo' && cord.id !== 'usba') return false;   // SOLO CIRCUIT: USB-A only
+    if (ch('grid') === 'solo' && cord.id !== 'usba') return false;   // SOLO CIRCUIT: USB-A only
     const owned = state.owned[cord.id] || 0;
     const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
     return owned > 0 || prevOwned > 0;                         // unlocked
@@ -2343,7 +2652,7 @@
   // AUTO-UPGRADER (core upgrade): every tick, buy every unlocked, affordable
   // upgrade, cheapest first so cheap ones are never starved by a pricey one.
   function autoBuyUpgrades() {
-    if (!co('autoupg') || !state.settings.autoupgOn || ch() === 'minimalist') return;  // MINIMALIST: no upgrades
+    if (!co('autoupg') || !state.settings.world.grid.autoupgOn || ch('grid') === 'minimalist') return;  // MINIMALIST: no upgrades
     let bought = false;
     const avail = UPGRADES
       .filter(u => !state.upgrades[u.id] && upgradeUnlocked(u))
@@ -2355,6 +2664,58 @@
       bought = true;
     }
     if (bought) lastSig = '';   // force the shop's affordability re-render
+  }
+
+  // AUTO-ARSENAL (Storm Upgrade): buys the CHEAPEST weapons first, spending
+  // volts, mirroring the cord Auto-Buyer. Single pass up WEAPONS (cheapest →
+  // priciest), a batch of every unlocked, affordable weapon, so spare volts
+  // cascade up to pricier tiers. Silent. Stage 5 adds the BARE KNUCKLES rule.
+  function maxAffordableWeapon(w) {
+    const owned = sl().weapons[w.id] || 0;
+    const r = COST_GROWTH;
+    const base = w.baseCost * Math.pow(r, owned);
+    const v = sl().volts;
+    const k = Math.floor(Math.log((v * (r - 1)) / base + 1) / Math.log(r));
+    return Math.max(0, isFinite(k) ? k : 0);
+  }
+  function autoBuyWeaponAllowed(w, i) {
+    if (ch('volt') === 'bareknuckle' && w.id !== 'glove') return false;   // BARE KNUCKLES rule
+    const owned = sl().weapons[w.id] || 0;
+    const prevOwned = i === 0 ? 1 : (sl().weapons[WEAPONS[i - 1].id] || 0);
+    return owned > 0 || prevOwned > 0;   // unlocked
+  }
+  function autoBuyWeaponsTick() {
+    if (!su('autoarsenal') || !state.settings.world.volt.autobuyOn) return;
+    let bought = false;
+    for (let i = 0; i < WEAPONS.length; i++) {                 // cheapest first
+      const w = WEAPONS[i];
+      if (!autoBuyWeaponAllowed(w, i)) continue;
+      const k = Math.min(maxAffordableWeapon(w), AUTO_BUY_PER_CORD);
+      if (k <= 0) continue;
+      const cost = weaponCost(w, k);
+      if (sl().volts < cost) continue;
+      sl().volts -= cost;
+      sl().weapons[w.id] = (sl().weapons[w.id] || 0) + k;
+      bought = true;
+    }
+    if (bought) lastSig = '';   // force the arsenal's affordability re-render
+  }
+
+  // AUTO-TINKER (Storm Upgrade): buys every unlocked, affordable zap upgrade,
+  // cheapest first, spending volts. Mirrors the Grid Auto-Upgrader. Silent.
+  function autoBuyZapUpgrades() {
+    if (!su('autotinker') || !state.settings.world.volt.autoupgOn || ch('volt') === 'notools') return;  // NO TOOLS: no upgrades
+    let bought = false;
+    const avail = ZAP_UPGRADES
+      .filter((u) => !sl().upgrades[u.id] && zapUpgradeUnlocked(u))
+      .sort((a, b) => a.cost - b.cost);
+    for (const u of avail) {
+      if (sl().volts < u.cost) continue;
+      sl().volts -= u.cost;
+      sl().upgrades[u.id] = true;
+      bought = true;
+    }
+    if (bought) lastSig = '';   // force the arsenal's affordability re-render
   }
 
   let lastTick = Date.now();
@@ -2380,6 +2741,8 @@
     tickCount++;
     autoBuyTick();        // fast cord auto-buyer (Auto-Buyer core / BROWNOUT perk)
     autoBuyUpgrades();    // Auto-Upgrader core upgrade
+    autoBuyWeaponsTick(); // Auto-Arsenal storm upgrade (weapons)
+    autoBuyZapUpgrades(); // Auto-Tinker storm upgrade (zap upgrades)
     if (activeWorld() === 'volt' && tickCount % 2 === 0) renderSlayerLite();
     checkChallenge();
     renderBuffs();            // count down / clear expired surge buffs
