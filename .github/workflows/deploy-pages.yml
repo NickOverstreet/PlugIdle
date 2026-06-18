@@ -34,6 +34,15 @@ jobs:
         with:
           enablement: true
 
+      - name: Stamp the service worker cache with the commit SHA
+        # The committed sw.js CACHE value is only a placeholder; the deployed copy
+        # is stamped with the short commit SHA so every deploy invalidates the old
+        # cache and returning PWA players always get fresh assets — no manual bump.
+        run: |
+          sha="${GITHUB_SHA::7}"
+          sed -i "s/const CACHE = 'plugidle-[^']*';/const CACHE = 'plugidle-${sha}';/" sw.js
+          grep "const CACHE" sw.js
+
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:

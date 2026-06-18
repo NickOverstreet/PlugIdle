@@ -27,9 +27,12 @@ Current version: **0.14.0** (pre-release; intentionally on the 0.x line until la
   version that has coincidentally matched the app version before. Never touch it
   when bumping the app version.
 - `sw.js` → `CACHE` (e.g. `plugidle-vNN`): the service-worker cache key, not a
-  semver. Bump it when shipping changed web assets so returning PWA players get
-  the update. The Android APK rebundles assets fresh each `npm run sync`, so it's
-  unaffected by this. (Note: it has lagged behind asset changes historically.)
+  semver. **You no longer bump this by hand** — the Pages deploy workflow
+  (`.github/workflows/deploy-pages.yml`) rewrites it to the short commit SHA
+  (`plugidle-<sha>`) in the deployed artifact, so every deploy invalidates the
+  old cache and returning PWA players always get fresh assets. The committed
+  value is just a placeholder. The Android APK rebundles assets fresh each
+  `npm run sync`, so it's unaffected either way.
 
 ## Dev checks
 - `node scripts/dev-smoke.mjs` — headless smoke test (boot, buy, prestige,
