@@ -16,6 +16,7 @@ const out = join(root, 'www');
 const entries = [
   'index.html',
   'privacy.html',
+  'how-to-play.html',
   'manifest.webmanifest',
   'js',
   'css',

@@ -1,9 +1,10 @@
 /* PlugIdle service worker — offline-first caching. */
-const CACHE = 'plugidle-v21';
+const CACHE = 'plugidle-v22';
 const ASSETS = [
   './',
   './index.html',
   './privacy.html',
+  './how-to-play.html',
   './css/style.css',
   './js/game.js',
   './js/monetize.js',
