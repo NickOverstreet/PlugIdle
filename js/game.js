@@ -1837,8 +1837,12 @@
     document.body.dataset.world = w;
     if (el.worldBtn) {
       el.worldBtn.hidden = !state.wormhole;
-      el.worldBtn.textContent = w === 'volt' ? '🔌' : '🌀';
-      el.worldBtn.setAttribute('aria-label', w === 'volt' ? 'Return to the Grid' : 'Enter the wormhole');
+      const toVolt = w !== 'volt';   // on the Grid, the button travels to the Voltlands
+      const icon = el.worldBtn.querySelector('.ti');
+      const label = el.worldBtn.querySelector('.tl');
+      if (icon) icon.textContent = toVolt ? '🌀' : '🔌';
+      if (label) label.textContent = toVolt ? 'VOLTLANDS' : 'GRID';
+      el.worldBtn.setAttribute('aria-label', toVolt ? 'Travel to the Voltlands' : 'Return to the Grid');
     }
     // if the active tab belongs to the other world, jump to this world's home
     const active = document.querySelector('.tab.active');
