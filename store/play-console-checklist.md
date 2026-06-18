@@ -15,12 +15,12 @@ so nothing needs re-review when monetization lands.
 
 - Category: **Games → Casual**
 - Contact email: nickcoverstreet@gmail.com
-- Website: https://nickoverstreet.github.io/pwa-webapp/
+- Website: https://nickoverstreet.github.io/PlugIdle/
 
 ## App content forms (Policy → App content)
 
 ### Privacy policy
-`https://nickoverstreet.github.io/pwa-webapp/privacy.html`
+`https://nickoverstreet.github.io/PlugIdle/privacy.html`
 
 ### Ads
 - Contains ads: **Yes** (rewarded ads via AdMob).

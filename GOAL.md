@@ -8,7 +8,7 @@ microtransactions**, and grow a player base with regular content updates.
 
 One codebase serves both targets:
 
-- **Web (today):** GitHub Pages PWA at https://nickoverstreet.github.io/pwa-webapp/
+- **Web (today):** GitHub Pages PWA at https://nickoverstreet.github.io/PlugIdle/
 - **Android (new):** the same HTML/CSS/JS wrapped in a **Capacitor** native shell,
   with the web assets bundled inside the APK so the game works fully offline.
 
@@ -121,7 +121,7 @@ IAP without delaying the launch date.
 ### Sprint 2 — Store readiness & start the 14-day clock
 
 - [x] Write a **privacy policy** — `privacy.html`, linked from the in-game settings;
-      live at `/pwa-webapp/privacy.html` once merged to `main`.
+      live at `/PlugIdle/privacy.html` once merged to `main`.
 - [x] Store listing copy + assets prepared: `store/listing.md` (title, short/full
       description with ASO keywords, screenshot shot list) and
       `store/feature-graphic.png` (regenerate via `scripts/make_store_assets.py`);
@@ -163,7 +163,7 @@ IAP without delaying the launch date.
       Data Safety form match reality.
 - [ ] Publish `app-ads.txt` for AdMob (must live at the **domain root** —
       `nickoverstreet.github.io/app-ads.txt` via a user-site repo, not under
-      `/pwa-webapp/`).
+      `/PlugIdle/`).
 - [ ] After the 14 days: **apply for production access**, then release v1.0 with a
       **staged rollout** (20% → 50% → 100%) while watching Play Console vitals
       (crash-free target ≥ 99.5%).

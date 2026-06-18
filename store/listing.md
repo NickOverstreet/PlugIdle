@@ -104,5 +104,5 @@ screenshots of a fresh save read as empty.
 - **Category:** Games → Casual (idle/incremental titles list here)
 - **Tags:** Idle, Clicker, Casual, Single player, Offline
 - **Email:** nickcoverstreet@gmail.com
-- **Website:** https://nickoverstreet.github.io/pwa-webapp/
-- **Privacy policy URL:** https://nickoverstreet.github.io/pwa-webapp/privacy.html
+- **Website:** https://nickoverstreet.github.io/PlugIdle/
+- **Privacy policy URL:** https://nickoverstreet.github.io/PlugIdle/privacy.html
