@@ -20,13 +20,6 @@ workflows:
       # This is just a reference name, not the secret itself.
       app_store_connect: PlugIdle ASC Key
     environment:
-      # ios_signing wires the signing into `xcode-project build-ipa` (distribution
-      # type + bundle id for the archive). It only FETCHES existing profiles, so
-      # the "Set up code signing" step below also runs fetch-signing-files
-      # --create to mint the cert + profile for a brand-new App ID.
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.ignyte.plugidle
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -96,6 +89,11 @@ workflows:
           app-store-connect fetch-signing-files "com.ignyte.plugidle" --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles
+          echo "===== DIAG: provisioning profiles on disk ====="
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>/dev/null || true
+          echo "===== DIAG: app target signing settings (Release) ====="
+          xcodebuild -showBuildSettings -workspace "$CM_BUILD_DIR/ios/App/App.xcworkspace" -scheme App -configuration Release 2>/dev/null \
+            | grep -Ei "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|PROVISIONING_PROFILE|CODE_SIGN_IDENTITY|CODE_SIGN_STYLE" | sort -u || true
 
       # Apple rejects duplicate build numbers; Codemagic's built-in $BUILD_NUMBER
       # is monotonic and needs no App Store app id.
