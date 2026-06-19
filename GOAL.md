@@ -224,7 +224,7 @@ committed; `ios/` and `www/` are build outputs). Full design:
 - **AdMob excluded from the iOS build.** The Google Mobile Ads SDK is kept out of the
   archive (no `GADApplicationIdentifier`-or-crash, no IDFA symbols); ads return in v1.1
   with a proper ATT flow.
-- Bundle id `com.nickoverstreet.plugidle` (matches Android). Portrait-locked;
+- Bundle id `com.ignyte.plugidle` (matches Android). Portrait-locked;
   export-compliance exempt (`ITSAppUsesNonExemptEncryption = NO`).
 
 ### Prerequisites the user must provide

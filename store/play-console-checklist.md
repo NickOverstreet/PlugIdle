@@ -9,7 +9,7 @@ so nothing needs re-review when monetization lands.
 - App name: `PlugIdle - Idle Cord Clicker`
 - Default language: English (United States)
 - App or game: **Game** · Free or paid: **Free**
-- Package name (fixed forever): `com.nickoverstreet.plugidle`
+- Package name (fixed forever): `com.ignyte.plugidle`
 
 ## Store settings
 

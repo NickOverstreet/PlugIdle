@@ -1,4 +1,4 @@
-package com.nickoverstreet.plugidle;
+package com.ignyte.plugidle;
 
 import com.getcapacitor.BridgeActivity;
 

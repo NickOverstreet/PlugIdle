@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.nickoverstreet.plugidle"
+    namespace = "com.ignyte.plugidle"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.nickoverstreet.plugidle"
+        applicationId "com.ignyte.plugidle"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode (project.hasProperty("versionCode") ? project.versionCode.toInteger() : 3)

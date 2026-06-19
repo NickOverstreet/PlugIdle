@@ -18,7 +18,7 @@ Apple Developer → Certificates, Identifiers & Profiles → **Identifiers** →
 **App IDs** → **App**.
 
 - Type: **Explicit** App ID.
-- Bundle ID: `com.nickoverstreet.plugidle` (must match Capacitor `appId` / the value
+- Bundle ID: `com.ignyte.plugidle` (must match Capacitor `appId` / the value
   Codemagic produces — see `capacitor.config.json`). Once registered it can't change.
 - Capabilities: **In-App Purchase** is on by default for explicit App IDs — leave it.
   Nothing else (no Push, no Sign in with Apple, no ATT entitlement at launch).

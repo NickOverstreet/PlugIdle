@@ -117,7 +117,7 @@ repo root (web source of truth)
 A committed script run in CI after `cap add ios`, applied with PlistBuddy on the macOS
 runner, sets:
 - `CFBundleDisplayName` = `PlugIdle`
-- Bundle id = `com.nickoverstreet.plugidle` (set by Capacitor `appId`; verified by script)
+- Bundle id = `com.ignyte.plugidle` (set by Capacitor `appId`; verified by script)
 - `UISupportedInterfaceOrientations` = portrait only (matches Android portrait lock)
 - `ITSAppUsesNonExemptEncryption` = `NO` (export-compliance exempt; skips the per-build
   encryption questionnaire)

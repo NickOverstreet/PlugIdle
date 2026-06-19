@@ -53,7 +53,7 @@ echo "patch-ios-plist: patching $PLIST"
 # stage, so only fail on a concrete mismatch.
 BID="$("$PB" -c "Print :CFBundleIdentifier" "$PLIST" 2>/dev/null || echo '')"
 case "$BID" in
-  ''|*'$('*|com.nickoverstreet.plugidle) ;;
+  ''|*'$('*|com.ignyte.plugidle) ;;
   *) echo "patch-ios-plist: unexpected CFBundleIdentifier '$BID'" >&2; exit 1 ;;
 esac
 

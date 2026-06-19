@@ -22,7 +22,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.nickoverstreet.plugidle
+        bundle_identifier: com.ignyte.plugidle
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -182,7 +182,7 @@ workflows:
 #      Name the key exactly "PlugIdle ASC Key" to match `integrations` above
 #      (or rename both to match).
 #
-#   2. The App ID com.nickoverstreet.plugidle and the app record must already
+#   2. The App ID com.ignyte.plugidle and the app record must already
 #      exist in App Store Connect (see store/app-store-connect-checklist.md)
 #      before the first publishing build.
 #
