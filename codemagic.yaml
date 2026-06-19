@@ -51,7 +51,10 @@ workflows:
         script: npm run build:www
 
       - name: Add iOS platform (ephemeral; ios/ is not committed)
-        script: npx cap add ios
+        # Capacitor 8 defaults to Swift Package Manager, which produces no
+        # Podfile; force CocoaPods so the Podfile-based steps below (pod install,
+        # AdMob-pod check, --workspace build) work as designed.
+        script: npx cap add ios --packagemanager cocoapods
 
       - name: Generate iOS icon set + splash from assets/
         script: |
