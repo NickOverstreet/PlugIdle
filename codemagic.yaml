@@ -20,6 +20,13 @@ workflows:
       # This is just a reference name, not the secret itself.
       app_store_connect: PlugIdle ASC Key
     environment:
+      # ios_signing wires the signing into `xcode-project build-ipa` (distribution
+      # type + bundle id for the archive). It only FETCHES existing profiles, so
+      # the "Set up code signing" step below also runs fetch-signing-files
+      # --create to mint the cert + profile for a brand-new App ID.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.ignyte.plugidle
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
