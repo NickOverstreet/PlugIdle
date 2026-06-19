@@ -20,9 +20,6 @@ workflows:
       # This is just a reference name, not the secret itself.
       app_store_connect: PlugIdle ASC Key
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.ignyte.plugidle
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -84,7 +81,11 @@ workflows:
           echo "confirmed: no AdMob / Google Mobile Ads SDK in the iOS build"
 
       - name: Set up code signing
-        script: xcode-project use-profiles
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "com.ignyte.plugidle" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       # Apple rejects duplicate build numbers; Codemagic's built-in $BUILD_NUMBER
       # is monotonic and needs no App Store app id.
