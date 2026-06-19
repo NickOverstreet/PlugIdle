@@ -26,7 +26,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
-      node: 20
+      node: 22
       xcode: latest
       cocoapods: default
     triggering:
@@ -133,7 +133,7 @@ workflows:
         # Secure env var group holding GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (the
         # Google Play service-account JSON). Created in the Codemagic UI.
         - google_play
-      node: 20
+      node: 22
     triggering:
       events:
         - tag
