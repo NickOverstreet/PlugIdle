@@ -9,6 +9,13 @@
 #   UISupportedInterfaceOrientations = portrait only (matches the Android lock)
 #   ITSAppUsesNonExemptEncryption  = NO (export-compliance exempt; skips the
 #                                        per-build encryption questionnaire)
+#   TARGETED_DEVICE_FAMILY         = 1 (iPhone-only) in project.pbxproj. A
+#                                        portrait-locked game can't satisfy
+#                                        Apple's "iPad apps must support all
+#                                        orientations" rule (upload error 90474),
+#                                        and rotating would break the CRT look —
+#                                        so ship iPhone-only. Still installs on
+#                                        iPad in iPhone-compatibility mode.
 #
 # Deliberately does NOT add NSUserTrackingUsageDescription / any ATT key — the
 # launch build carries no tracking (AdMob/IDFA are deferred to v1.1).
@@ -39,10 +46,20 @@ echo "patch-ios-plist: patching $PLIST"
 "$PB" -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
 "$PB" -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" "$PLIST"
 
-# iPad slice of the universal binary — keep it portrait too.
+# iPhone-only: drop any iPad orientation slice and force the device family to
+# iPhone in the Xcode project. A portrait-locked app can't meet Apple's iPad
+# all-orientations multitasking rule (upload error 90474), and rotating would
+# break the CRT design — so don't ship an iPad app at all.
 "$PB" -c "Delete :UISupportedInterfaceOrientations~ipad" "$PLIST" 2>/dev/null || true
-"$PB" -c "Add :UISupportedInterfaceOrientations~ipad array" "$PLIST"
-"$PB" -c "Add :UISupportedInterfaceOrientations~ipad:0 string UIInterfaceOrientationPortrait" "$PLIST"
+
+PBXPROJ="$(dirname "$(dirname "$PLIST")")/App.xcodeproj/project.pbxproj"
+sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2"/TARGETED_DEVICE_FAMILY = "1"/g' "$PBXPROJ"
+if ! grep -q 'TARGETED_DEVICE_FAMILY = "1"' "$PBXPROJ"; then
+  echo "patch-ios-plist: failed to force iPhone-only; current device family:" >&2
+  grep 'TARGETED_DEVICE_FAMILY' "$PBXPROJ" >&2 || true
+  exit 1
+fi
+echo "patch-ios-plist: set iPhone-only (TARGETED_DEVICE_FAMILY=1)"
 
 # Export-compliance exempt — removes the "Missing Compliance" prompt in ASC.
 "$PB" -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST" \
