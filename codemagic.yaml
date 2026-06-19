@@ -20,9 +20,11 @@ workflows:
       # This is just a reference name, not the secret itself.
       app_store_connect: PlugIdle ASC Key
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.ignyte.plugidle
+      # NOTE: deliberately no `ios_signing:` block. Its pre-build prep only
+      # FETCHES existing profiles and fails ("No matching profiles found") before
+      # scripts run — fatal for a brand-new app with no profile yet. Signing is
+      # done explicitly in the "Set up code signing" step, which CREATES the cert
+      # + profile using CERTIFICATE_PRIVATE_KEY.
       groups:
         # Holds CERTIFICATE_PRIVATE_KEY — a persistent RSA key so signing creates
         # ONE distribution cert and reuses it every build. Without it each build
