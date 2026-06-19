@@ -134,6 +134,7 @@ workflows:
         # Google Play service-account JSON). Created in the Codemagic UI.
         - google_play
       node: 22
+      java: 21
     triggering:
       events:
         - tag
