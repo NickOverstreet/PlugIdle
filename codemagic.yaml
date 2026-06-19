@@ -20,6 +20,15 @@ workflows:
       # This is just a reference name, not the secret itself.
       app_store_connect: PlugIdle ASC Key
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.ignyte.plugidle
+      groups:
+        # Holds CERTIFICATE_PRIVATE_KEY — a persistent RSA key so signing creates
+        # ONE distribution cert and reuses it every build. Without it each build
+        # mints a throwaway cert and hits "Cannot save Signing Certificates
+        # without certificate private key".
+        - ios_credentials
       vars:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
@@ -84,16 +93,17 @@ workflows:
           echo "confirmed: no AdMob / Google Mobile Ads SDK in the iOS build"
 
       - name: Set up code signing
+        # --certificate-key uses the persistent CERTIFICATE_PRIVATE_KEY so the
+        # distribution cert is created once and reused (no more "Cannot save
+        # Signing Certificates without certificate private key").
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "com.ignyte.plugidle" --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "com.ignyte.plugidle" \
+            --type IOS_APP_STORE \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
+            --create
           keychain add-certificates
           xcode-project use-profiles
-          echo "===== DIAG: provisioning profiles on disk ====="
-          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles/" 2>/dev/null || true
-          echo "===== DIAG: app target signing settings (Release) ====="
-          xcodebuild -showBuildSettings -workspace "$CM_BUILD_DIR/ios/App/App.xcworkspace" -scheme App -configuration Release 2>/dev/null \
-            | grep -Ei "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|PROVISIONING_PROFILE|CODE_SIGN_IDENTITY|CODE_SIGN_STYLE" | sort -u || true
 
       # Apple rejects duplicate build numbers; Codemagic's built-in $BUILD_NUMBER
       # is monotonic and needs no App Store app id.
