@@ -50,7 +50,7 @@ submission carries no IDFA / App Tracking Transparency / ad-privacy surface.
 **Non-goals (this launch)**
 - Rewarded ads / AdMob on iOS (deferred to v1.1).
 - App Tracking Transparency, SKAdNetwork, `app-ads.txt`.
-- iPad-optimized layouts (ship the universal binary; iPhone screenshots only).
+- iPad-optimized layouts (ship iPhone-only; iPhone screenshots only).
 - Cloud save / Game Center (future, mirrors Android backlog).
 - Committing the `ios/` project.
 
@@ -77,7 +77,7 @@ repo root (web source of truth)
 - Add `@capacitor/ios` to `package.json` `dependencies` (where `@capacitor/android`
   already lives; match the `^8` version line).
 - Add an `ios` block to `capacitor.config.json`: `backgroundColor: "#070a0f"`,
-  `contentInset: "always"`.
+  `contentInset: "never"`.
 - Add npm scripts: `sync:ios` (`build:www` + `cap sync ios`) and `open:ios` for parity,
   understanding `open:ios` is only usable on a Mac.
 - `ios/` and `www/` remain gitignored (no `.gitignore` change needed for `ios/` if the
