@@ -3,6 +3,7 @@
   "version": "0.14.1",
   "description": "PlugIdle — a retro CRT idle game about plugging in every type of cord imaginable.",
   "private": true,
+  "license": "UNLICENSED",
   "scripts": {
     "build:www": "node scripts/build-www.mjs",
     "bump": "node scripts/bump-version.mjs",

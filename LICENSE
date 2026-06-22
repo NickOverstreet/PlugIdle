@@ -1,0 +1,51 @@
+PlugIdle — Proprietary Software License
+Copyright (c) 2026 Nick Overstreet. All Rights Reserved.
+
+1. OWNERSHIP
+   PlugIdle, including its source code, game design and mechanics, artwork,
+   icons, audio, text, and accompanying documentation (collectively, the
+   "Software"), is the proprietary and confidential property of Nick Overstreet
+   (the "Owner"). The Software is protected by copyright and other
+   intellectual-property laws and treaties.
+
+2. NO LICENSE GRANTED
+   No license or right of any kind is granted to you, express or implied. You
+   may NOT, in whole or in part and by any means, without the Owner's prior
+   written permission:
+     (a) copy, reproduce, or download the Software, except as strictly
+         necessary to view this repository through GitHub in a web browser;
+     (b) use, run, host, deploy, or publicly perform or display the Software;
+     (c) modify, adapt, translate, or create derivative works from it;
+     (d) distribute, publish, sublicense, sell, rent, lease, or otherwise
+         transfer it; or
+     (e) use it, in whole or in part, to build, train, or operate any product
+         or service — commercial or non-commercial — including any monetized
+         application, game, clone, or competing work.
+
+3. PUBLIC REPOSITORY NOTICE
+   This repository may be publicly visible for transparency, portfolio, and
+   reference purposes only. Public visibility does NOT place the Software in the
+   public domain and does NOT grant any of the rights withheld in Section 2.
+   Forking within GitHub, as permitted by GitHub's Terms of Service, does not
+   grant any right to use the Software outside of GitHub.
+
+4. THIRD-PARTY COMPONENTS
+   The Software depends on, and may bundle, third-party libraries, fonts, and
+   assets that remain the property of their respective owners and are licensed
+   under their own terms. Those terms govern only those components; this license
+   governs everything else in this repository.
+
+5. TRADEMARKS
+   "PlugIdle" and associated names, logos, and branding are trademarks of the
+   Owner. No trademark rights are granted by this license.
+
+6. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT
+   OF, OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+7. PERMISSIONS
+   To request any license or permission beyond viewing this repository, contact
+   the Owner at nickcoverstreet@gmail.com.

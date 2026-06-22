@@ -117,3 +117,11 @@ python3 scripts/make_icons.py
 ```
 
 It writes `icons/icon-192.png`, `icons/icon-512.png`, and `icons/icon-maskable-512.png` using only the Python standard library.
+
+## 📜 License
+
+**Copyright © 2026 Nick Overstreet. All rights reserved.** PlugIdle is
+**proprietary** software — see [LICENSE](LICENSE). The source is published
+publicly for transparency and reference only; **no permission is granted** to
+use, run, copy, modify, distribute, or monetize it (including clones or
+competing apps). Third-party dependencies and fonts retain their own licenses.
