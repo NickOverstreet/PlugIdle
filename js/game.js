@@ -2486,9 +2486,26 @@
     });
   }
 
-  el.socket.addEventListener('click', plug);
-  el.socketMini.addEventListener('click', plug); // tap button on the Upgrades tab
-  if (el.enemyBtn) el.enemyBtn.addEventListener('click', zapEnemy);
+  // Rapid-tap controls (socket, mini-socket, zap target). On touch we fire on
+  // touchstart and preventDefault(): the tap registers instantly, iOS WebKit's
+  // double-tap-to-zoom (which a burst of fast taps otherwise triggers) is
+  // suppressed, and the synthesized click is cancelled so the tap isn't counted
+  // twice. `click` stays as the mouse/desktop fallback.
+  function bindTap(elm, fn) {
+    let viaTouch = false;
+    elm.addEventListener('touchstart', (e) => {
+      viaTouch = true;
+      e.preventDefault();
+      fn(e);
+    }, { passive: false });
+    elm.addEventListener('click', (e) => {
+      if (viaTouch) { viaTouch = false; return; }
+      fn(e);
+    });
+  }
+  bindTap(el.socket, plug);
+  bindTap(el.socketMini, plug); // tap button on the Upgrades tab
+  if (el.enemyBtn) bindTap(el.enemyBtn, zapEnemy);
   if (el.worldBtn) el.worldBtn.addEventListener('click', switchWorld);
   delegateTap(el.weaponlist, 'data-weapon', (id) => buyWeapon(WEAPONS.find((w) => w.id === id)));
   delegateTap(el.zuplist, 'data-zupgrade', (id) => buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === id)));
