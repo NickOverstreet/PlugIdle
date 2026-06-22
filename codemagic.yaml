@@ -199,6 +199,17 @@ workflows:
 # Codemagic setup (one-time, done by the user in the Codemagic UI — never in
 # this public repo):
 #
+#   0. Connect the repo so pushes actually trigger builds. Apps -> Add
+#      application -> pick this GitHub repo via the Codemagic GitHub App
+#      integration; that connection auto-creates the GitHub webhook which
+#      delivers tag pushes to Codemagic. WITHOUT this step the `triggering:`
+#      blocks above do nothing: a `v*.*.*` tag won't start a build because
+#      Codemagic never hears the push. Verify after connecting -> GitHub repo
+#      Settings -> Webhooks should list a codemagic.io hook with recent,
+#      successful deliveries. (Connecting via a raw token/SSH instead of the
+#      GitHub App can skip the webhook; reconnect via the GitHub App if tag
+#      pushes don't auto-trigger.)
+#
 #   1. Team settings -> Integrations -> Developer Portal -> Manage keys:
 #      upload the App Store Connect API key .p8 plus its Issuer ID and Key ID.
 #      Name the key exactly "PlugIdle ASC Key" to match `integrations` above
