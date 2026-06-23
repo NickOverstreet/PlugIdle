@@ -82,6 +82,7 @@ const hook = `
     ch, chDone, startChallenge, beginChallenge, checkChallenge, abandonChallenge, restoreChallengeBackup,
     weaponCost, enemyHp, voltReward, weaponMultiplier, applyReincarnatePerks,
     renderMoreGating, syncSettingsUI, applyWorld, co,
+    applyOffline, offlineEff, offlineCapMs,
   };
 })();`;
 if (!src.endsWith('})();\n')) throw new Error('unexpected game.js tail');
@@ -803,6 +804,34 @@ S().owned = { usba: 1 }; S().watts = 1e40; S().settings.world.grid.autobuyOn = t
 const usbaBefore = S().owned.usba;
 T.autoBuyTick();
 check('brownout no longer unlocks auto-buyer', S().owned.usba === usbaBefore);
+
+// offline volt earnings must convert damage -> kills -> volts (count DOWN enemy HP),
+// not book raw ZPS as volts (count UP). The corrected rate is totalZps × reward/HP.
+{
+  const sR3 = T.sl();
+  S().wormhole = true;
+  S().world = 'volt';
+  S().challenges = { grid: '', volt: '' };
+  S().owned = { usba: 10 };                 // grid production > 0 so applyOffline reaches the volt block
+  S().watts = 0;
+  S().lifetimeEarned = 1e30;                // pinned high so the grid earn doesn't nudge gridZpsBoost (→ totalZps)
+  sR3.weapons = { glove: 50, tongs: 20 };   // some ZPS
+  sR3.wave = 5;                             // a normal (non-boss) wave
+  sR3.volts = 0; sR3.runVolts = 0; sR3.totalVolts = 0;
+  const zps = T.totalZps();
+  const ratio = T.voltReward(5) / T.enemyHp(5);   // ~0.8 under the current curve
+  const eff = T.offlineEff();
+  const awayMs = 2 * 3600 * 1000;                 // 2h
+  S().lastSeen = Date.now() - awayMs;
+  const cap = T.offlineCapMs();
+  const away = Math.min(awayMs, cap);
+  const expected = zps * ratio * (away / 1000) * eff;
+  const naive = zps * (away / 1000) * eff;        // the old, buggy overcount
+  T.applyOffline();
+  const got = sR3.volts;
+  check('offline: volt earnings convert damage→volts via HP/reward', Math.abs(got - expected) < expected * 1e-6);
+  check('offline: volt earnings stay below the naive ZPS×time overcount', got > 0 && got < naive * 0.999);
+}
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

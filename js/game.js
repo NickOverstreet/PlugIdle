@@ -2359,13 +2359,19 @@
     const earned = rate * (away / 1000) * eff;
     if (earned <= 0) return;
     gainWatts(earned);
-    // Voltlands earn too (ZPS keeps zapping; no wave progress offline).
-    // Capacitor Bank raises the Voltlands offline cap +24h independently of
-    // the Grid's (Battery Backup) cap.
+    // Voltlands earn too: ZPS keeps zapping the CURRENT wave (no wave progress
+    // offline). Convert that damage into volts exactly like the live loop does —
+    // damage ÷ enemy HP = kills, × voltReward per kill — instead of booking every
+    // point of damage as a volt. Raw totalZps overcounts badly: a wave's enemies
+    // have far more HP than the volts they drop (≈1.25× too high now, and was up
+    // to ~30× deep in before the reward curve was fixed). Capacitor Bank raises the
+    // Voltlands offline cap +24h independently of the Grid's (Battery Backup) cap.
     let voltLine = '';
     if (state.wormhole) {
       const voltAway = Math.min(now - (state.lastSeen || now), offlineCapMs() + (su('capbank') ? 24 * 3600000 : 0));
-      const voltsEarned = totalZps() * (voltAway / 1000) * eff;
+      const w = sl().wave;
+      const voltRate = totalZps() * (voltReward(w) / enemyHp(w));   // volts/sec = kills/sec × reward
+      const voltsEarned = voltRate * (voltAway / 1000) * eff;
       if (voltsEarned > 0) {
         sl().volts += voltsEarned;
         sl().totalVolts += voltsEarned;
