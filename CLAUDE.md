@@ -64,15 +64,14 @@ from declarative config** and never committed.
   so a from-scratch CI build is fully reproducible — never hand-edit a generated
   Xcode project.
 - **Codemagic build flow** (`codemagic.yaml`, triggered on `v*` tags + manual):
-  `npm ci` → remove the AdMob plugin from the ephemeral install (so its pod never
-  enters the Podfile) → `build:www` → `npx cap add ios` →
+  `npm ci` → `build:www` → `npx cap add ios` →
   `npx @capacitor/assets generate --ios` → `scripts/patch-ios-plist.sh` →
   `npx cap sync ios` → `pod install` → automatic signing (App Store Connect API
   key) → `build-ipa` → publish to TestFlight. Signing secrets live in Codemagic,
   never in the repo.
 - **One tag publishes both stores.** `codemagic.yaml` also has an `android-release`
   workflow on the same `v*.*.*` trigger: it stages the web assets, `cap sync android`,
-  builds a signed AAB on Linux (keeping AdMob in, unlike iOS), and uploads to the
+  builds a signed AAB on Linux, and uploads to the
   Google Play **internal** track via a service-account JSON. So `npm run bump -- X --tag`
   fires both the iOS and Android builds at once. The Android upload keystore and the
   `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` JSON live in Codemagic; see the setup footer in
@@ -81,14 +80,19 @@ from declarative config** and never committed.
 - **Monetization is platform-gated** (`js/monetize.js`): a single `storePlatform()`
   helper resolves to `Platform.GOOGLE_PLAY` on Android and `Platform.APPLE_APPSTORE`
   on iOS; the same six product-ID strings are reused so the catalog never diverges.
-  **Ads are Android-only at launch** — the Google Mobile Ads SDK is excluded from the
-  iOS build (no IDFA / ATT / `GADApplicationIdentifier`), so `adsAvailable()` is false
-  on iOS. AdMob on iOS returns in v1.1.
+  **Rewarded ads ship on both Android and iOS** — `adsAvailable()` is true on both
+  native platforms (false on the web). `js/monetize.js` picks the platform's AdMob
+  test rewarded unit; `scripts/patch-ios-plist.sh` stamps the iOS
+  `GADApplicationIdentifier` (mandatory), the ATT `NSUserTrackingUsageDescription`,
+  and SKAdNetwork items. **Still on TEST ad units** (swap real IDs before launch),
+  and **iOS App Privacy must now declare AdMob data collection + Tracking** in App
+  Store Connect (no longer "Data Not Collected").
 - **Icons + splash:** `npx @capacitor/assets generate --ios` builds the iOS asset
   catalog from `assets/icon.png` (1024×1024) on a `#070a0f` CRT-dark background.
 - **Info.plist:** `scripts/patch-ios-plist.sh` (PlistBuddy, runs in CI after
   `cap add ios`) stamps `CFBundleDisplayName`, portrait-only orientation, and
-  `ITSAppUsesNonExemptEncryption = NO` (export-compliance exempt). It deliberately
-  adds **no** `NSUserTrackingUsageDescription` (no tracking at launch).
+  `ITSAppUsesNonExemptEncryption = NO` (export-compliance exempt), and — now that
+  iOS ships ads — `GADApplicationIdentifier`, `NSUserTrackingUsageDescription`
+  (ATT), and `SKAdNetworkItems`.
 - App Store Connect setup + listing copy: `store/app-store-connect-checklist.md`
-  and `store/app-store-listing.md`. The iOS launch is **IAP only**.
+  and `store/app-store-listing.md`. The iOS build now ships **IAP + rewarded ads**.

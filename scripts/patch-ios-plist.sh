@@ -17,8 +17,12 @@
 #                                        so ship iPhone-only. Still installs on
 #                                        iPad in iPhone-compatibility mode.
 #
-# Deliberately does NOT add NSUserTrackingUsageDescription / any ATT key — the
-# launch build carries no tracking (AdMob/IDFA are deferred to v1.1).
+# Also stamps the AdMob keys now that iOS ships rewarded ads:
+#   GADApplicationIdentifier       = Google Mobile Ads app id (REQUIRED — the SDK
+#                                    crashes on launch without it)
+#   NSUserTrackingUsageDescription = App Tracking Transparency prompt copy
+#   SKAdNetworkItems               = ad-attribution networks (Google's primary;
+#                                    add Google's full list before production)
 #
 # The generated ios/ project is ephemeral, so this is idempotent: Set-with-
 # Add-fallback handles keys the Capacitor template already seeds, and the
@@ -64,6 +68,25 @@ echo "patch-ios-plist: set iPhone-only (TARGETED_DEVICE_FAMILY=1)"
 # Export-compliance exempt — removes the "Missing Compliance" prompt in ASC.
 "$PB" -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST" \
   || "$PB" -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST"
+
+# AdMob (iOS rewarded ads). GADApplicationIdentifier is MANDATORY — the Google
+# Mobile Ads SDK aborts on launch without it. TODO(launch): swap the real iOS
+# AdMob app id (this is Google's public TEST app id).
+"$PB" -c "Set :GADApplicationIdentifier ca-app-pub-3940256099942544~1458002511" "$PLIST" \
+  || "$PB" -c "Add :GADApplicationIdentifier string ca-app-pub-3940256099942544~1458002511" "$PLIST"
+
+# App Tracking Transparency: copy shown in the ATT system prompt. No apostrophes
+# or quotes — PlistBuddy takes the rest of the line verbatim as the value.
+"$PB" -c "Set :NSUserTrackingUsageDescription Allow tracking so PlugIdle can show you more relevant ads. The full game is playable without it." "$PLIST" \
+  || "$PB" -c "Add :NSUserTrackingUsageDescription string Allow tracking so PlugIdle can show you more relevant ads. The full game is playable without it." "$PLIST"
+
+# SKAdNetwork (ad attribution). Google's primary network only — rebuilt from
+# scratch so the result is deterministic. TODO(launch): add Google's full
+# SKAdNetworkItems list before production.
+"$PB" -c "Delete :SKAdNetworkItems" "$PLIST" 2>/dev/null || true
+"$PB" -c "Add :SKAdNetworkItems array" "$PLIST"
+"$PB" -c "Add :SKAdNetworkItems:0 dict" "$PLIST"
+"$PB" -c "Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string cstr6suwn9.skadnetwork" "$PLIST"
 
 # Sanity-check the bundle id matches capacitor.config.json appId. The value is
 # usually the $(PRODUCT_BUNDLE_IDENTIFIER) build-setting placeholder at this

@@ -1,7 +1,7 @@
 /* ============================================================
    PlugIdle — native monetization bridge (Android + iOS).
-   Thin facade over @capacitor-community/admob (rewarded ads, Android
-   only) and cordova-plugin-purchase (Google Play / Apple App Store
+   Thin facade over @capacitor-community/admob (rewarded ads on Android
+   + iOS) and cordova-plugin-purchase (Google Play / Apple App Store
    IAP). On the web, or if the plugins are missing, everything reports
    unavailable and the game renders no monetization UI at all.
 
@@ -12,13 +12,15 @@
 
   const NATIVE = !!(window.Capacitor?.isNativePlatform?.());
   const PLATFORM = window.Capacitor?.getPlatform?.();
-  // Ads ship on Android only at launch; iOS excludes the AdMob SDK entirely.
-  const AdMob = (NATIVE && PLATFORM === 'android') ? window.Capacitor?.Plugins?.AdMob : null;
+  // Rewarded ads on both native platforms (Android + iOS); null on the web.
+  const AdMob = NATIVE ? (window.Capacitor?.Plugins?.AdMob || null) : null;
 
-  // TODO(launch): replace with the real AdMob rewarded ad unit ID before
-  // shipping to production. This is Google's public TEST rewarded unit —
-  // always safe to use in development (never tap real ads in dev builds).
-  const REWARDED_AD_UNIT = 'ca-app-pub-3940256099942544/5224354917';
+  // TODO(launch): replace with the real AdMob rewarded ad unit IDs before
+  // shipping. These are Google's public TEST rewarded units (platform-specific)
+  // — always safe in development (never tap real ads in dev builds).
+  const REWARDED_AD_UNIT = PLATFORM === 'ios'
+    ? 'ca-app-pub-3940256099942544/1712485313'    // iOS test rewarded
+    : 'ca-app-pub-3940256099942544/5224354917';   // Android test rewarded
 
   let cfg = null;          // { skus, onGrant(sku), onPrices(map), notify(msg) }
   let adLoaded = false;
@@ -36,6 +38,11 @@
 
   async function initAds() {
     if (!AdMob) return;
+    // iOS App Tracking Transparency: ask before initializing so AdMob knows the
+    // IDFA status. Non-blocking — if declined, ads still serve (non-personalized).
+    if (PLATFORM === 'ios' && AdMob.requestTrackingAuthorization) {
+      try { await AdMob.requestTrackingAuthorization(); } catch (e) { /* ATT unavailable */ }
+    }
     try {
       // UMP consent (required in EEA/UK/CH before ads can serve)
       const info = await AdMob.requestConsentInfo({});

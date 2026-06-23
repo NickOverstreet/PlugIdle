@@ -49,15 +49,10 @@ workflows:
       - name: Install npm dependencies
         script: npm ci
 
-      # AdMob exclusion (spec 6.3): Capacitor pods every Capacitor plugin present
-      # in node_modules, and @capacitor-community/admob transitively links the
-      # Google Mobile Ads SDK (IDFA symbols -> mandatory GADApplicationIdentifier).
-      # Removing it from the ephemeral CI node_modules BEFORE `cap add ios` keeps
-      # the pod out of the generated Podfile entirely. --no-save leaves
-      # package.json untouched so the committed Android path is unaffected.
-      - name: Exclude AdMob from the iOS build (IAP-only launch)
-        script: npm rm --no-save @capacitor-community/admob
-
+      # AdMob now ships on iOS too (rewarded ads). The Google Mobile Ads SDK pod
+      # enters the Podfile via @capacitor-community/admob; scripts/patch-ios-plist.sh
+      # adds the GADApplicationIdentifier it requires (or the app crashes on
+      # launch) plus the ATT NSUserTrackingUsageDescription and SKAdNetwork items.
       - name: Stage web assets
         script: npm run build:www
 
@@ -86,13 +81,13 @@ workflows:
       - name: CocoaPods install
         script: cd ios/App && pod install
 
-      - name: Verify AdMob pod is absent
+      - name: Verify AdMob pod is present
         script: |
-          if grep -q -e 'CapacitorCommunityAdmob' -e 'Google-Mobile-Ads-SDK' ios/App/Podfile ios/App/Podfile.lock; then
-            echo "AdMob pod leaked into the iOS build" >&2
+          if ! grep -q -e 'CapacitorCommunityAdmob' -e 'Google-Mobile-Ads-SDK' ios/App/Podfile.lock; then
+            echo "AdMob / Google Mobile Ads SDK missing from the iOS build" >&2
             exit 1
           fi
-          echo "confirmed: no AdMob / Google Mobile Ads SDK in the iOS build"
+          echo "confirmed: AdMob / Google Mobile Ads SDK present in the iOS build"
 
       - name: Set up code signing
         # --certificate-key uses the persistent CERTIFICATE_PRIVATE_KEY so the
