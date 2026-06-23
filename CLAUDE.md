@@ -44,6 +44,18 @@ Current version: **0.14.8** (pre-release; intentionally on the 0.x line until la
   Voltlands, save roundtrip). Run after touching `js/game.js`.
 - `node --check js/game.js` — syntax check.
 
+## Worlds — read `world-template.md` first
+
+The game ships **parallel worlds** sharing one save (the Grid = world 1, the
+Voltlands = world 2). They must stay in lockstep on shared systems (the two-tier
+`render*`/`update*` shop pattern, the `state.bulk` bulk-buy bar, global buffs /
+`iapProdMult` / `achMult`, cost-growth + milestone math, challenges, save
+migration) while a small, documented set of gameplay formulas is allowed to
+diverge. **`world-template.md` (repo root) is the source of truth.** Consult it
+**before creating a new world or touching any world-specific UI**, and follow its
+parity checklist — world 2 drifted out of parity (missing bulk-buy bar, tap-eating
+full rebuilds) precisely because this contract wasn't written down.
+
 ## Workflow notes
 - Active dev branch: `claude/idle-game-ui-cleanup-oeg7ur`; changes are
   fast-forward merged to `main`. Pushing to `main` auto-deploys the web PWA via

@@ -849,7 +849,7 @@
     worldBtn: $('#worldBtn'), wattsUnit: $('#wattsUnit'), wpsUnit: $('#wpsUnit'), tapUnit: $('#tapUnit'),
     enemyBtn: $('#enemyBtn'), enemyEmoji: $('#enemyEmoji'), enemyName: $('#enemyName'),
     zoneName: $('#zoneName'), hpFill: $('#hpFill'), hpText: $('#hpText'), zapinfo: $('#zapinfo'),
-    weaponlist: $('#weaponlist'), zuplist: $('#zuplist'),
+    weaponlist: $('#weaponlist'), zuplist: $('#zuplist'), bulkBarZap: $('#bulkBarZap'),
   };
   if (el.version) el.version.textContent = `PlugIdle v${VERSION}`;
 
@@ -1311,7 +1311,7 @@
     n.flavor.style.display = 'inline';
     if (n.meta.scrollWidth > n.meta.clientWidth) n.flavor.style.display = 'none';
   }
-  function refitFlavors() { for (const n of cordNodes) fitFlavor(n); }
+  function refitFlavors() { for (const n of cordNodes) fitFlavor(n); for (const n of weaponNodes) fitFlavor(n); }
   function renderCords() {
     // Bulk-buy buttons live in the sticky toolbar (#bulkBar), separate from the
     // scrolling cord list, so they stay reachable when scrolled to the bottom.
@@ -1704,8 +1704,8 @@
       sig += state.watts >= u.cost ? '1' : '0';
     }
     if (state.wormhole) {
-      sig += '|';
-      for (const w of WEAPONS) sig += sl().volts >= weaponCost(w, 1) ? '1' : '0';
+      sig += '|' + state.bulk + '|';
+      for (const w of WEAPONS) sig += sl().volts >= weaponCost(w, weaponBuyCount(w)) ? '1' : '0';
       for (const u of ZAP_UPGRADES) {
         if (sl().upgrades[u.id]) { sig += 'b'; continue; }
         sig += sl().volts >= u.cost ? '1' : '0';
@@ -1717,7 +1717,7 @@
       // player is mid-tap on (the auto-buyer dirties this up to 10x/sec)
       updateCords();
       updateUpgrades();
-      if (state.wormhole) { renderWeapons(); renderZapUpgrades(); }
+      if (state.wormhole) { updateWeapons(); updateZapUpgrades(); }
     }
   }
 
@@ -2124,6 +2124,22 @@
     for (let i = 0; i < count; i++) total += w.baseCost * Math.pow(r, owned + i);
     return Math.ceil(total * weaponCostDiscount());
   }
+  // Voltlands mirrors of maxAffordable/buyCount (the Grid bulk-buy helpers): the
+  // ×1/×5/×10/MAX bar shares the global state.bulk, so weapons buy in bulk too.
+  function maxAffordableWeapon(w) {
+    const owned = sl().weapons[w.id] || 0;
+    const r = weaponCostGrowth();
+    // Mirror maxAffordable: solve off the undiscounted base so the estimate stays
+    // conservative (a MAX buy never rounds up past what the player can afford).
+    const base = w.baseCost * Math.pow(r, owned);
+    const v = sl().volts;
+    const k = Math.floor(Math.log((v * (r - 1)) / base + 1) / Math.log(r));
+    return Math.max(0, isFinite(k) ? k : 0);
+  }
+  function weaponBuyCount(w) {
+    if (state.bulk === 'max') return Math.max(1, maxAffordableWeapon(w));
+    return state.bulk;
+  }
   function zapUpgradeUnlocked(u) {
     if (!u.req) return true;
     return (sl().weapons[u.req.weapon] || 0) >= u.req.n;
@@ -2223,19 +2239,28 @@
 
   function buyWeapon(w) {
     if (ch('volt') === 'bareknuckle' && w.id !== 'glove') { toast('🔒 BARE KNUCKLES: Static Glove only'); blip(120, 0.06); return; }
-    const cost = weaponCost(w, 1);
+    const count = weaponBuyCount(w);
+    if (count <= 0) return;
+    const cost = weaponCost(w, count);
     if (sl().volts < cost) { toast('Not enough volts'); blip(120, 0.06); return; }
+    const before = sl().weapons[w.id] || 0;
     sl().volts -= cost;
-    const after = (sl().weapons[w.id] || 0) + 1;
+    const after = before + count;
     sl().weapons[w.id] = after;
     blip(320, 0.06, 'square', 0.05);
     buzz(12);
-    if (after % CORD_MILESTONE === 0) {
-      toast(`✖️ ${w.name} milestone! Now ×${fmt(cordMilestoneMult(after))}`, true);
+    // Celebrate crossing an ownership milestone (×2, or ×10 at every 100) — same
+    // crossing test as buyCord so bulk buys that jump a milestone still fire.
+    if (Math.floor(after / CORD_MILESTONE) > Math.floor(before / CORD_MILESTONE)) {
+      const tier = cordMilestoneMult(after);
+      const big = Math.floor(after / BIG_MILESTONE) > Math.floor(before / BIG_MILESTONE);
+      toast(`✖️ ${w.name} ${big ? 'MEGA milestone! ×10 ·' : 'milestone!'} Now ×${fmt(tier)}`, true);
       blip(990, 0.18, 'sawtooth', 0.05);
+      buzz([0, 25, 40, 25]);
+      screenShake(1);
     }
     checkAchievements();
-    renderWeapons();
+    updateWeapons();
     renderSlayerLite();
   }
 
@@ -2248,21 +2273,43 @@
     blip(880, 0.12, 'sawtooth', 0.05);
     buzz([0, 15, 30, 15]);
     toast('⚡ ' + u.name + ' wired in!');
-    renderZapUpgrades();
+    updateWeapons();
+    updateZapUpgrades();
     renderSlayerLite();
   }
 
   /* ---------- Voltlands rendering ---------- */
-  function renderWeapons() {
-    if (!el.weaponlist) return;
-    let html = '';
-    let anyUnlocked = false;
-    WEAPONS.forEach((w, i) => {
+  // A weapon shows once the previous one is owned (or it's the first) — mirrors
+  // visibleCords() so the Voltlands shop unlocks progressively like the Grid.
+  function visibleWeapons() {
+    return WEAPONS.filter((w, i) => {
       const owned = sl().weapons[w.id] || 0;
       const prevOwned = i === 0 ? 1 : (sl().weapons[WEAPONS[i - 1].id] || 0);
-      if (!(owned > 0 || prevOwned > 0)) return;
-      anyUnlocked = true;
-      const cost = weaponCost(w, 1);
+      return owned > 0 || prevOwned > 0;
+    });
+  }
+
+  // Two-tier render, exactly like the Grid cord shop: renderWeapons() does the
+  // full rebuild (only when the visible set / bulk changes), updateWeapons()
+  // patches text+classes in place each tick so a rebuild never eats a mid-press
+  // tap (the auto-arsenal dirties affordability up to 10×/sec).
+  let weaponStructKey = '';
+  let weaponNodes = [];
+  function renderWeapons() {
+    if (!el.weaponlist) return;
+    // Bulk-buy buttons live in the sticky toolbar (#bulkBarZap), sharing the
+    // global state.bulk with the Grid bar.
+    if (el.bulkBarZap) {
+      el.bulkBarZap.innerHTML = [1, 5, 10, 'max'].map(b =>
+        `<button class="bulk-btn ${state.bulk === b ? 'active' : ''}" data-bulk="${b}">${b === 'max' ? 'MAX' : 'x' + b}</button>`
+      ).join('');
+    }
+    let html = '';
+    const vis = visibleWeapons();
+    vis.forEach((w) => {
+      const owned = sl().weapons[w.id] || 0;
+      const count = weaponBuyCount(w);
+      const cost = weaponCost(w, count);
       const can = sl().volts >= cost;
       const each = w.zps * weaponMultiplier(w.id) * gridZpsBoost();
       // Ownership milestones (same ×2-per-25 / ×10-per-100 as cords) — show the
@@ -2275,26 +2322,72 @@
           <div class="ico">${w.icon}</div>
           <div class="body">
             <div class="nm">${w.name}</div>
-            <div class="meta"><span class="pos">${fmt(each)} Z/s each</span> · ${w.desc}</div>
+            <div class="meta"><span class="pos">${fmt(each)} Z/s each</span><span class="flavor"> · ${w.desc}</span></div>
             <div class="milestone"><i style="width:${msPct}%"></i></div>
           </div>
           <div class="right">
-            <div class="owned">own ${fmtInt(owned)}</div>
+            <div class="owned">own ${fmt(owned)}</div>
             <div class="cost ${can ? 'ok' : 'no'}">${fmt(cost)} V</div>
             <div class="mnote">${owned > 0 ? `×${nextMult} @ ${fmt(nextMs)}` : '&nbsp;'}</div>
           </div>
         </button>`;
     });
-    if (!anyUnlocked) html = `<p class="empty-note">Zap enemies to earn your first volts!</p>`;
+    if (!vis.length) html = `<p class="empty-note">Zap enemies to earn your first volts!</p>`;
     el.weaponlist.innerHTML = html;
+    weaponStructKey = state.bulk + '|' + vis.map((w) => w.id).join(',');
+    weaponNodes = Array.from(el.weaponlist.querySelectorAll('[data-weapon]') || []).map((node) => ({
+      node,
+      owned: node.querySelector('.owned'),
+      cost: node.querySelector('.cost'),
+      mnote: node.querySelector('.mnote'),
+      pos: node.querySelector('.pos'),
+      ms: node.querySelector('.milestone i'),
+      meta: node.querySelector('.meta'),
+      flavor: node.querySelector('.flavor'),
+      _lastPos: '',
+    }));
+    for (const n of weaponNodes) { n._lastPos = n.pos ? n.pos.textContent : ''; fitFlavor(n); }
   }
 
+  function updateWeapons() {
+    if (!el.weaponlist) return;
+    const vis = visibleWeapons();
+    const key = state.bulk + '|' + vis.map((w) => w.id).join(',');
+    if (key !== weaponStructKey || weaponNodes.length !== vis.length ||
+        (weaponNodes[0] && !weaponNodes[0].node.isConnected)) { renderWeapons(); return; }
+    vis.forEach((w, i) => {
+      const n = weaponNodes[i];
+      const owned = sl().weapons[w.id] || 0;
+      const cost = weaponCost(w, weaponBuyCount(w));
+      n.owned.textContent = 'own ' + fmt(owned);
+      n.cost.textContent = fmt(cost) + ' V';
+      n.cost.className = 'cost ' + (sl().volts >= cost ? 'ok' : 'no');
+      const each = w.zps * weaponMultiplier(w.id) * gridZpsBoost();
+      const posTxt = `${fmt(each)} Z/s each`;
+      if (n.pos && n._lastPos !== posTxt) { n.pos.textContent = posTxt; n._lastPos = posTxt; fitFlavor(n); }
+      const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
+      const nextMult = nextMs % BIG_MILESTONE === 0 ? BIG_MILESTONE_MULT : 2;
+      if (n.ms) n.ms.style.width = ((owned % CORD_MILESTONE) / CORD_MILESTONE * 100) + '%';
+      n.mnote.textContent = owned > 0 ? `×${nextMult} @ ${fmt(nextMs)}` : ' ';
+    });
+  }
+
+  // Mirror of unlockedUpgrades()/renderUpgrades()/updateUpgrades() for the
+  // Voltlands zap-upgrade shop: full rebuild only on struct change, cheap
+  // per-tick patch otherwise (so the tap path doesn't destroy a mid-press button).
+  function unlockedZapUpgrades() {
+    return ZAP_UPGRADES
+      .filter((u) => sl().upgrades[u.id] || zapUpgradeUnlocked(u))
+      .sort((a, b) => a.cost - b.cost);
+  }
+  let zupStructKey = '';
+  let zupNodes = [];
   function renderZapUpgrades() {
     if (!el.zuplist) return;
-    const list = ZAP_UPGRADES.filter((u) => sl().upgrades[u.id] || zapUpgradeUnlocked(u))
-      .sort((a, b) => a.cost - b.cost);
+    const list = unlockedZapUpgrades();
     if (!list.length) {
       el.zuplist.innerHTML = `<p class="empty-note">Buy more weapons to unlock upgrades…</p>`;
+      zupStructKey = ''; zupNodes = [];
       return;
     }
     el.zuplist.innerHTML = list.map((u) => {
@@ -2308,6 +2401,26 @@
           <div class="uc">${bought ? '✓ OWNED' : fmt(u.cost) + ' V'}</div>
         </button>`;
     }).join('');
+    zupStructKey = list.map((u) => u.id).join(',');
+    zupNodes = Array.from(el.zuplist.querySelectorAll('[data-zupgrade]') || []).map((node) => ({
+      node, uc: node.querySelector('.uc'),
+    }));
+  }
+
+  function updateZapUpgrades() {
+    if (!el.zuplist) return;
+    const list = unlockedZapUpgrades();
+    if (!list.length) { if (zupStructKey) renderZapUpgrades(); return; }
+    const key = list.map((u) => u.id).join(',');
+    if (key !== zupStructKey || zupNodes.length !== list.length ||
+        (zupNodes[0] && !zupNodes[0].node.isConnected)) { renderZapUpgrades(); return; }
+    list.forEach((u, i) => {
+      const n = zupNodes[i];
+      const bought = !!sl().upgrades[u.id];
+      const can = !bought && sl().volts >= u.cost;
+      n.node.className = 'upg ' + (bought ? 'bought' : can ? 'ok' : 'no');
+      n.uc.textContent = bought ? '✓ OWNED' : fmt(u.cost) + ' V';
+    });
   }
 
   function renderSlayerLite() {
@@ -2804,6 +2917,12 @@
     state.bulk = v === 'max' ? 'max' : parseInt(v, 10);
     lastSig = '';
     renderCords();
+  });
+  // The Voltlands shares the same global state.bulk; its bar mirrors the Grid's.
+  delegateTap(el.bulkBarZap, 'data-bulk', (v) => {
+    state.bulk = v === 'max' ? 'max' : parseInt(v, 10);
+    lastSig = '';
+    renderWeapons();
   });
   delegateTap(el.cordlist, 'data-cord', (id) => buyCord(CORDS.find(c => c.id === id)));
   delegateTap(el.uplist, 'data-upgrade', (id) => buyUpgrade(UPGRADES.find(u => u.id === id)));

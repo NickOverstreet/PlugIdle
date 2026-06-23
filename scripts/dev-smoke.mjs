@@ -85,6 +85,7 @@ const hook = `
     autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
     ch, chDone, startChallenge, beginChallenge, checkChallenge, abandonChallenge, restoreChallengeBackup,
     weaponCost, enemyHp, voltReward, weaponMultiplier, applyReincarnatePerks,
+    weaponBuyCount, maxAffordableWeapon,
     renderMoreGating, syncSettingsUI, applyWorld, co,
     applyOffline, offlineEff, offlineCapMs,
   };
@@ -145,6 +146,24 @@ const glove = T.WEAPONS[0];
 T.buyWeapon(glove);
 check('arsenal: weapon bought', S().slayer.weapons.glove === 1);
 check('arsenal: totalZps > 0', T.totalZps() > 0);
+
+// bulk-buy weapons (shared state.bulk, mirrors the Grid cord bulk path)
+S().slayer.volts = 1e9;
+S().bulk = 5;
+const ownedBefore = S().slayer.weapons.glove;
+check('bulk: weaponBuyCount honors x5', T.weaponBuyCount(glove) === 5);
+T.buyWeapon(glove);
+check('bulk: x5 buys 5 at once', S().slayer.weapons.glove === ownedBefore + 5);
+S().bulk = 'max';
+const maxN = T.maxAffordableWeapon(glove);
+check('bulk: max affordable is positive', maxN > 0);
+const maxCost = T.weaponCost(glove, maxN);
+check('bulk: max stays within volts (never overspends)', maxCost <= S().slayer.volts);
+const voltsBefore = S().slayer.volts;
+T.buyWeapon(glove);
+check('bulk: max buy succeeds', S().slayer.weapons.glove === ownedBefore + 5 + maxN);
+check('bulk: max buy charged volts', S().slayer.volts < voltsBefore);
+S().bulk = 1;   // restore default for later assertions
 const zu = T.ZAP_UPGRADES[0];
 T.buyZapUpgrade(zu);
 check('arsenal: zap upgrade bought', !!S().slayer.upgrades[zu.id]);
@@ -166,7 +185,7 @@ check('carry: lifetimeEarned survives reset', carried.lifetimeEarned === S().lif
 // save roundtrip through normalizeState (export/import path)
 const round = T.normalizeState(JSON.parse(JSON.stringify(S())));
 check('save: roundtrip keeps wormhole', round.wormhole === true);
-check('save: roundtrip keeps weapons', round.slayer.weapons.glove === 1);
+check('save: roundtrip keeps weapons', round.slayer.weapons.glove === S().slayer.weapons.glove);
 check('save: legacy save gets slayer backfilled', T.normalizeState({ watts: 5 }).slayer.wave === 1);
 
 // Update safety: a save carrying purchases (cords, upgrades, core/prestige
