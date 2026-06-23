@@ -2103,7 +2103,10 @@
     let sum = 0;
     for (const w of WEAPONS) sum += (sl().weapons[w.id] || 0) * w.zps * weaponMultiplier(w.id);
     const cling = ch('volt') === 'staticcling' ? 0.5 : 1;   // STATIC CLING rule
-    return sum * gridZpsBoost() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * cling;
+    // iapProdMult (Overclock +25% MTX) and buffMult('prod') (×2 ad/supporter
+    // boost) both apply here too, so production purchases & ad boosts lift the
+    // Voltlands exactly like they lift the Grid.
+    return sum * gridZpsBoost() * iapProdMult() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * cling;
   }
   function zapPower() {
     if (ch('volt') === 'numbfingers') return 0;   // NUMB FINGERS rule
