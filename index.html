@@ -90,11 +90,19 @@
           <div class="tapinfo" id="zapinfo"></div>
         </div>
         <div class="sectitle">🔫 CONDUCTOR ARSENAL</div>
+        <!-- Same collapse rig as the Plug tab: the big enemy button scrolls away
+             and the pinned compact bar below keeps you zapping while weapons
+             scroll. Shared machinery — see TAP_SURFACES / setupScrollCollapse. -->
+        <div class="plug-sentinel" id="zapSentinel" aria-hidden="true"></div>
+        <div class="plug-toolbar" id="zapToolbar">
+          <button class="taptab plug-taptab" id="enemyBtnMini" aria-label="Zap the enemy">⚡ TAP TO ZAP · +<b id="tapvalEnemyMini">1</b> Z</button>
+        </div>
         <div id="weaponlist"></div>
       </section>
 
       <!-- THE VOLTLANDS: zap upgrades -->
       <section class="panel" id="p-arsenal">
+        <button class="taptab" id="zapMini" aria-label="Zap the enemy">⚡ TAP TO ZAP · +<b id="tapvalZapMini">1</b> Z</button>
         <div class="sectitle">⚡ ZAP UPGRADES</div>
         <div class="ugrid" id="zuplist"></div>
       </section>
@@ -179,6 +187,7 @@
           <div class="toggle"><span>🔊 Sound</span><button class="sw" data-set="sound">ON</button></div>
           <div class="toggle"><span>📳 Haptics</span><button class="sw" data-set="haptic">ON</button></div>
           <div class="toggle"><span>✨ Animations</span><button class="sw" data-set="anim">ON</button></div>
+          <div class="toggle"><span>🎞️ Frame Rate</span><button class="sw on" id="fpsBtn">30 FPS</button></div>
           <div class="toggle"><span>🔬 Sci. Notation</span><button class="sw" data-set="sci">OFF</button></div>
           <div class="toggle" id="notifyRow" hidden><span>🔔 Notifications</span><button class="sw" data-set="notify">OFF</button></div>
           <div class="toggle" id="autobuyRow" hidden><span>🛒 Auto-Buyer</span><button class="sw" data-set="grid.autobuyOn">ON</button></div>

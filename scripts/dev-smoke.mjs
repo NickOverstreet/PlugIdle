@@ -57,6 +57,10 @@ global.localStorage = {
 };
 Object.defineProperty(global, 'navigator', { value: { userAgent: 'smoke' }, configurable: true });
 global.matchMedia = () => ({ matches: false });
+// Node has no rAF; a no-op (that never calls back) keeps the render loop from
+// spinning during the headless run while letting boot()'s startRender() succeed.
+global.requestAnimationFrame = () => 0;
+global.cancelAnimationFrame = () => {};
 
 /* ---------- seed a late-game save (2e15 cores, curve v2) ---------- */
 const now = Date.now();
@@ -71,7 +75,7 @@ let src = readFileSync(join(root, 'js', 'game.js'), 'utf8');
 const hook = `
   window.__test = {
     get state() { return state; },
-    CORE_UPGRADES, WEAPONS, ZAP_UPGRADES, CHALLENGES, CORDS, UPGRADES,
+    CORE_UPGRADES, WEAPONS, ZAP_UPGRADES, CHALLENGES, CORDS, UPGRADES, ACHIEVEMENTS,
     buyCoreUpgrade, zapEnemy, buyWeapon, buyZapUpgrade, switchWorld,
     totalZps, zapPower, bossWattsMult, gridZpsBoost, prestigeGain, prestigeMult,
     carryState, defaultState, normalizeState, defaultSlayer, applyZapDamage, spawnEnemy,
@@ -832,6 +836,38 @@ check('brownout no longer unlocks auto-buyer', S().owned.usba === usbaBefore);
   check('offline: volt earnings convert damage→volts via HP/reward', Math.abs(got - expected) < expected * 1e-6);
   check('offline: volt earnings stay below the naive ZPS×time overcount', got > 0 && got < naive * 0.999);
 }
+
+// rate invariance (regression lock for the dt-scaled volt kill cap): one coarse
+// 1Hz tick must credit ≈ the same volts as ten fine 0.1s ticks over the same 1s,
+// so throttling the sim to 1Hz in the background doesn't under-credit the Voltlands.
+{
+  const sR4 = T.sl();
+  S().wormhole = true; S().world = 'volt';
+  S().challenges = { grid: '', volt: '' };
+  // Hold every ZPS multiplier CONSTANT across both runs: max out achievements
+  // (killEnemy unlocks them mid-run, which would otherwise inflate the finer
+  // path's later ticks via achMult), and zero the lifetime/boost/streak inputs.
+  S().achievements = Object.fromEntries(T.ACHIEVEMENTS.map((a) => [a.id, true]));
+  S().lifetimeEarned = 0; S().boostUntil = 0; S().streakUntil = 0;
+  const base = { volts: 0, runVolts: 0, totalVolts: 0, wave: 5, killsThisWave: 0, kills: 0,
+                 bosses: 0, weapons: { railgun: 1 }, upgrades: {}, shards: 0, shardsEarned: 0,
+                 shardUpgrades: {}, hp: 0, maxHp: 0 };
+  const run = (steps, dt) => {
+    Object.assign(sR4, JSON.parse(JSON.stringify(base)));
+    T.spawnEnemy();
+    for (let i = 0; i < steps; i++) T.slayerTick(dt);
+    return sR4.runVolts;
+  };
+  const coarse = run(1, 1.0);     // one 1Hz tick
+  const fine = run(10, 0.1);      // ten 0.1s ticks (same wall-second)
+  check('rate-invariance: 1Hz tick ≈ ten 0.1s ticks (volt kill cap scales with dt)',
+    fine > 0 && Math.abs(coarse - fine) <= fine * 0.08);
+}
+
+// frame-rate cap setting: defaults to 30, clamps junk, keeps valid presets
+check('fps: defaults to 30', T.normalizeState({}).settings.fps === 30);
+check('fps: clamps an invalid value to 30', T.normalizeState({ settings: { fps: 999 } }).settings.fps === 30);
+check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).settings.fps === 60);
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

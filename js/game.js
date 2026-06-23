@@ -327,7 +327,7 @@
     surgesCollected: 0,  // lifetime power surges caught
     startedAt: Date.now(),
     lastSeen: Date.now(),
-    settings: { sound: true, floats: true, sci: false, haptics: true, world: { grid: { autobuyOn: true, autoupgOn: true }, volt: { autobuyOn: true, autoupgOn: true, autoclickOn: true } } },
+    settings: { sound: true, floats: true, sci: false, haptics: true, fps: 30, world: { grid: { autobuyOn: true, autoupgOn: true }, volt: { autobuyOn: true, autoupgOn: true, autoclickOn: true } } },
     bulk: 1,             // 1, 5, 10, or 'max'
     prestigeV: 2,        // prestige-curve schema (v2 = cbrt gain + softcap)
     challenges: { grid: '', volt: '' },  // active challenge id per world (cleared by completion/abandon/prestige)
@@ -387,7 +387,8 @@
     // Device prefs stay top-level/global. Automation toggles are per-world; merge
     // the nested `world` object so partial saves don't drop the volt subtree.
     const savedSettings = s.settings || {};
-    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true, notify: false }, savedSettings);
+    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true, notify: false, fps: 30 }, savedSettings);
+    if (![15, 30, 60].includes(s.settings.fps)) s.settings.fps = 30;   // render frame-rate cap
     s.settings.world = {
       grid: Object.assign({ autobuyOn: true, autoupgOn: true }, (savedSettings.world && savedSettings.world.grid) || {}),
       volt: Object.assign({ autobuyOn: true, autoupgOn: true, autoclickOn: true }, (savedSettings.world && savedSettings.world.volt) || {}),
@@ -824,6 +825,10 @@
     socket: $('#socket'), socketSvg: $('#socketSvg'), tapinfo: $('#tapinfo'), autotapBadge: $('#autotapBadge'),
     socketMini: $('#socketMini'), tapvalMini: $('#tapvalMini'),
     socketMiniPlug: $('#socketMiniPlug'), tapvalMiniPlug: $('#tapvalMiniPlug'), bulkBar: $('#bulkBar'),
+    // Voltlands tap surfaces — mirror the grid ones (compact ZAP bar on the Zap
+    // tab when collapsed; mini ZAP bar on the Arsenal tab). See TAP_SURFACES.
+    enemyBtnMini: $('#enemyBtnMini'), tapvalEnemyMini: $('#tapvalEnemyMini'),
+    zapMini: $('#zapMini'), tapvalZapMini: $('#tapvalZapMini'),
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     dotUp: $('#dotUp'), dotMore: $('#dotMore'), dotArsenal: $('#dotArsenal'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
@@ -908,11 +913,19 @@
   }
 
   /* ---------- Floating numbers ---------- */
-  // Whichever tap control is currently on screen (main socket, or the
-  // compact tap button on the Upgrades tab).
+  // Whichever tap control is currently on screen, in either world: the mini bar on
+  // an upgrade tab, the compact bar when a tap panel is collapsed, or the big hero
+  // button. Keeps float effects pinned to the visible control as worlds/tabs change.
   function tapAnchor() {
-    if (el.socketMini && document.getElementById('p-up').classList.contains('active')) return el.socketMini;
-    if (el.socketMiniPlug && document.getElementById('p-plug').classList.contains('plug-collapsed')) return el.socketMiniPlug;
+    const onTab = (id) => { const p = document.getElementById(id); return p && p.classList.contains('active'); };
+    const collapsed = (id) => { const p = document.getElementById(id); return p && p.classList.contains('plug-collapsed'); };
+    if (activeWorld() === 'volt') {
+      if (el.zapMini && onTab('p-arsenal')) return el.zapMini;
+      if (el.enemyBtnMini && collapsed('p-zap')) return el.enemyBtnMini;
+      return el.enemyBtn || el.socket;
+    }
+    if (el.socketMini && onTab('p-up')) return el.socketMini;
+    if (el.socketMiniPlug && collapsed('p-plug')) return el.socketMiniPlug;
     return el.socket;
   }
   // Visible "tick" on the socket each time the Auto-Tapper fires, so the player
@@ -1513,8 +1526,13 @@
     if (el.wattsUnit) el.wattsUnit.textContent = volt ? 'V' : 'W';
     if (el.wpsUnit) el.wpsUnit.textContent = volt ? 'Z/s' : 'W/s';
     if (el.tapUnit) el.tapUnit.textContent = volt ? '/ zap' : '/ plug';
+    // Mini/compact tap bars mirror each world's main tap value: grid bars show
+    // watts-per-plug, volt bars show damage-per-zap. (The bars live on world-scoped
+    // tabs, so each is only ever visible in its own world.)
     if (el.tapvalMini) el.tapvalMini.textContent = fmt(clickPower());
     if (el.tapvalMiniPlug) el.tapvalMiniPlug.textContent = fmt(clickPower());
+    if (el.tapvalZapMini) el.tapvalZapMini.textContent = fmt(zapPower());
+    if (el.tapvalEnemyMini) el.tapvalEnemyMini.textContent = fmt(zapPower());
     if (el.tapinfo) {
       const next = nextTapMilestone();
       const frac = tapWpsFrac();
@@ -1619,6 +1637,8 @@
       b.classList.toggle('on', !!v);
       b.textContent = v ? 'ON' : 'OFF';
     });
+    const fb = document.getElementById('fpsBtn');
+    if (fb) fb.textContent = (state.settings.fps || 30) + ' FPS';   // frame-rate cap label
     // Automation toggles appear only once owned AND in their own world.
     const volt = activeWorld() === 'volt';
     const abRow = document.getElementById('autobuyRow');
@@ -2136,31 +2156,39 @@
     checkAchievements();
   }
 
-  // Damage application with overkill carry (capped kills/tick so a huge ZPS
-  // spike can't lock the loop).
-  function applyZapDamage(dmg) {
+  // Damage application with overkill carry. Kills per call are capped so a huge
+  // ZPS spike can't lock the loop — but the cap must scale with how much time the
+  // call represents, or a coarse tick (e.g. the 1Hz background sim) would credit
+  // far fewer kills than the same span of fine 10Hz ticks. The wave-climb makes
+  // the loop self-terminate well before the cap in normal play; it's just a
+  // backstop against a pathological one-shot-everything spike.
+  function applyZapDamage(dmg, maxKills = 50) {
     const s = sl();
     if (s.maxHp <= 0) spawnEnemy();
     s.hp -= dmg;
-    let safety = 50;
+    let safety = maxKills;
     while (s.hp <= 0 && safety-- > 0) {
       const leftover = -s.hp;
       killEnemy();
       spawnEnemy();
       s.hp = s.maxHp - leftover;
     }
-    if (s.hp <= 0) s.hp = 1;   // safety floor after 50 kills in one tick
+    if (s.hp <= 0) s.hp = 1;   // floor after the per-call kill cap
   }
 
   function slayerTick(dt) {
     if (!state.wormhole) return;
     const zps = totalZps();
-    if (zps > 0) applyZapDamage(zps * dt);
+    // Scale the kill cap with dt (50 per 0.1s) so one 1s background tick credits
+    // the same as ten 0.1s foreground ticks — no Voltlands under-credit when the
+    // sim is throttled in the background.
+    const cap = Math.max(50, Math.ceil(500 * dt));
+    if (zps > 0) applyZapDamage(zps * dt, cap);
     // AUTO-ZAPPER: passive tap-zaps at a fixed rate, gated by its per-world
     // Settings toggle. Granted by the Auto-Zapper Storm Upgrade OR the STATIC
     // CLING perk (STATIC FIELD). Silent — no floats/sound, just damage.
     if ((su('autozap') || chDone('staticcling')) && state.settings.world.volt.autoclickOn) {
-      applyZapDamage(zapPower() * AUTO_ZAP_RATE * dt);
+      applyZapDamage(zapPower() * AUTO_ZAP_RATE * dt, cap);
     }
   }
 
@@ -2169,8 +2197,9 @@
     let crit = false;
     if (zu('z_crit') && Math.random() < 0.10) { dmg *= 10; crit = true; }
     applyZapDamage(dmg);
-    if (state.settings.floats && el.enemyBtn) {
-      const r = el.enemyBtn.getBoundingClientRect();
+    if (state.settings.floats) {
+      const anchor = tapAnchor();   // the visible zap control (big button, compact bar, or mini bar)
+      const r = anchor.getBoundingClientRect();
       const f = document.createElement('div');
       f.className = 'float' + (crit ? ' crit' : '');
       f.textContent = (crit ? '💥' : '⚡') + fmt(dmg);
@@ -2178,9 +2207,11 @@
       f.style.top = (r.top + 30) + 'px';
       el.floaters.appendChild(f);
       setTimeout(() => f.remove(), 1000);
-      el.enemyBtn.classList.remove('zapped');
-      void el.enemyBtn.offsetWidth;
-      el.enemyBtn.classList.add('zapped');
+      if (el.enemyBtn) {
+        el.enemyBtn.classList.remove('zapped');
+        void el.enemyBtn.offsetWidth;
+        el.enemyBtn.classList.add('zapped');
+      }
     }
     blip(crit ? 1500 : 900 + Math.random() * 100, 0.05, 'sawtooth', 0.05);
     buzz(crit ? [0, 30, 30, 30] : 8);
@@ -2332,6 +2363,7 @@
     if (instant) {
       applyWorld();
       renderAll();
+      activateTab('zap', true);   // first unlock lands on the Zap page, not the More tab you bought ??? from
       toast('🌀 ARRIVAL: THE VOLTLANDS', true);
       save();
       return;
@@ -2343,6 +2375,7 @@
     setTimeout(() => {
       applyWorld();
       renderAll();
+      activateTab('zap', true);   // first unlock lands on the Zap page, not the More tab you bought ??? from
       toast('🌀 ARRIVAL: THE VOLTLANDS', true);
       save();
       setTimeout(() => ov.classList.remove('show'), 700);
@@ -2418,7 +2451,7 @@
     { id: 'timewarp_24h',        icon: '⏭️', name: 'Time Warp · 24h', consumable: true,  desc: 'Instantly earn 24 hours of production.' },
     { id: 'theme_pack_phosphor', icon: '🎨', name: 'CRT Theme Pack',  consumable: false, desc: 'Amber, Ice & Vapor phosphor themes.' },
   ];
-  const AD_LIMITS = { boost: 3, surge: 2 };   // rewarded uses per day, per placement
+  const AD_LIMITS = { boost: 6, surge: 4 };   // rewarded uses per day, per placement
   const BOOST_MS = 10 * 60000;                // 2x production per boost/claim
   let iapPrices = {};                         // sku -> localized price string
 
@@ -2672,10 +2705,19 @@
       fn(e);
     });
   }
-  bindTap(el.socket, plug);
-  bindTap(el.socketMini, plug); // tap button on the Upgrades tab
-  bindTap(el.socketMiniPlug, plug); // compact tap bar on the Plug tab (shown when collapsed)
-  if (el.enemyBtn) bindTap(el.enemyBtn, zapEnemy);
+  // ---- World tap surfaces (shared machinery; see docs/world-template.md) ----
+  // Every world taps the same way: a big hero button + a scroll-collapse panel
+  // whose compact bar — plus a mini bar on the world's upgrade tab — keep you
+  // tapping while the shop list scrolls. One table keeps the worlds in lockstep;
+  // add a world by adding a row (and the matching ids in index.html + CSS).
+  const TAP_SURFACES = [
+    { world: 'grid', action: plug,     hero: 'socket',   panel: 'p-plug', sentinel: 'plugSentinel', bars: ['socketMiniPlug', 'socketMini'] },
+    { world: 'volt', action: zapEnemy, hero: 'enemyBtn', panel: 'p-zap',  sentinel: 'zapSentinel',  bars: ['enemyBtnMini', 'zapMini'] },
+  ];
+  for (const s of TAP_SURFACES) {
+    if (el[s.hero]) bindTap(el[s.hero], s.action);
+    for (const id of s.bars) if (el[id]) bindTap(el[id], s.action);
+  }
 
   // Never zoom. The viewport meta (user-scalable=no, maximum-scale=1) kills both
   // pinch- and double-tap-zoom in the Capacitor WKWebView, but iOS Safari ignores
@@ -2700,22 +2742,34 @@
   // so descriptions hidden by an early (fallback-font) measure reappear if they fit.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(refitFlavors);
 
-  // Plug tab: collapse the big socket into the pinned compact bar once it scrolls
-  // away. When the sentinel (just above the sticky toolbar) reaches the top of the
-  // scroll viewport, the toolbar is pinned — reveal the compact bar. (A scroll +
-  // rect check is used rather than IntersectionObserver, which fires unreliably
-  // with a scroll-container root in the app's WKWebView.)
-  (function setupPlugCollapse() {
-    const panel = document.getElementById('p-plug');
-    const sentinel = document.getElementById('plugSentinel');
+  // Collapse a tap panel's big hero button into its pinned compact bar once the
+  // hero scrolls away: when the sentinel (just above the sticky toolbar) reaches
+  // the top of the scroll viewport, the toolbar pins and the compact bar appears.
+  // (A scroll + rect check rather than IntersectionObserver, which fires
+  // unreliably with a scroll-container root in the app's WKWebView.) Shared by
+  // every world via TAP_SURFACES, so the Plug and Zap tabs behave identically.
+  const collapseUpdaters = {};
+  function setupScrollCollapse(panelId, sentinelId) {
+    const panel = document.getElementById(panelId);
+    const sentinel = document.getElementById(sentinelId);
     if (!panel || !sentinel) return;
-    function update() {
-      const collapsed = sentinel.getBoundingClientRect().bottom <= panel.getBoundingClientRect().top + 12;
+    const update = () => {
+      // An inactive (display:none) panel has zero-size rects that would read as
+      // "collapsed" — never collapse a panel that isn't the visible tab.
+      if (!panel.classList.contains('active')) { panel.classList.remove('plug-collapsed'); return; }
+      const sr = sentinel.getBoundingClientRect();
+      // On the tablet/desktop layout the hero stays visible and the collapse rig is
+      // CSS-dormant (the sentinel is display:none → a zero-size rect). Don't let that
+      // fake a collapse, which would mis-anchor tap floats to the hidden compact bar.
+      if (sr.width === 0 && sr.height === 0) { panel.classList.remove('plug-collapsed'); return; }
+      const collapsed = sr.bottom <= panel.getBoundingClientRect().top + 12;
       panel.classList.toggle('plug-collapsed', collapsed);
-    }
+    };
+    collapseUpdaters[panelId] = update;
     panel.addEventListener('scroll', update, { passive: true });
     update();
-  })();
+  }
+  for (const s of TAP_SURFACES) setupScrollCollapse(s.panel, s.sentinel);
 
   // tabs (bottom nav) — also driven programmatically by world switching
   function activateTab(name, silent) {
@@ -2726,6 +2780,10 @@
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     panel.classList.add('active');
+    // Recompute the collapse state for the freshly-shown panel (its scroll
+    // position is preserved across tab switches; a tap panel must not show its
+    // compact bar at the top, nor hide it if it was left scrolled).
+    if (collapseUpdaters['p-' + name]) collapseUpdaters['p-' + name]();
     if (!silent) blip(520, 0.03);
     if (name === 'goals') renderGoals();
     else if (name === 'up') renderUpgrades();
@@ -2804,6 +2862,18 @@
     });
   });
 
+  // Frame-rate cap: a value cycler (15 → 30 → 60), not a boolean, so it's wired
+  // on its own. The render loop reads state.settings.fps live, so no restart needed.
+  const FPS_OPTIONS = [15, 30, 60];
+  const fpsBtn = document.getElementById('fpsBtn');
+  if (fpsBtn) fpsBtn.addEventListener('click', () => {
+    const i = FPS_OPTIONS.indexOf(state.settings.fps || 30);
+    state.settings.fps = FPS_OPTIONS[(i + 1) % FPS_OPTIONS.length];
+    fpsBtn.textContent = state.settings.fps + ' FPS';
+    blip(520, 0.03);
+    save();
+  });
+
   // close modal by tapping the backdrop
   el.modal.addEventListener('click', (e) => { if (e.target === el.modal) hideModal(); });
 
@@ -2819,7 +2889,10 @@
   });
 
   // save on hide / unload
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { save(); pauseLoop(); }   // stop repainting + slow the sim when hidden
+    else resumeLoop();
+  });
   window.addEventListener('pagehide', save);
   window.addEventListener('beforeunload', save);
 
@@ -2964,18 +3037,56 @@
     autoBuyUpgrades();    // Auto-Upgrader core upgrade
     autoBuyWeaponsTick(); // Auto-Arsenal storm upgrade (weapons)
     autoBuyZapUpgrades(); // Auto-Tinker storm upgrade (zap upgrades)
-    if (activeWorld() === 'volt' && tickCount % 2 === 0) renderSlayerLite();
     checkChallenge();
-    renderBuffs();            // count down / clear expired surge buffs
     checkAchievements();      // catches threshold (watts/time) unlocks
+    // No rendering here — the screen is repainted by the rAF render loop below,
+    // decoupled from this fixed-rate sim so it can be frame-capped and paused.
+  }
+
+  /* ---------- Render loop (decoupled from the sim) ---------- */
+  // Rendering runs on requestAnimationFrame, capped at the player's chosen frame
+  // rate. rAF auto-pauses when the tab/app is hidden, so nothing repaints in the
+  // background (the big battery win), and the cap stops high-refresh phones from
+  // repainting at 120/144Hz. Slow-changing UI (shop affordability, tab dots, goal
+  // bars) refreshes at ~6Hz regardless of the cap.
+  let rafId = 0, rendering = false, lastRender = 0, lastHeavy = 0;
+  const pGoals = document.getElementById('p-goals');
+  function renderFrame(ts) {
+    if (!rendering) return;
+    rafId = requestAnimationFrame(renderFrame);
+    const minGap = 1000 / (state.settings.fps || 30);
+    if (ts - lastRender < minGap) return;             // frame-rate cap
+    lastRender = ts;
     renderStatsLite();
-    refreshAffordability();
-    updateTabDots();
-    // Live-refresh the Goals tab's progress bars while it's open (~2x/sec).
-    if (tickCount % 5 === 0 && document.getElementById('p-goals').classList.contains('active')) {
-      renderGoals();
+    renderBuffs();                                     // count down / clear expired surge buffs
+    if (activeWorld() === 'volt') renderSlayerLite();
+    if (ts - lastHeavy >= 160) {                       // ~6Hz: affordability / dots / goal bars
+      lastHeavy = ts;
+      refreshAffordability();
+      updateTabDots();
+      if (pGoals && pGoals.classList.contains('active')) renderGoals();
     }
   }
+  function startRender() {
+    if (rendering) return;
+    rendering = true; lastRender = 0; lastHeavy = 0;
+    rafId = requestAnimationFrame(renderFrame);
+  }
+  function stopRender() {
+    rendering = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+  }
+
+  // The fixed-rate sim stays on setInterval; throttle it to 1Hz while hidden
+  // (native WebViews don't throttle background timers like browsers do) and
+  // restore full rate on resume. The tick's dt keeps earnings correct either way.
+  let simTimer = 0;
+  function setSimRate(ms) {
+    if (simTimer) clearInterval(simTimer);
+    simTimer = setInterval(tick, ms);
+  }
+  function pauseLoop() { setSimRate(1000); stopRender(); }
+  function resumeLoop() { setSimRate(TICK_MS); startRender(); }
 
   /* ---------- Boot ---------- */
   (async function boot() {
@@ -3001,7 +3112,7 @@
     updateStorageStatus();
     checkAchievements();  // award anything already satisfied by the loaded save
     lastTick = Date.now(); // don't count the async load time as idle earnings
-    setInterval(tick, TICK_MS);
+    resumeLoop();          // start the fixed-rate sim (10Hz) + the rAF render loop
     setInterval(save, SAVE_EVERY_MS);
     scheduleSurge();      // begin the power-surge cadence
   })();
@@ -3025,8 +3136,8 @@
     try {
       // Offline-cap reminder: schedule on background, cancel when the app returns.
       App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) cancelOfflineNotif();
-        else scheduleOfflineNotif();
+        if (isActive) { cancelOfflineNotif(); resumeLoop(); }
+        else { scheduleOfflineNotif(); pauseLoop(); }
       });
     } catch (e) { /* ignore */ }
   }

@@ -105,15 +105,16 @@ body.noanim .buff-bar.animate .buff-track{ animation:none; }
 main{ flex:1; overflow:hidden; display:flex; }
 .panel{ display:none; width:100%; }
 .panel.active{ display:flex; flex-direction:column; flex:1; min-height:0; width:100%; padding:10px 10px 0; }
-#p-up.active, #p-goals.active, #p-more.active, #p-plug.active{ overflow-y:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
-/* #p-plug scrolls as a whole now (big socket scrolls away, the toolbar pins);
-   the cord list is plain flow content, not its own scroll container. */
-#cordlist{ min-height:0; }
-/* No top padding on the Plug panel so the sticky toolbar (tap bar + bulk bar)
-   pins flush to the top of the scroll area — no sliver above it. The socket-wrap
-   carries the top breathing room instead, as scroll content. */
-#p-plug.active{ padding-top:0; }
-#p-plug .socket-wrap{ margin-top:8px; }
+#p-up.active, #p-goals.active, #p-more.active, #p-plug.active,
+#p-zap.active, #p-arsenal.active{ overflow-y:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
+/* #p-plug / #p-zap scroll as a whole (the big tap button scrolls away, the toolbar
+   pins); the cord / weapon list is plain flow content, not its own scroll container. */
+#cordlist, #weaponlist{ min-height:0; }
+/* No top padding on the tap panels so the sticky toolbar pins flush to the top of
+   the scroll area — no sliver above it. The hero (socket-wrap / arena) carries the
+   top breathing room instead, as scroll content. */
+#p-plug.active, #p-zap.active{ padding-top:0; }
+#p-plug .socket-wrap, #p-zap .arena{ margin-top:8px; }
 main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ background:var(--line2); border-radius:3px; }
 
 /* ---------- Socket (PLUG tab) ---------- */
@@ -220,7 +221,8 @@ main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ backgroun
    (display:none — reserves no space) until #p-plug collapses, then it appears and
    fades in. The toolbar is the sticky element — this one is not separately sticky. */
 .plug-taptab{ position:relative; top:auto; padding:17px; margin-bottom:9px; display:none; }
-#p-plug.plug-collapsed .plug-taptab{ display:block; animation:plugBarIn .2s ease; }
+/* Generic: any scroll-collapse panel (Plug or Zap) reveals its compact bar. */
+.plug-collapsed .plug-taptab{ display:block; animation:plugBarIn .2s ease; }
 @keyframes plugBarIn{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:none; } }
 body.noanim .plug-taptab{ animation:none; }
 
@@ -634,6 +636,12 @@ body.noanim .enemy-btn.zapped .enemy-emoji{ animation:none; }
     border-right: 1px solid var(--line2); padding: 24px;
   }
   #p-zap .sectitle { grid-area: title; margin: 16px 22px 4px; }
+  /* The big enemy button stays visible on tablet, so the phone collapse rig is
+     dormant: no sentinel, the compact bar stays hidden, and the (bulk-less) zap
+     toolbar is removed entirely so it can't claim a grid row. Mirrors #p-plug. */
+  #p-zap .plug-sentinel { display: none; }
+  #p-zap.active .plug-taptab { display: none; }
+  #p-zap .plug-toolbar { display: none; }
   #weaponlist {
     grid-area: list; padding: 0 22px 18px;
     display: grid; grid-template-columns: 1fr 1fr; gap: 9px;
