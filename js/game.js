@@ -1458,7 +1458,11 @@
       if (next) parts.push(`next ×1.5 @ ${fmtInt(next)} taps (${fmtInt(state.clicks)})`);
       el.tapinfo.textContent = parts.join(' · ');
     }
-    if (el.autotapBadge) el.autotapBadge.hidden = autoTapRate() <= 0;
+    if (el.autotapBadge) {
+      const tapRate = autoTapRate();
+      el.autotapBadge.hidden = tapRate <= 0;
+      el.autotapBadge.textContent = `🤖 AUTO-TAPPER · ${tapRate}/s`;
+    }
     el.coresline.textContent = (state.coresEarned || 0) > 0
       ? `◆ ${fmtInt(state.cores)} · +${lifetimeBonusPct()}%` : '';
     el.statTotal.textContent = fmt(state.totalEarned);
