@@ -158,6 +158,29 @@ check('save: roundtrip keeps wormhole', round.wormhole === true);
 check('save: roundtrip keeps weapons', round.slayer.weapons.glove === 1);
 check('save: legacy save gets slayer backfilled', T.normalizeState({ watts: 5 }).slayer.wave === 1);
 
+// Update safety: a save carrying purchases (cords, upgrades, core/prestige
+// upgrades, IAP entitlements) must survive normalizeState + a JSON roundtrip with
+// EVERY entitlement intact — the guarantee that shipping an update never wipes a
+// player's owned content. prestigeV:2 marks it a current save (no legacy rebase).
+{
+  const buy = {
+    prestigeV: 2,
+    owned: { usba: 42, hdmi: 7, quantum: 1 },
+    upgrades: { u_click1: true, u_usba: true, syn1: true },
+    coreUpgrades: { autotap: true, autotap20: true, thumbs: true },
+    iap: { supporter_pack: true, theme_pack_phosphor: true },
+    cores: 9, coresEarned: 50,
+  };
+  const after = T.normalizeState(JSON.parse(JSON.stringify(buy)));
+  check('update-safety: owned cords preserved', after.owned.usba === 42 && after.owned.hdmi === 7 && after.owned.quantum === 1);
+  check('update-safety: upgrades preserved', !!(after.upgrades.u_click1 && after.upgrades.u_usba && after.upgrades.syn1));
+  check('update-safety: core (prestige) upgrades preserved', !!(after.coreUpgrades.autotap && after.coreUpgrades.autotap20 && after.coreUpgrades.thumbs));
+  check('update-safety: IAP entitlements preserved', !!(after.iap.supporter_pack && after.iap.theme_pack_phosphor));
+  check('update-safety: cores preserved', after.cores === 9 && after.coresEarned === 50);
+  // A future defaultState() field must NOT clobber a save's ownership maps:
+  check('update-safety: ownership map not reset by defaults merge', T.normalizeState({ prestigeV: 2, owned: { onlyone: 3 } }).owned.onlyone === 3);
+}
+
 // Stage 1 — new slayer reincarnation fields backfill on legacy/imported saves
 const sl0 = T.normalizeState({ watts: 5 }).slayer;
 check('migrate: runVolts backfilled to 0', sl0.runVolts === 0);
