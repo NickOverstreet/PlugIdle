@@ -165,7 +165,7 @@
     { id: 'minimalist', icon: '🧘', name: 'MINIMALIST',   world: 'grid', rule: 'Upgrades cannot be bought.',                goal: 5e9,  reward: 'PREWIRED — runs start with Reinforced Thumbs owned.' },
     { id: 'darkgrid',   icon: '🌑', name: 'DARK GRID',    world: 'grid', rule: 'Power surges never appear.',                goal: 1e10, reward: 'SURGE BEACON — surges arrive 20% sooner.' },
     { id: 'overpriced', icon: '💸', name: 'OVERPRICED',   world: 'grid', rule: 'Cord costs grow 18% per buy (not 12%).',    goal: 1e11, reward: 'WHOLESALE — all cords cost 3% less.' },
-    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     world: 'grid', rule: 'All production halved.',                    goal: 1e12, reward: 'AUTO-PLUGGER — auto-buys cords for you, fast (toggle in Settings).' },
+    { id: 'brownout',   icon: '🕯️', name: 'BROWNOUT',     world: 'grid', rule: 'All production halved.',                    goal: 1e12, reward: '2× PRESTIGE CORES — double the cores you earn on every recycle.' },
     // Voltlands challenges (world:'volt'). Goals are runVolts thresholds; perks are
     // permanent and applied in their respective rule sites / applyReincarnatePerks.
     { id: 'bareknuckle', icon: '✊', name: 'BARE KNUCKLES', world: 'volt', rule: 'Only the Static Glove can be bought.',   goal: 1e3, reward: 'KNUCKLE BUSTER — Static Glove zaps ×5, forever.' },
@@ -489,6 +489,7 @@
     if (co('fission')) m *= 5;
     if (co('cascade')) m *= 25;
     if (co('singular2')) m *= 100;
+    if (chDone('brownout')) m *= 2;   // BROWNOUT challenge perk: 2× prestige core production
     return m;
   }
   function autoTapRate() {
@@ -1606,7 +1607,7 @@
     // Automation toggles appear only once owned AND in their own world.
     const volt = activeWorld() === 'volt';
     const abRow = document.getElementById('autobuyRow');
-    if (abRow) abRow.hidden = volt || !(co('autobuy') || chDone('brownout'));
+    if (abRow) abRow.hidden = volt || !co('autobuy');
     const auRow = document.getElementById('autoupgRow');
     if (auRow) auRow.hidden = volt || !co('autoupg');
     const arRow = document.getElementById('autoArsenalRow');
@@ -2739,21 +2740,21 @@
   }
 
   /* ---------- Main loop ---------- */
-  // Auto-buy is available from the Auto-Buyer core upgrade or the BROWNOUT
-  // challenge perk, and runs while its Settings toggle is on (default on).
+  // Auto-buy is unlocked by the Auto-Buyer core upgrade, and runs while its
+  // Settings toggle is on (default on).
   function autoBuyActive() {
-    return (co('autobuy') || chDone('brownout')) && state.settings.world.grid.autobuyOn;
+    return co('autobuy') && state.settings.world.grid.autobuyOn;
   }
 
   // AUTO-BUYER: buys the CHEAPEST cords first. Each tick it makes a single pass
   // up the list (cheapest → most expensive), grabbing a batch of every unlocked,
-  // affordable cord, so spare watts cascade up to pricier tiers. Skips the
-  // Ouroboros Cord (wps 0) so it never starves production. Silent — no
-  // sounds/toasts; milestone fanfare stays manual.
+  // affordable cord, so spare watts cascade up to pricier tiers — including the
+  // Ouroboros Cord (core-gain), which sits last so it only soaks up spare watts
+  // after the producing cords. Silent — no sounds/toasts; milestones stay manual.
   const AUTO_BUY_PER_CORD = 25;     // cords per tier, per tick
   const AUTO_ZAP_RATE = 5;          // Auto-Zapper: tap-zaps per second
   function autoBuyAllowed(cord, i) {
-    if (cord.wps <= 0) return false;                           // skip non-producing cords
+    if (cord.wps <= 0 && !cord.coreGain) return false;        // skip non-producing cords, but allow Ouroboros (core-gain)
     if (ch('grid') === 'solo' && cord.id !== 'usba') return false;   // SOLO CIRCUIT: USB-A only
     const owned = state.owned[cord.id] || 0;
     const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
@@ -2866,7 +2867,7 @@
     if (gain > 0) gainWatts(gain);
     slayerTick(dt);           // both economies always tick (parallel worlds)
     tickCount++;
-    autoBuyTick();        // fast cord auto-buyer (Auto-Buyer core / BROWNOUT perk)
+    autoBuyTick();        // fast cord auto-buyer (Auto-Buyer core upgrade)
     autoBuyUpgrades();    // Auto-Upgrader core upgrade
     autoBuyWeaponsTick(); // Auto-Arsenal storm upgrade (weapons)
     autoBuyZapUpgrades(); // Auto-Tinker storm upgrade (zap upgrades)

@@ -729,7 +729,20 @@ S().settings.world.grid.autobuyOn = true;
 S().owned = { genesis: 1 };       // unlocks ouro (its previous cord)
 S().watts = 1e40;                 // more than enough to afford ouro
 T.autoBuyTick();
-check('autobuy: never buys the core-gain cord', (S().owned[ouro.id] || 0) === 0);
+check('autobuy: buys the core-gain cord (Ouroboros)', (S().owned[ouro.id] || 0) > 0);
+
+// BROWNOUT challenge reward is now 2× prestige core production (was the auto-buyer)
+S().coreUpgrades = {}; S().challengesDone = {}; S().owned = {}; S().totalEarned = 1e30; S().coresEarned = 0;
+const gainNoBrown = T.prestigeGain();
+S().challengesDone = { brownout: true };
+const gainBrown = T.prestigeGain();
+check('brownout reward: ~2x prestige cores', gainBrown >= gainNoBrown * 2 && gainBrown <= gainNoBrown * 2 + 1);
+// BROWNOUT no longer unlocks the auto-buyer
+S().coreUpgrades = {}; S().challengesDone = { brownout: true };
+S().owned = { usba: 1 }; S().watts = 1e40; S().settings.world.grid.autobuyOn = true;
+const usbaBefore = S().owned.usba;
+T.autoBuyTick();
+check('brownout no longer unlocks auto-buyer', S().owned.usba === usbaBefore);
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
