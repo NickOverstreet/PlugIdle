@@ -194,7 +194,10 @@ bosses, two-way travel, cross-world synergy buffs, 8 achievements).
 
 Remaining backlog, roughly in order:
 
-- **v1.1 — Retention:** push-notification opt-in ("your rig is at the offline cap").
+- **v1.1 — Retention:** ✅ **push-notification opt-in implemented** — an opt-in local
+  notification ("your rig is at the offline cap") via `@capacitor/local-notifications`,
+  scheduled when the app backgrounds and cancelled on resume; a native-only Settings
+  toggle gates it (permission requested on enable). Needs a real-device/TestFlight test.
 - **v1.2 — Content:** more challenges, another cord wave, Voltlands depth
   (its own prestige loop, weapon evolutions, named elite enemies).
 - **v1.3 — Social:** Google Play Games Services — achievements, leaderboards

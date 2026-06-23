@@ -386,7 +386,7 @@
     // Device prefs stay top-level/global. Automation toggles are per-world; merge
     // the nested `world` object so partial saves don't drop the volt subtree.
     const savedSettings = s.settings || {};
-    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true }, savedSettings);
+    s.settings = Object.assign({ sound: true, floats: true, sci: false, haptics: true, notify: false }, savedSettings);
     s.settings.world = {
       grid: Object.assign({ autobuyOn: true, autoupgOn: true }, (savedSettings.world && savedSettings.world.grid) || {}),
       volt: Object.assign({ autobuyOn: true, autoupgOn: true, autoclickOn: true }, (savedSettings.world && savedSettings.world.volt) || {}),
@@ -435,6 +435,53 @@
   function coreProdMult() { let m = 1; if (co('phantom')) m *= 1.5; if (co('overdrive')) m *= 2; return m; }
   function offlineCapMs() { return (24 + (co('battery') ? 24 : 0)) * 3600000; }
   function offlineEff() { return co('nightshift') ? 0.75 : 0.5; }
+
+  /* ---------- Offline-cap reminder notification (opt-in, native only) ---------- */
+  // One local notification fired when offline earnings reach the cap — scheduled
+  // when the app is backgrounded, cancelled when it returns. Web: no plugin, no-op.
+  const LocalNotifications = window.Capacitor?.isNativePlatform?.()
+    ? (window.Capacitor?.Plugins?.LocalNotifications || null) : null;
+  const OFFLINE_NOTIF_ID = 1;
+
+  async function cancelOfflineNotif() {
+    if (!LocalNotifications) return;
+    try { await LocalNotifications.cancel({ notifications: [{ id: OFFLINE_NOTIF_ID }] }); } catch (e) {}
+  }
+  async function scheduleOfflineNotif() {
+    if (!LocalNotifications || !state.settings.notify) return;
+    const fireAt = (state.lastSeen || Date.now()) + offlineCapMs();
+    if (fireAt <= Date.now() + 60000) return;   // already at/near the cap — nothing to remind about
+    try {
+      await cancelOfflineNotif();
+      await LocalNotifications.schedule({ notifications: [{
+        id: OFFLINE_NOTIF_ID,
+        title: 'PlugIdle',
+        body: '⚡ Your rig is at the offline cap — come collect your watts!',
+        schedule: { at: new Date(fireAt) },
+      }] });
+    } catch (e) { /* notifications unavailable */ }
+  }
+  // Settings toggle: request OS permission when enabling (never silently "on"
+  // without it); cancel any pending reminder when disabling.
+  async function toggleNotify() {
+    if (state.settings.notify) {
+      state.settings.notify = false;
+      cancelOfflineNotif();
+    } else {
+      let granted = false;
+      if (LocalNotifications) {
+        try {
+          let p = await LocalNotifications.checkPermissions();
+          if (p.display !== 'granted') p = await LocalNotifications.requestPermissions();
+          granted = p.display === 'granted';
+        } catch (e) { granted = false; }
+      }
+      state.settings.notify = granted;
+      if (!granted) toast('🔔 Allow notifications in system settings to enable this');
+    }
+    syncSettingsUI();
+    save();
+  }
   function surgeDelayMult() { return co('magnet') ? 0.6 : 1; }
   function surgeRewardMult() { return co('megasurge') ? 2 : 1; }
   function prestigeGainMult() {
@@ -453,12 +500,12 @@
     if (co('autotap')) return 5;
     return 0;
   }
-  // Ouroboros Cord (and any future coreGain cord) multiplies prestige core
-  // gain by +coreGain per owned, capped at ×2 so it can never run away.
+  // Ouroboros Cord (and any future coreGain cord) multiplies prestige core gain
+  // by +coreGain per owned, uncapped — the steep cord cost curve self-limits it.
   function coreCordGainMult() {
     let bonus = 0;
     for (const c of CORDS) if (c.coreGain) bonus += c.coreGain * (state.owned[c.id] || 0);
-    return 1 + Math.min(bonus, 1);
+    return 1 + bonus;
   }
   function prestigeKeepFrac() { return co('jumpstart') ? 0.05 : 0; }
   function lifetimeBonusPct() { return Math.round((prestigeMult() - 1) * 100); }
@@ -1254,7 +1301,7 @@
       const can = state.watts >= cost;
       // Core-gain cord (Ouroboros): boosts prestige cores instead of watts.
       if (cord.coreGain) {
-        const totalPct = Math.min(cord.coreGain * owned, 1) * 100;   // matches the ×2 cap
+        const totalPct = cord.coreGain * owned * 100;   // uncapped — scales with ownership
         html += `
         <button class="card buyable" data-cord="${cord.id}">
           <div class="ico">${cord.icon}</div>
@@ -1319,7 +1366,7 @@
       n.cost.textContent = fmt(cost) + ' W';
       n.cost.className = 'cost ' + (state.watts >= cost ? 'ok' : 'no');
       if (cord.coreGain) {
-        const totalPct = Math.min(cord.coreGain * owned, 1) * 100;
+        const totalPct = cord.coreGain * owned * 100;
         n.mnote.textContent = `+${fmt(totalPct)}% ◆`;
         return;
       }
@@ -1535,6 +1582,7 @@
     return k === 'sound' ? state.settings.sound
          : k === 'haptic' ? state.settings.haptics
          : k === 'anim' ? state.settings.floats
+         : k === 'notify' ? state.settings.notify
          : state.settings.sci;
   }
 
@@ -1558,6 +1606,8 @@
     if (tiRow) tiRow.hidden = !volt || !su('autotinker');
     const acRow = document.getElementById('autoclickRow');
     if (acRow) acRow.hidden = !volt || !(su('autozap') || chDone('staticcling'));
+    const nRow = document.getElementById('notifyRow');   // notifications: native only
+    if (nRow) nRow.hidden = !LocalNotifications;
     document.body.classList.toggle('noanim', !state.settings.floats);
   }
 
@@ -2643,6 +2693,7 @@
       else if (k === 'sound') state.settings.sound = !state.settings.sound;
       else if (k === 'haptic') { state.settings.haptics = !state.settings.haptics; if (state.settings.haptics) buzz(20); }
       else if (k === 'anim') state.settings.floats = !state.settings.floats;
+      else if (k === 'notify') { toggleNotify(); return; }   // async permission flow handles sync + save
       else state.settings.sci = !state.settings.sci;
       syncSettingsUI();
       renderStatsLite();
@@ -2867,6 +2918,13 @@
       App.addListener('backButton', ({ canGoBack }) => {
         if (canGoBack) window.history.back();
         else { save(); App.minimizeApp(); }
+      });
+    } catch (e) { /* ignore */ }
+    try {
+      // Offline-cap reminder: schedule on background, cancel when the app returns.
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) cancelOfflineNotif();
+        else scheduleOfflineNotif();
       });
     } catch (e) { /* ignore */ }
   }
