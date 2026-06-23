@@ -79,7 +79,7 @@ const hook = `
     reincarnate, reincarnateGain, shardMult, sl, su, killEnemy,
     STORM_UPGRADES, buyStormUpgrade,
     autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
-    ch, chDone, startChallenge, checkChallenge, abandonChallenge,
+    ch, chDone, startChallenge, beginChallenge, checkChallenge, abandonChallenge, restoreChallengeBackup,
     weaponCost, enemyHp, voltReward, weaponMultiplier, applyReincarnatePerks,
     renderMoreGating, syncSettingsUI, applyWorld, co,
   };
@@ -127,6 +127,12 @@ check('combat: boss killed', S().slayer.bosses >= 1);
 check('combat: boss achievement', !!S().achievements.boss1);
 check('synergy: bossWattsMult > 1', T.bossWattsMult() > 1);
 check('combat: wave advanced past 10', S().slayer.wave >= 11);
+
+// balance: volt income should track the grid's pace. reward/HP ratio must be FLAT
+// across waves (no compounding decay) and sit a touch under World 1 (~0.9× per ZPS).
+const voltRatio = (w) => T.voltReward(w) / T.enemyHp(w);
+check('balance: volt reward/HP ratio ~0.8 (a bit under grid)', Math.abs(voltRatio(3) - 0.8) < 1e-6);
+check('balance: volt income ratio flat across waves (no decay)', Math.abs(voltRatio(3) - voltRatio(53)) < 1e-6);
 
 // weapon purchase
 S().slayer.volts = 1e6;
@@ -575,6 +581,60 @@ check('migrate: new save has both challenge slots', (() => { const c = T.normali
     while (sR.kills === kills0 && g-- > 0) T.applyZapDamage(T.totalZps());
     check('softlock: NUMB FINGERS run can score a kill (no softlock)', sR.kills > kills0);
     S().challenges.volt = '';
+  }
+
+  // challenge sandboxing: starting a challenge snapshots the run; finishing OR
+  // abandoning restores it, so the player never loses what they had already bought.
+  {
+    // ----- volt: abandon path -----
+    S().world = 'volt';
+    S().challenges = { grid: '', volt: '' };
+    S().challengeBackup = { grid: null, volt: null };
+    S().challengesDone = JSON.parse(JSON.stringify(doneSave));
+    sR.weapons = { glove: 7, tongs: 3 }; sR.upgrades = { z_zap1: true };
+    sR.volts = 555; sR.runVolts = 555; sR.wave = 14; sR.killsThisWave = 4;
+    T.beginChallenge(T.CHALLENGES.find((c) => c.id === 'bareknuckle'));
+    check('restore: starting a volt challenge clears the run', Object.keys(sR.weapons).length === 0 && sR.wave === 1);
+    check('restore: volt run snapshotted on start', !!S().challengeBackup.volt);
+    sR.weapons.glove = 99;   // "bought" inside the challenge — must vanish on restore
+    T.abandonChallenge();
+    check('restore: abandoning a volt challenge restores weapons', sR.weapons.glove === 7 && sR.weapons.tongs === 3);
+    check('restore: abandoning a volt challenge restores upgrades & wave', sR.upgrades.z_zap1 === true && sR.wave === 14);
+    check('restore: volt backup cleared after restore', !S().challengeBackup.volt);
+
+    // ----- volt: completion path (perk kept, run returned) -----
+    sR.weapons = { glove: 5 }; sR.upgrades = {}; sR.wave = 9;
+    const scl = T.CHALLENGES.find((c) => c.id === 'staticcling');
+    T.beginChallenge(scl);
+    sR.runVolts = scl.goal;
+    T.checkChallenge();
+    check('restore: completing a volt challenge grants the perk', !!S().challengesDone.staticcling);
+    check('restore: completing a volt challenge restores the run',
+      sR.weapons.glove === 5 && sR.wave === 9 && !S().challengeBackup.volt);
+
+    // ----- grid (beginChallenge reassigns state; the hook getter tracks it) -----
+    const pre = {
+      owned: JSON.parse(JSON.stringify(S().owned || {})), upgrades: JSON.parse(JSON.stringify(S().upgrades || {})),
+      watts: S().watts, totalEarned: S().totalEarned, clicks: S().clicks,
+    };
+    S().world = 'grid';
+    S().challenges = { grid: '', volt: '' };
+    S().challengeBackup = { grid: null, volt: null };
+    S().challengesDone = JSON.parse(JSON.stringify(doneSave));
+    S().owned = { usba: 12, jack: 4 }; S().upgrades = { u_click1: true };
+    S().watts = 7777; S().totalEarned = 9999; S().clicks = 321;
+    T.beginChallenge(T.CHALLENGES.find((c) => c.id === 'solo'));
+    check('restore: starting a grid challenge clears the run', !S().owned.jack && S().watts === 0);
+    check('restore: grid run snapshotted on start', !!S().challengeBackup.grid);
+    S().owned.jack = 50;   // "bought" inside the challenge — must vanish on restore
+    T.abandonChallenge();
+    check('restore: abandoning a grid challenge restores cords', S().owned.usba === 12 && S().owned.jack === 4);
+    check('restore: abandoning a grid challenge restores upgrades, watts & clicks',
+      S().upgrades.u_click1 === true && S().watts === 7777 && S().clicks === 321);
+    check('restore: grid backup cleared after restore', !S().challengeBackup.grid);
+    // put the grid run back the way the rest of the run expects it
+    S().owned = pre.owned; S().upgrades = pre.upgrades;
+    S().watts = pre.watts; S().totalEarned = pre.totalEarned; S().clicks = pre.clicks;
   }
 
   // restore

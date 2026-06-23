@@ -328,9 +328,10 @@
     startedAt: Date.now(),
     lastSeen: Date.now(),
     settings: { sound: true, floats: true, sci: false, haptics: true, world: { grid: { autobuyOn: true, autoupgOn: true }, volt: { autobuyOn: true, autoupgOn: true, autoclickOn: true } } },
-    bulk: 1,             // 1, 10, 100, or 'max'
+    bulk: 1,             // 1, 5, 10, or 'max'
     prestigeV: 2,        // prestige-curve schema (v2 = cbrt gain + softcap)
     challenges: { grid: '', volt: '' },  // active challenge id per world (cleared by completion/abandon/prestige)
+    challengeBackup: { grid: null, volt: null },  // pre-challenge run snapshot per world, restored on finish/abandon
     challengesDone: {},  // challengeId -> true (permanent perks)
     streak: 0,           // daily check-in streak (48h forgiveness window)
     streakAt: 0,         // ms timestamp of the last streak claim
@@ -403,6 +404,9 @@
     delete s.challenge;
     if (!hadCoresEarned) s.coresEarned = s.cores || 0;
     if (s.coreUpgrades == null) s.coreUpgrades = {};
+    if (s.challengeBackup == null || typeof s.challengeBackup !== 'object') s.challengeBackup = { grid: null, volt: null };
+    // Bulk buttons are now 1/5/10/max; clamp a legacy 100 (or any junk) to a valid step.
+    if (s.bulk !== 'max' && s.bulk !== 1 && s.bulk !== 5 && s.bulk !== 10) s.bulk = 10;
     if (s.iap == null) s.iap = {};
     if (s.adUses == null) s.adUses = {};
     if (s.challengesDone == null) s.challengesDone = {};
@@ -1298,7 +1302,7 @@
   function renderCords() {
     // Bulk-buy buttons live in the sticky toolbar (#bulkBar), separate from the
     // scrolling cord list, so they stay reachable when scrolled to the bottom.
-    el.bulkBar.innerHTML = [1, 10, 100, 'max'].map(b =>
+    el.bulkBar.innerHTML = [1, 5, 10, 'max'].map(b =>
       `<button class="bulk-btn ${state.bulk === b ? 'active' : ''}" data-bulk="${b}">${b === 'max' ? 'MAX' : 'x' + b}</button>`
     ).join('');
 
@@ -1449,8 +1453,11 @@
       const bought = !!state.coreUpgrades[cu.id];
       const can = !bought && (state.cores || 0) >= cu.cost;
       const cls = bought ? 'bought' : can ? 'ok' : 'no';
+      // The "???" upgrade (the Voltlands unlock) is the endgame goal — render it as
+      // a full-width, glowing banner while it's still locked so it stands out.
+      const mystery = cu.id === 'mystery' && !bought ? ' mystery' : '';
       html += `
-        <button class="upg core ${cls}" data-core="${cu.id}">
+        <button class="upg core ${cls}${mystery}" data-core="${cu.id}">
           <div class="un">${cu.icon} ${cu.name}</div>
           <div class="ud">${cu.desc}</div>
           <div class="uc">${bought ? '✓ OWNED' : '◆ ' + fmt(cu.cost)}</div>
@@ -1522,8 +1529,16 @@
       el.autotapBadge.hidden = tapRate <= 0;
       el.autotapBadge.textContent = `🤖 AUTO-TAPPER · ${tapRate}/s`;
     }
-    el.coresline.textContent = (state.coresEarned || 0) > 0
-      ? `◆ ${fmtInt(state.cores)} · +${lifetimeBonusPct()}%` : '';
+    // Header currency line: prestige cores on the grid, Storm Shards on the
+    // Voltlands (they replace cores there). fmt() keeps the count from overflowing
+    // when it grows and honors the scientific-notation setting.
+    if (volt) {
+      el.coresline.textContent = (sl().shardsEarned || 0) > 0
+        ? `⚡ ${fmt(sl().shards || 0)} · +${Math.round((shardMult() - 1) * 100)}%` : '';
+    } else {
+      el.coresline.textContent = (state.coresEarned || 0) > 0
+        ? `◆ ${fmt(state.cores)} · +${lifetimeBonusPct()}%` : '';
+    }
     el.statTotal.textContent = fmt(state.totalEarned);
     el.statClicks.textContent = fmtInt(state.clicks);
     el.statWps.textContent = fmt(wps);
@@ -1709,6 +1724,9 @@
       streak: state.streak, streakAt: state.streakAt,
       streakDay: state.streakDay, streakUntil: state.streakUntil,
       challengesDone: state.challengesDone,
+      // carried so a grid-challenge start (which rebuilds state wholesale) can't
+      // drop an in-flight volt-challenge snapshot; prestige resets it explicitly.
+      challengeBackup: state.challengeBackup,
       // the Voltlands are a parallel world — grid resets never touch them
       wormhole: state.wormhole, world: state.world,
       lifetimeEarned: state.lifetimeEarned, slayer: state.slayer,
@@ -1745,6 +1763,7 @@
         cores: (state.cores || 0) + gain,
         coresEarned: (state.coresEarned || 0) + gain,
       }));
+      state.challengeBackup = { grid: null, volt: null };   // recycling clears challenges; no run to restore
       state.watts = kept;
       buffs = [];
       syncBoostBuff();
@@ -1781,6 +1800,7 @@
     s.weapons = {};
     s.upgrades = {};
     state.challenges.volt = '';   // reincarnation clears the active volt challenge
+    if (state.challengeBackup) state.challengeBackup.volt = null;   // no run to restore — reincarnation already reset it
     applyReincarnatePerks();
     spawnEnemy();
     checkAchievements();
@@ -1823,6 +1843,75 @@
     spawnEnemy();
   }
 
+  // Restore the run that was snapshotted when a challenge started, so finishing or
+  // abandoning a challenge drops the player back exactly where they were instead of
+  // wiping everything they owned. Grid and volt keep different run-scoped fields.
+  function restoreChallengeBackup(w) {
+    const b = state.challengeBackup && state.challengeBackup[w];
+    if (!b) return false;
+    if (w === 'grid') {
+      state.watts = b.watts || 0;
+      state.totalEarned = b.totalEarned || 0;
+      state.clicks = b.clicks || 0;
+      state.owned = b.owned || {};
+      state.upgrades = b.upgrades || {};
+      if (b.bulk != null) state.bulk = b.bulk;
+      buffs = [];
+      syncBoostBuff();
+      syncStreakBuff();
+      applyRunStartPerks();
+    } else {
+      const s = sl();
+      s.volts = b.volts || 0;
+      s.runVolts = b.runVolts || 0;
+      s.wave = b.wave || 1;
+      s.killsThisWave = b.killsThisWave || 0;
+      s.weapons = b.weapons || {};
+      s.upgrades = b.upgrades || {};
+      applyReincarnatePerks();
+      spawnEnemy();
+    }
+    state.challengeBackup[w] = null;
+    return true;
+  }
+
+  // Begin a challenge: snapshot the current run, reset it for a clean attempt, and
+  // seed the softlock-avoidance starter. Split out of startChallenge so the reset
+  // is testable without driving the confirm modal.
+  function beginChallenge(c) {
+    const w = c.world || 'grid';
+    if (!state.challengeBackup) state.challengeBackup = { grid: null, volt: null };
+    if (w === 'volt') {
+      const s = sl();
+      const snap = {
+        volts: s.volts, runVolts: s.runVolts, wave: s.wave, killsThisWave: s.killsThisWave,
+        weapons: { ...s.weapons }, upgrades: { ...s.upgrades },
+      };
+      state.challenges.volt = c.id;
+      resetSlayerRun();
+      state.challengeBackup.volt = snap;
+      // NUMB FINGERS disables tap-zapping entirely — without a starter weapon the
+      // run could never deal its first damage (softlock).
+      if (c.id === 'numbfingers') sl().weapons.glove = Math.max(sl().weapons.glove || 0, 1);
+    } else {
+      const snap = {
+        watts: state.watts, totalEarned: state.totalEarned, clicks: state.clicks,
+        owned: { ...state.owned }, upgrades: { ...state.upgrades }, bulk: state.bulk,
+      };
+      state = Object.assign(defaultState(), carryState());
+      state.challenges.grid = c.id;
+      if (!state.challengeBackup) state.challengeBackup = { grid: null, volt: null };
+      state.challengeBackup.grid = snap;
+      buffs = [];
+      syncBoostBuff();
+      syncStreakBuff();
+      applyRunStartPerks();
+      // UNPLUGGED disables tapping entirely — without a starter cord the run
+      // could never earn its first watt (softlock).
+      if (c.id === 'unplugged') state.owned.usba = Math.max(state.owned.usba || 0, 1);
+    }
+  }
+
   function startChallenge(c) {
     const w = c.world || 'grid';
     if (ch(w)) { toast('Finish or abandon the current challenge first'); return; }
@@ -1831,29 +1920,13 @@
       <h2>${c.icon} ${c.name}</h2>
       <p class="dim">${c.rule}</p>
       <p>Goal: earn <b style="color:var(--amber)">${fmt(c.goal)} ${goalUnit}</b> in one run</p>
-      <p class="dim">Starts a fresh run like ${w === 'volt' ? 'reincarnating' : 'recycling'} (no ${w === 'volt' ? 'shards' : 'cores'} gained).<br>Reward: ${c.reward}</p>
+      <p class="dim">Starts a separate attempt run — your current progress is saved and restored when you finish or abandon. The challenge run grants no ${w === 'volt' ? 'shards' : 'cores'}.<br>Reward: ${c.reward}</p>
       <div class="row2" style="margin-top:14px">
         <button class="bigbtn" id="mYes">START</button>
         <button class="smbtn" id="mNo">CANCEL</button>
       </div>`);
     document.getElementById('mYes').addEventListener('click', () => {
-      if (w === 'volt') {
-        state.challenges.volt = c.id;
-        resetSlayerRun();
-        // NUMB FINGERS disables tap-zapping entirely — without a starter weapon the
-        // run could never deal its first damage (softlock).
-        if (c.id === 'numbfingers') sl().weapons.glove = Math.max(sl().weapons.glove || 0, 1);
-      } else {
-        state = Object.assign(defaultState(), carryState());
-        state.challenges.grid = c.id;
-        buffs = [];
-        syncBoostBuff();
-        syncStreakBuff();
-        applyRunStartPerks();
-        // UNPLUGGED disables tapping entirely — without a starter cord the run
-        // could never earn its first watt (softlock).
-        if (c.id === 'unplugged') state.owned.usba = Math.max(state.owned.usba || 0, 1);
-      }
+      beginChallenge(c);
       save();
       hideModal();
       blip(700, 0.16, 'sawtooth', 0.05);
@@ -1867,7 +1940,8 @@
     const w = activeWorld();
     if (!ch(w)) return;
     state.challenges[w] = '';
-    toast('Challenge abandoned — run continues normally');
+    restoreChallengeBackup(w);   // drop back to the pre-challenge run
+    toast('Challenge abandoned — your run was restored');
     save();
     renderAll();
   }
@@ -1885,6 +1959,7 @@
       if (progress < c.goal) continue;
       state.challengesDone[c.id] = true;
       state.challenges[w] = '';
+      restoreChallengeBackup(w);   // perk is permanent; the run returns to pre-challenge
       toast(`${c.icon} CHALLENGE COMPLETE! ${c.reward.split(' — ')[0]} unlocked`, true);
       blip(1320, 0.2, 'triangle', 0.06);
       buzz([0, 30, 50, 30, 50, 60]);
@@ -1979,7 +2054,12 @@
   function voltReward(wave) {
     const boss = isBossWave(wave);
     const slayerBonus = boss && chDone('suddendeath') ? 2 : 1;     // GIANT SLAYER perk
-    return Math.pow(1.19, wave - 1) * (boss ? 12 : 1) * slayerBonus;
+    // Reward tracks enemy HP growth (both 1.22^wave) so volt income per ZPS is
+    // FLAT across waves instead of decaying — that decay (old 1.19 reward vs 1.22
+    // HP) is what made the Voltlands crawl the deeper you pushed. The base of 8
+    // (vs HP base 10) puts a normal wave's volts/sec at ~0.8× the grid's watts/sec
+    // for the same production, so World 2 runs a bit slower than World 1, not 10×+.
+    return 8 * Math.pow(1.22, wave - 1) * (boss ? 12 : 1) * slayerBonus;
   }
 
   // ---- cross-world synergy ----
@@ -2590,6 +2670,13 @@
   bindTap(el.socketMini, plug); // tap button on the Upgrades tab
   bindTap(el.socketMiniPlug, plug); // compact tap bar on the Plug tab (shown when collapsed)
   if (el.enemyBtn) bindTap(el.enemyBtn, zapEnemy);
+
+  // Never zoom. The viewport meta (user-scalable=no, maximum-scale=1) kills both
+  // pinch- and double-tap-zoom in the Capacitor WKWebView, but iOS Safari ignores
+  // it for accessibility — so also cancel WebKit's pinch gesture events, which is
+  // what's left when the page runs as an installed PWA.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach((evt) =>
+    document.addEventListener(evt, (e) => e.preventDefault(), { passive: false }));
   if (el.worldBtn) el.worldBtn.addEventListener('click', switchWorld);
   delegateTap(el.weaponlist, 'data-weapon', (id) => buyWeapon(WEAPONS.find((w) => w.id === id)));
   delegateTap(el.zuplist, 'data-zupgrade', (id) => buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === id)));

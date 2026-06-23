@@ -247,6 +247,37 @@ body.noanim .plug-taptab{ animation:none; }
 .upg.core .uc{ color:var(--magenta); }
 .upg.core.no .uc{ color:var(--dim); }
 .upg.core.bought .uc{ color:var(--green); }
+/* The "???" upgrade — the endgame goal (unlocks the Voltlands). A full-width,
+   centered banner that pulses magenta↔cyan so it stands out as a prize, and
+   stays vivid even when it's still unaffordable. */
+.upg.core.mystery{
+  grid-column:1 / -1; opacity:1; text-align:center; align-items:center;
+  padding:18px 12px; gap:9px; position:relative; overflow:hidden;
+  border-color:var(--magenta);
+  background:linear-gradient(120deg,#1c0d22,var(--panel) 55%,#0c1a20);
+  animation:mysteryGlow 2.6s ease-in-out infinite;
+}
+.upg.core.mystery .un{
+  font-size:30px; letter-spacing:.22em; color:var(--magenta);
+  text-shadow:0 0 10px var(--magenta), 0 0 24px rgba(255,99,214,.5);
+  animation:mysteryFlicker 3.3s steps(1) infinite;
+}
+.upg.core.mystery .ud{ flex:none; color:var(--cyan); opacity:.85; letter-spacing:.05em; }
+.upg.core.mystery .uc{
+  font-size:20px; color:var(--amber); text-shadow:0 0 8px rgba(255,194,77,.5);
+}
+.upg.core.mystery.ok{ animation:mysteryGlowReady 1.1s ease-in-out infinite; }   /* affordable: it screams buy-me */
+@keyframes mysteryGlow{
+  0%,100%{ box-shadow:0 0 11px rgba(255,99,214,.28), inset 0 0 26px rgba(255,99,214,.06); }
+  50%{ box-shadow:0 0 22px rgba(84,220,255,.42), inset 0 0 32px rgba(84,220,255,.10); }
+}
+@keyframes mysteryGlowReady{
+  0%,100%{ box-shadow:0 0 16px rgba(255,99,214,.55); border-color:var(--magenta); }
+  50%{ box-shadow:0 0 32px rgba(255,99,214,.95); border-color:var(--cyan); }
+}
+@keyframes mysteryFlicker{ 0%,92%,100%{opacity:1} 94%{opacity:.5} 96%{opacity:.85} 98%{opacity:.6} }
+/* animations-off / reduced-motion: keep the banner bold but hold it still */
+body.noanim .upg.core.mystery, body.noanim .upg.core.mystery .un{ animation:none; }
 
 /* ---------- Goals / achievements ---------- */
 .goal{ display:flex; gap:11px; align-items:center; padding:11px 12px; margin-bottom:9px; background:var(--panel); border:1px solid var(--line2); border-radius:var(--r); }
