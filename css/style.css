@@ -496,3 +496,130 @@ body.noanim .enemy-btn.zapped .enemy-emoji{ animation:none; }
 #wormhole .wormtext p:nth-child(2){ animation-delay:1.6s; }
 #wormhole .wormtext p:nth-child(3){ animation-delay:2.8s; }
 @keyframes wormline{ to{ opacity:1; } }
+
+/* ============================================================
+   Tablet / landscape (>=820px): bottom tab bar becomes a left nav
+   rail, #app becomes a rail|header / rail|main grid, PLUG and ZAP
+   split into two panes, and the card lists go multi-column. CSS-only
+   and additive — below 820px the phone single-column UI is untouched.
+   Adapted to the current #p-plug markup (the plug-scroll redesign
+   added .plug-sentinel + a .plug-toolbar holding the bulk bar).
+   ============================================================ */
+@media (min-width: 820px) {
+
+  /* ---- Shell: rail + header + main as a grid ---- */
+  #app {
+    max-width: none; width: 100vw;
+    flex-direction: initial;          /* cancel the phone column flex */
+    display: grid;
+    grid-template-columns: 118px 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "rail header"
+      "rail main";
+    box-shadow: none;                 /* drop the phone "device" frame glow */
+  }
+  .topbar { grid-area: header; padding: 16px 26px; }
+  main    { grid-area: main; }
+
+  /* ---- Bottom tab bar -> left vertical rail ---- */
+  .tabbar {
+    grid-area: rail;
+    flex-direction: column; align-items: stretch;
+    border-top: none; border-right: 1px solid var(--line);
+    padding: 16px 11px; gap: 7px;
+  }
+  .tab { flex: none; min-height: 0; padding: 12px 0; border-radius: 12px; }
+  .tab.active { background: linear-gradient(rgba(70,240,122,.10), rgba(70,240,122,.02)); }
+  /* active indicator: left bar (reset the phone's top underline) */
+  .tab.active::before {
+    top: 24%; bottom: 24%; left: 0; right: auto;
+    width: 3px; height: auto; border-radius: 0 3px 3px 0;
+  }
+  .tab .ti { font-size: 23px; }
+  /* world-switch pinned to the bottom of the rail */
+  .worldswitch {
+    flex: none; margin-top: auto;
+    flex-direction: column; align-items: center; gap: 5px;
+    padding: 12px 0; border-radius: 12px;
+  }
+  /* affordability dots reposition for the rail */
+  .tdot { top: 7px; right: 26px; }
+
+  /* ---- PLUG: socket hero | (title / bulk bar / cord grid) ----
+     The big socket stays visible on tablet, so the phone collapse
+     machinery is dormant: hide the sentinel, drop the toolbar's sticky
+     styling, and the compact tap bar stays hidden (the panel doesn't
+     scroll here — #cordlist does). Bulk bar gets its own row. */
+  #p-plug.active {
+    display: grid;
+    grid-template-columns: 392px 1fr;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "socket title"
+      "socket bulk"
+      "socket list";
+    padding: 0; overflow: hidden;
+  }
+  #p-plug .socket-wrap {
+    grid-area: socket; justify-content: center;
+    border-right: 1px solid var(--line); padding: 24px;
+  }
+  #p-plug .sectitle { grid-area: title; margin: 16px 22px 4px; }
+  #p-plug .plug-sentinel { display: none; }
+  /* The big socket is always visible on tablet, so the phone compact tap bar is
+     never needed. Keep it hidden even if the now zero-size collapse sentinel trips
+     the scroll handler into adding .plug-collapsed. */
+  #p-plug.active .plug-taptab { display: none; }
+  #p-plug .plug-toolbar {
+    grid-area: bulk; position: static; background: none;
+    padding: 0 22px 4px; z-index: auto;
+  }
+  #cordlist {
+    grid-area: list; padding: 0 22px 18px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 9px;
+    align-content: start; overflow-y: auto; min-height: 0;
+  }
+  .socket-btn { width: 240px; height: 240px; }
+  .socket-svg { width: 138px; height: 138px; }
+
+  /* ---- ZAP: arena | weapon grid ---- */
+  #p-zap.active {
+    display: grid;
+    grid-template-columns: 452px 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "arena title"
+      "arena list";
+    padding: 0; overflow: hidden;
+  }
+  #p-zap .arena {
+    grid-area: arena; justify-content: center;
+    border-right: 1px solid var(--line2); padding: 24px;
+  }
+  #p-zap .sectitle { grid-area: title; margin: 16px 22px 4px; }
+  #weaponlist {
+    grid-area: list; padding: 0 22px 18px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 9px;
+    align-content: start; overflow-y: auto; min-height: 0;
+  }
+  .enemy-btn   { width: 236px; height: 236px; }
+  .enemy-emoji { font-size: 110px; }
+  .hpbar       { width: 80%; max-width: 420px; }
+
+  /* ---- UPGRADE / ARSENAL: 3-column grids ---- */
+  #p-up.active, #p-arsenal.active { padding: 18px 26px; }
+  #uplist, #zuplist { grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  /* "tap to plug" shortcut on the Upgrades page goes inline, top-right */
+  #p-up .taptab { align-self: flex-end; width: auto; padding: 14px 30px; margin-bottom: 14px; }
+
+  /* ---- GOALS: 2-column achievement grid (real container id is #goallist) ---- */
+  #p-goals.active { padding: 18px 26px; }
+  #goallist { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+
+  /* ---- MORE: two columns ---- */
+  #p-more.active {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    padding: 18px 26px; align-content: start;
+  }
+}
