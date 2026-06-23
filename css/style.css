@@ -109,6 +109,11 @@ main{ flex:1; overflow:hidden; display:flex; }
 /* #p-plug scrolls as a whole now (big socket scrolls away, the toolbar pins);
    the cord list is plain flow content, not its own scroll container. */
 #cordlist{ min-height:0; }
+/* No top padding on the Plug panel so the sticky toolbar (tap bar + bulk bar)
+   pins flush to the top of the scroll area — no sliver above it. The socket-wrap
+   carries the top breathing room instead, as scroll content. */
+#p-plug.active{ padding-top:0; }
+#p-plug .socket-wrap{ margin-top:8px; }
 main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ background:var(--line2); border-radius:3px; }
 
 /* ---------- Socket (PLUG tab) ---------- */
