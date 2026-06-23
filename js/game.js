@@ -884,13 +884,22 @@
     } catch (e) { /* audio blocked */ }
   }
 
-  /* ---------- Haptics (Vibration API) ----------
-     Progressive enhancement: unsupported on iOS Safari, where the audio +
-     visual feedback already covers it. Feature-detected and setting-gated. */
+  /* ---------- Haptics ----------
+     Native: the Capacitor Haptics plugin (real haptics on iOS + Android, where
+     the Vibration API is unsupported). Web: the Vibration API (Android only —
+     iOS Safari has no vibrate). Setting-gated. */
+  const Haptics = window.Capacitor?.isNativePlatform?.() ? (window.Capacitor?.Plugins?.Haptics || null) : null;
   const canVibrate = typeof navigator !== 'undefined' && 'vibrate' in navigator;
   function buzz(pattern) {
-    if (!state.settings.haptics || !canVibrate) return;
-    try { navigator.vibrate(pattern); } catch (e) { /* ignore */ }
+    if (!state.settings.haptics) return;
+    if (Haptics) {
+      try {
+        const total = Array.isArray(pattern) ? pattern.reduce((a, b) => a + b, 0) : pattern;
+        Haptics.impact({ style: total >= 60 ? 'HEAVY' : total >= 18 ? 'MEDIUM' : 'LIGHT' });
+      } catch (e) { /* ignore */ }
+      return;
+    }
+    if (canVibrate) { try { navigator.vibrate(pattern); } catch (e) { /* ignore */ } }
   }
 
   /* ---------- Floating numbers ---------- */
@@ -1443,7 +1452,7 @@
         <button class="upg core ${cls}" data-core="${cu.id}">
           <div class="un">${cu.icon} ${cu.name}</div>
           <div class="ud">${cu.desc}</div>
-          <div class="uc">${bought ? '✓ OWNED' : '◆ ' + cu.cost}</div>
+          <div class="uc">${bought ? '✓ OWNED' : '◆ ' + fmt(cu.cost)}</div>
         </button>`;
     }
     el.corelist.innerHTML = html;
@@ -1473,7 +1482,7 @@
         <button class="upg core ${cls}" data-storm="${su_.id}">
           <div class="un">${su_.icon} ${su_.name}</div>
           <div class="ud">${su_.desc}</div>
-          <div class="uc">${bought ? '✓ OWNED' : '⚡ ' + su_.cost}</div>
+          <div class="uc">${bought ? '✓ OWNED' : '⚡ ' + fmt(su_.cost)}</div>
         </button>`;
     }
     el.stormlist.innerHTML = html;
@@ -1911,12 +1920,13 @@
     if (list) {
       list.innerHTML = set.map((c) => {
         const done = chDone(c.id);
+        const isActive = !!active && active.id === c.id;
         const cls = done ? 'bought' : active ? 'no' : 'ok';
         return `
           <button class="upg ${cls}" data-ch="${c.id}" ${done || active ? 'disabled' : ''}>
             <div class="un">${c.icon} ${c.name}</div>
             <div class="ud">${c.rule}<br>Goal: ${fmt(c.goal)} ${unit} · ${c.reward}</div>
-            <div class="uc">${done ? '✓ DONE' : 'START'}</div>
+            <div class="uc">${done ? '✓ DONE' : isActive ? 'In progress…' : 'START'}</div>
           </button>`;
       }).join('');
     }
@@ -2695,9 +2705,7 @@
       else if (k === 'anim') state.settings.floats = !state.settings.floats;
       else if (k === 'notify') { toggleNotify(); return; }   // async permission flow handles sync + save
       else state.settings.sci = !state.settings.sci;
-      syncSettingsUI();
-      renderStatsLite();
-      renderShop();
+      renderAll();   // full re-render so a number-format change (sci toggle) reaches the core/storm shops, challenges, etc.
       save();
     });
   });
