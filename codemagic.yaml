@@ -62,6 +62,15 @@ workflows:
         # AdMob-pod check, --workspace build) work as designed.
         script: npx cap add ios --packagemanager cocoapods
 
+      # iOS App Store icons must be fully opaque — a transparent icon passes the
+      # local archive but Apple invalidates the build during processing (ITMS-90717),
+      # with email as the only signal. Flatten the source onto the brand background
+      # before generating the AppIcon set so a stray alpha channel can't slip through.
+      # sharp is already installed (it's the image core @capacitor/assets uses next).
+      - name: Flatten app icon (iOS icons must have no alpha channel)
+        script: |
+          node -e "const sharp=require('sharp');const fs=require('fs');sharp('assets/icon.png').flatten({background:'#070a0f'}).png().toBuffer().then(b=>{fs.writeFileSync('assets/icon.png',b);console.log('icon flattened (opaque)');}).catch(e=>{console.error(e);process.exit(1);})"
+
       - name: Generate iOS icon set + splash from assets/
         script: |
           npx @capacitor/assets generate --ios \
@@ -102,11 +111,16 @@ workflows:
           keychain add-certificates
           xcode-project use-profiles
 
-      # Apple rejects duplicate build numbers; Codemagic's built-in $BUILD_NUMBER
-      # is monotonic and needs no App Store app id.
-      - name: Set build number
+      # Marketing version (CFBundleShortVersionString) comes from package.json — the
+      # single source `npm run bump` writes — so the App Store build shows the real
+      # version instead of Capacitor's template default 1.0. The build number
+      # (CFBundleVersion) uses Codemagic's monotonic $BUILD_NUMBER (Apple rejects
+      # duplicates) and needs no App Store app id.
+      - name: Set version + build number
         script: |
+          VERSION=$(node -p "require('$CM_BUILD_DIR/package.json').version")
           cd "$CM_BUILD_DIR/ios/App"
+          agvtool new-marketing-version "$VERSION"
           agvtool new-version -all "$BUILD_NUMBER"
 
       # Run from ios/App so build-ipa's default --ipa-directory (the relative
