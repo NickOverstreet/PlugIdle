@@ -4,6 +4,7 @@ const ASSETS = [
   './',
   './index.html',
   './privacy.html',
+  './delete-data.html',
   './how-to-play.html',
   './css/style.css',
   './js/game.js',
