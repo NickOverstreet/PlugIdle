@@ -1225,6 +1225,17 @@
   // only falling back to a rebuild when the set of visible items changes.
   let cordStructKey = '';
   let cordNodes = [];
+  // Show a cord's flavor description only when it fully fits the row on one line;
+  // otherwise hide it entirely (never an ellipsis-truncated "…"). Phones lack the
+  // width for most descriptions, the wider tablet column fits more. Re-measured on
+  // (re)render, whenever the "W/s each" value changes, and on resize.
+  function fitFlavor(n) {
+    if (!n || !n.flavor || !n.meta) return;
+    if (!n.meta.clientWidth) { n.flavor.style.display = 'none'; return; } // unmeasurable (tab hidden) -> hide
+    n.flavor.style.display = 'inline';
+    if (n.meta.scrollWidth > n.meta.clientWidth) n.flavor.style.display = 'none';
+  }
+  function refitFlavors() { for (const n of cordNodes) fitFlavor(n); }
   function renderCords() {
     const bulkBar = `
       <div class="bulk-bar">
@@ -1248,7 +1259,7 @@
           <div class="ico">${cord.icon}</div>
           <div class="body">
             <div class="nm">${cord.name}</div>
-            <div class="meta"><span class="pos">+${fmt(cord.coreGain * 100)}% ◆ cores each</span> · ${cord.desc}</div>
+            <div class="meta"><span class="pos">+${fmt(cord.coreGain * 100)}% ◆ cores each</span><span class="flavor"> · ${cord.desc}</span></div>
           </div>
           <div class="right">
             <div class="owned">own ${fmt(owned)}</div>
@@ -1267,7 +1278,7 @@
           <div class="ico">${cord.icon}</div>
           <div class="body">
             <div class="nm">${cord.name}</div>
-            <div class="meta"><span class="pos">${fmt(each)} W/s each</span> · ${cord.desc}</div>
+            <div class="meta"><span class="pos">${fmt(each)} W/s each</span><span class="flavor"> · ${cord.desc}</span></div>
             <div class="milestone"><i style="width:${msPct}%"></i></div>
           </div>
           <div class="right">
@@ -1287,7 +1298,11 @@
       mnote: node.querySelector('.mnote'),
       pos: node.querySelector('.pos'),
       ms: node.querySelector('.milestone i'),
+      meta: node.querySelector('.meta'),
+      flavor: node.querySelector('.flavor'),
+      _lastPos: '',
     }));
+    for (const n of cordNodes) { n._lastPos = n.pos ? n.pos.textContent : ''; fitFlavor(n); }
   }
 
   function updateCords() {
@@ -1308,7 +1323,8 @@
         return;
       }
       const each = cord.wps * cordMultiplier(cord.id) * prestigeMult() * PROD_MULT;
-      if (n.pos) n.pos.textContent = `${fmt(each)} W/s each`;
+      const posTxt = `${fmt(each)} W/s each`;
+      if (n.pos && n._lastPos !== posTxt) { n.pos.textContent = posTxt; n._lastPos = posTxt; fitFlavor(n); }
       const nextMs = (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE;
       const nextMult = nextMs % BIG_MILESTONE === 0 ? BIG_MILESTONE_MULT : 2;
       if (n.ms) n.ms.style.width = ((owned % CORD_MILESTONE) / CORD_MILESTONE * 100) + '%';
@@ -2511,6 +2527,17 @@
   delegateTap(el.zuplist, 'data-zupgrade', (id) => buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === id)));
   // iOS suppresses :active styling unless a touchstart listener exists.
   document.body.addEventListener('touchstart', () => {}, { passive: true });
+
+  // Re-measure cord flavor descriptions when the viewport width changes (rotate,
+  // browser resize): a wider row may now fit a description that was hidden.
+  let _flavorFitRAF = 0;
+  window.addEventListener('resize', () => {
+    if (_flavorFitRAF) return;
+    _flavorFitRAF = requestAnimationFrame(() => { _flavorFitRAF = 0; refitFlavors(); });
+  });
+  // The CRT webfont changes text width once it loads; re-measure after it's ready
+  // so descriptions hidden by an early (fallback-font) measure reappear if they fit.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refitFlavors);
 
   // tabs (bottom nav) — also driven programmatically by world switching
   function activateTab(name, silent) {

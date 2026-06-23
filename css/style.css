@@ -57,6 +57,10 @@ body.noanim .surge{ animation:none; }
   box-shadow:0 0 0 2px var(--line), 0 0 40px #000 inset;
   padding-top:var(--safe-top);
 }
+/* Tablets / wide screens: widen the column so cord rows have room for their
+   flavor descriptions (which fitFlavor then shows). Phones keep the 520px
+   column, where most descriptions don't fit and stay hidden. */
+@media (min-width: 600px){ #app{ max-width:700px; } }
 
 /* ---------- Header ---------- */
 .topbar{ padding:12px 14px 11px; border-bottom:2px solid var(--line); background:linear-gradient(#0a0f18,#0c1119); }
@@ -173,6 +177,10 @@ main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ backgroun
 .card .nm{ font-size:21px; color:var(--text); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .card .meta{ font-size:16px; color:var(--dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .card .meta .pos{ color:var(--cyan); }
+/* Cord flavor text is shown per-row by JS (fitFlavor) only when it fully fits the
+   row on one line; otherwise it stays hidden rather than ellipsis-truncating.
+   Default hidden so it never flashes truncated before the JS measure runs. */
+.card .meta .flavor{ display:none; }
 /* Fixed-width column with tabular digits so changing counts/costs never resize
    the card. Numbers are kept compact (fmt) in JS so they fit without clipping. */
 .card .right{ text-align:right; flex:0 0 108px; width:108px; }
