@@ -57,6 +57,15 @@
           <div class="autotap-badge" id="autotapBadge" hidden>🤖 AUTO-TAPPER · 5/s</div>
         </div>
         <div class="sectitle">🔌 CORD GENERATORS</div>
+        <!-- Collapse sentinel: when it scrolls out of view the toolbar below is
+             pinned, so #p-plug gets .plug-collapsed (reveals the compact tap bar). -->
+        <div class="plug-sentinel" id="plugSentinel" aria-hidden="true"></div>
+        <!-- Sticky toolbar: pins at the top once the big socket scrolls away, so
+             the compact tap bar + bulk buttons stay reachable while cords scroll. -->
+        <div class="plug-toolbar" id="plugToolbar">
+          <button class="taptab plug-taptab" id="socketMiniPlug" aria-label="Plug in a cord">⚡ TAP TO PLUG · +<b id="tapvalMiniPlug">1</b> W</button>
+          <div class="bulk-bar" id="bulkBar"></div>
+        </div>
         <div id="cordlist"></div>
       </section>
 

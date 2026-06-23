@@ -105,9 +105,10 @@ body.noanim .buff-bar.animate .buff-track{ animation:none; }
 main{ flex:1; overflow:hidden; display:flex; }
 .panel{ display:none; width:100%; }
 .panel.active{ display:flex; flex-direction:column; flex:1; min-height:0; width:100%; padding:10px 10px 0; }
-#p-up.active, #p-goals.active, #p-more.active{ overflow-y:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
-#p-plug.active{ overflow:hidden; }
-#cordlist{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:14px; }
+#p-up.active, #p-goals.active, #p-more.active, #p-plug.active{ overflow-y:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
+/* #p-plug scrolls as a whole now (big socket scrolls away, the toolbar pins);
+   the cord list is plain flow content, not its own scroll container. */
+#cordlist{ min-height:0; }
 main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ background:var(--line2); border-radius:3px; }
 
 /* ---------- Socket (PLUG tab) ---------- */
@@ -204,6 +205,19 @@ main ::-webkit-scrollbar{ width:5px; } main ::-webkit-scrollbar-thumb{ backgroun
 }
 .taptab:active{ transform:translateY(2px); }
 .taptab b{ color:var(--amber); }
+
+/* ---------- Plug-tab sticky toolbar (big socket collapses into a compact bar) ---------- */
+.plug-sentinel{ height:1px; }
+/* Pins at the top once the big socket scrolls past; covers cords scrolling under it. */
+.plug-toolbar{ position:sticky; top:0; z-index:3; background:var(--bg2); padding-bottom:9px; }
+.plug-toolbar .bulk-bar{ margin-bottom:0; }
+/* Compact tap bar: same look as the Upgrades .taptab but a touch taller. Hidden
+   (display:none — reserves no space) until #p-plug collapses, then it appears and
+   fades in. The toolbar is the sticky element — this one is not separately sticky. */
+.plug-taptab{ position:relative; top:auto; padding:17px; margin-bottom:9px; display:none; }
+#p-plug.plug-collapsed .plug-taptab{ display:block; animation:plugBarIn .2s ease; }
+@keyframes plugBarIn{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:none; } }
+body.noanim .plug-taptab{ animation:none; }
 
 /* ---------- Upgrade grid ---------- */
 .ugrid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }

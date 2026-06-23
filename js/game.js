@@ -771,6 +771,7 @@
     watts: $('#watts'), wps: $('#wps'), tapval: $('#tapval'), coresline: $('#coresline'),
     socket: $('#socket'), socketSvg: $('#socketSvg'), tapinfo: $('#tapinfo'), autotapBadge: $('#autotapBadge'),
     socketMini: $('#socketMini'), tapvalMini: $('#tapvalMini'),
+    socketMiniPlug: $('#socketMiniPlug'), tapvalMiniPlug: $('#tapvalMiniPlug'), bulkBar: $('#bulkBar'),
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     dotUp: $('#dotUp'), dotMore: $('#dotMore'), dotArsenal: $('#dotArsenal'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
@@ -850,6 +851,7 @@
   // compact tap button on the Upgrades tab).
   function tapAnchor() {
     if (el.socketMini && document.getElementById('p-up').classList.contains('active')) return el.socketMini;
+    if (el.socketMiniPlug && document.getElementById('p-plug').classList.contains('plug-collapsed')) return el.socketMiniPlug;
     return el.socket;
   }
   // Visible "tick" on the socket each time the Auto-Tapper fires, so the player
@@ -1237,14 +1239,13 @@
   }
   function refitFlavors() { for (const n of cordNodes) fitFlavor(n); }
   function renderCords() {
-    const bulkBar = `
-      <div class="bulk-bar">
-        ${[1, 10, 100, 'max'].map(b =>
-          `<button class="bulk-btn ${state.bulk === b ? 'active' : ''}" data-bulk="${b}">${b === 'max' ? 'MAX' : 'x' + b}</button>`
-        ).join('')}
-      </div>`;
+    // Bulk-buy buttons live in the sticky toolbar (#bulkBar), separate from the
+    // scrolling cord list, so they stay reachable when scrolled to the bottom.
+    el.bulkBar.innerHTML = [1, 10, 100, 'max'].map(b =>
+      `<button class="bulk-btn ${state.bulk === b ? 'active' : ''}" data-bulk="${b}">${b === 'max' ? 'MAX' : 'x' + b}</button>`
+    ).join('');
 
-    let html = bulkBar;
+    let html = '';
     const vis = visibleCords();
     vis.forEach((cord) => {
       const owned = state.owned[cord.id] || 0;
@@ -1449,6 +1450,7 @@
     if (el.wpsUnit) el.wpsUnit.textContent = volt ? 'Z/s' : 'W/s';
     if (el.tapUnit) el.tapUnit.textContent = volt ? '/ zap' : '/ plug';
     if (el.tapvalMini) el.tapvalMini.textContent = fmt(clickPower());
+    if (el.tapvalMiniPlug) el.tapvalMiniPlug.textContent = fmt(clickPower());
     if (el.tapinfo) {
       const next = nextTapMilestone();
       const frac = tapWpsFrac();
@@ -2525,6 +2527,7 @@
   }
   bindTap(el.socket, plug);
   bindTap(el.socketMini, plug); // tap button on the Upgrades tab
+  bindTap(el.socketMiniPlug, plug); // compact tap bar on the Plug tab (shown when collapsed)
   if (el.enemyBtn) bindTap(el.enemyBtn, zapEnemy);
   if (el.worldBtn) el.worldBtn.addEventListener('click', switchWorld);
   delegateTap(el.weaponlist, 'data-weapon', (id) => buyWeapon(WEAPONS.find((w) => w.id === id)));
@@ -2542,6 +2545,23 @@
   // The CRT webfont changes text width once it loads; re-measure after it's ready
   // so descriptions hidden by an early (fallback-font) measure reappear if they fit.
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(refitFlavors);
+
+  // Plug tab: collapse the big socket into the pinned compact bar once it scrolls
+  // away. When the sentinel (just above the sticky toolbar) reaches the top of the
+  // scroll viewport, the toolbar is pinned — reveal the compact bar. (A scroll +
+  // rect check is used rather than IntersectionObserver, which fires unreliably
+  // with a scroll-container root in the app's WKWebView.)
+  (function setupPlugCollapse() {
+    const panel = document.getElementById('p-plug');
+    const sentinel = document.getElementById('plugSentinel');
+    if (!panel || !sentinel) return;
+    function update() {
+      const collapsed = sentinel.getBoundingClientRect().bottom <= panel.getBoundingClientRect().top + 12;
+      panel.classList.toggle('plug-collapsed', collapsed);
+    }
+    panel.addEventListener('scroll', update, { passive: true });
+    update();
+  })();
 
   // tabs (bottom nav) — also driven programmatically by world switching
   function activateTab(name, silent) {
@@ -2565,7 +2585,7 @@
   });
 
   // delegated shop taps
-  delegateTap(el.cordlist, 'data-bulk', (v) => {
+  delegateTap(el.bulkBar, 'data-bulk', (v) => {
     state.bulk = v === 'max' ? 'max' : parseInt(v, 10);
     lastSig = '';
     renderCords();
