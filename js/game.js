@@ -533,7 +533,10 @@
   // Voltlands prestige (Storm Reactor): lifetime Storm Shards drive a permanent,
   // softcapped ZPS multiplier — the volt analog of prestigeMult. Same softcap
   // shape as the Grid (linear to ×10, then sqrt-dampened).
-  const STORM_THRESHOLD = 2e3;
+  // STORM_THRESHOLD gates the first shard: reincarnateGain = cbrt(runVolts/THRESHOLD).
+  // At 2e3 the first shard landed at ~wave 10 (the first boss) — far too early; 1.3e5
+  // pushes it to ~wave 30, making shards a genuine deep-run reward.
+  const STORM_THRESHOLD = 1.3e5;
   const STORM_SOFTCAP = 10;
   function shardMultFor(shardsN) {
     const raw = 1 + shardPer() * shardsN;
