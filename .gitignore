@@ -10,3 +10,6 @@ ios/
 
 # Python
 __pycache__/
+
+# JetBrains IDE
+.idea/
