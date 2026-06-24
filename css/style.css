@@ -108,8 +108,11 @@ main{ flex:1; overflow:hidden; display:flex; }
 #p-up.active, #p-goals.active, #p-more.active, #p-plug.active,
 #p-zap.active, #p-arsenal.active{ overflow-y:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
 /* #p-plug / #p-zap scroll as a whole (the big tap button scrolls away, the toolbar
-   pins); the cord / weapon list is plain flow content, not its own scroll container. */
-#cordlist, #weaponlist{ min-height:0; }
+   pins); the cord / weapon list is plain flow content, not its own scroll container.
+   flex-shrink:0 keeps the list at full content height: as a shrinkable flex item it
+   otherwise collapses the panel's scrollable padding-bottom, so the last card jams
+   against the tab bar (the grid panels like #p-up don't hit this). */
+#cordlist, #weaponlist{ min-height:0; flex-shrink:0; }
 /* No top padding on the tap panels so the sticky toolbar pins flush to the top of
    the scroll area — no sliver above it. The hero (socket-wrap / arena) carries the
    top breathing room instead, as scroll content. */
