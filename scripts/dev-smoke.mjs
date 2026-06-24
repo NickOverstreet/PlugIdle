@@ -469,7 +469,7 @@ check('migrate: new save has both challenge slots', (() => { const c = T.normali
   S().challenges.volt = '';
   check('challenge: cleared NUMB FINGERS restores zapPower', T.zapPower() > 0);
 
-  // POWER DRAIN rule: weapon cost growth steepens (1.18 vs the 1.14 Volt base) while
+  // POWER DRAIN rule: weapon cost growth steepens (1.18 vs the 1.16 Volt base) while
   // active. Measured over 12 buys so the growth gap dwarfs per-buy ceil() rounding.
   sR.weapons = {};
   const wg = T.WEAPONS[0];
@@ -896,9 +896,9 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   const d = T.defaultSlayer();
   check('surge: defaultSlayer seeds charges at 0', d.surgeCharges === 0 && d.surgeChargesEarned === 0);
   check('surge: defaultSlayer seeds empty nodes + branch', d.surgeNodes && typeof d.surgeNodes === 'object' && d.surgeBranch === '');
-  check('surge: VOLT_COST_GROWTH constant is 1.14', T.VOLT_COST_GROWTH === 1.14);
+  check('surge: VOLT_COST_GROWTH constant is 1.16', T.VOLT_COST_GROWTH === 1.16);
   S().challenges.volt = '';
-  check('surge: weaponCostGrowth uses the 1.14 Volt base', T.weaponCostGrowth() === 1.14);
+  check('surge: weaponCostGrowth uses the 1.16 Volt base', T.weaponCostGrowth() === 1.16);
   S().challenges.volt = 'powerdrain';
   check('surge: POWER DRAIN still overrides growth to 1.18', T.weaponCostGrowth() === 1.18);
   S().challenges.volt = '';

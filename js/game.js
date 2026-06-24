@@ -12,7 +12,7 @@
   const SAVE_EVERY_MS = 5000;     // autosave cadence
   const PROD_MULT = 1.6;          // global pacing: scales all income (active, idle & clicks)
   const COST_GROWTH = 1.12;       // per-buy cost multiplier (lower = smoother stacking; was 1.15)
-  const VOLT_COST_GROWTH = 1.14;  // Voltlands per-buy cost growth — steeper than the Grid's 1.12 so World 2 paces ~0.8× the Grid (retune via the dev-smoke ratio measurement; do NOT hardcode 0.8 anywhere)
+  const VOLT_COST_GROWTH = 1.16;  // Voltlands per-buy cost growth (bumped 1.14 -> 1.16 after a pacing sim showed it ran a bit fast). The single dial for World 2: raise to slow the economy, lower to speed it. Steeper than the Grid's 1.12.
 
   /* ---------- Content: cord generators ----------
      Each generator produces watts/sec. Cost grows 1.15x per buy. */
