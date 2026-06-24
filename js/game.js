@@ -207,6 +207,15 @@
     { id: 'sg_hunt4', icon: '🐉', name: 'Giant Killer',  cost: 110, req: 'sg_hunt3', branch: 'hunt', eff: { volt: 2 },              desc: 'Volt income ×2.' },
     { id: 'sg_hunt5', icon: '👑', name: 'Apex Predator', cost: 170, req: 'sg_hunt4', branch: 'hunt', eff: { volt: 1.5, shard: 1.5 }, desc: 'Volt ×1.5, shard ×1.5.' },
   ];
+  // Branch metadata for the three mutually-exclusive paths (icon/name/one-line tag
+  // shown on the fork choice cards). Keyed by the `branch` field above.
+  const SURGE_BRANCH_META = {
+    crit: { icon: '💥', name: 'CRIT', tag: 'crit chance & damage' },
+    flow: { icon: '🌊', name: 'FLOW', tag: 'ZPS & auto-zap rate' },
+    hunt: { icon: '🎯', name: 'HUNT', tag: 'volt & shard income' },
+  };
+  const SURGE_BY_ID = {};
+  for (const _n of SURGE_NODES) SURGE_BY_ID[_n.id] = _n;
 
   /* ---------- Content: challenges ----------
      Special runs with one rule mutated (started from the More tab after the
@@ -2708,43 +2717,99 @@
   }
 
   // ---- Surge Grid shop (two-tier render, mirrors renderZapUpgrades) ----
+  // The tree renders as a vertical SPINE: the linear trunk, a three-way FORK
+  // choice, then the chosen branch continues as its own accented spine while the
+  // two paths not taken collapse into a footer. renderSurgeTree() rebuilds the
+  // structure (only on a buy / branch-commit / reveal); updateSurgeTree() patches
+  // cost + affordability per tick WITHOUT a rebuild (a rebuild would eat taps).
   function visibleSurgeNodes() { return SURGE_NODES.filter((n) => !n.req || sg(n.id) || sg(n.req)); }
-  function surgeCardCls(n) {
-    if (sg(n.id)) return 'bought';
-    if (!surgeNodeUnlocked(n)) return 'no locked';
-    return (sl().surgeCharges || 0) >= n.cost ? 'ok' : 'no';
-  }
   function surgeCardUc(n) {
-    if (sg(n.id)) return '✓ OWNED';
-    if (!surgeNodeUnlocked(n)) return '🔒 OTHER PATH';
+    if (sg(n.id)) return '✓';
+    if (!surgeNodeUnlocked(n)) return '🔒';
     return fmt(n.cost) + ' ⚡';
   }
+  function applySurgeState(node, n) {
+    const cls = sg(n.id) ? 'is-owned'
+      : !surgeNodeUnlocked(n) ? 'is-locked'
+      : (sl().surgeCharges || 0) >= n.cost ? 'is-affordable' : 'is-unaffordable';
+    node.classList.remove('is-owned', 'is-locked', 'is-affordable', 'is-unaffordable');
+    node.classList.add(cls);
+  }
+  // struct signature: visible set + per-node owned flag + chosen branch. Changes
+  // only on a buy / reveal / branch-commit (NOT on affordability), so the per-tick
+  // updater patches in place and only rebuilds when the layout actually changes.
+  function surgeStructSig(list) { return list.map((n) => (sg(n.id) ? 'b' : '') + n.id).join(',') + '|' + sl().surgeBranch; }
+  function surgeNodeHtml(n) {
+    return '<button class="sg-node" data-surge="' + n.id + '">'
+      + '<span class="sg-ico">' + n.icon + '</span>'
+      + '<span class="sg-txt"><span class="sg-nm">' + n.name + '</span><span class="sg-dsc">' + n.desc + '</span></span>'
+      + '<span class="uc"></span></button>';
+  }
+  function surgeSpineHtml(nodes, group) {
+    return nodes.length ? '<div class="sg-spine sg--' + group + '">' + nodes.map(surgeNodeHtml).join('') + '</div>' : '';
+  }
+  function surgeBranchCardHtml(n) {
+    const m = SURGE_BRANCH_META[n.branch];
+    return '<button class="sg-branchcard sg--' + n.branch + '" data-surge="' + n.id + '">'
+      + '<span class="sg-ico">' + n.icon + '</span>'
+      + '<span class="sg-bname">' + m.name + '</span>'
+      + '<span class="sg-beff">' + m.tag + '</span>'
+      + '<span class="uc sg-bcost"></span></button>';
+  }
   let surgeStructKey = '';
-  let surgeNodeCache = [];
+  let surgeNodeCache = {};   // id -> { node, uc }; only the rendered (tappable) nodes
   function renderSurgeTree() {
     if (!el.surgelist) return;
     const list = visibleSurgeNodes();
-    el.surgelist.innerHTML = list.map((n) => `
-        <button class="upg surge ${surgeCardCls(n)}${n.branch ? ' path' : ''}" data-surge="${n.id}">
-          <div class="un">${n.icon} ${n.name}</div>
-          <div class="ud">${n.desc}</div>
-          <div class="uc">${surgeCardUc(n)}</div>
-        </button>`).join('');
-    surgeStructKey = list.map((n) => (sg(n.id) ? 'b' : '') + n.id).join(',') + '|' + sl().surgeBranch;
-    surgeNodeCache = Array.from(el.surgelist.querySelectorAll('[data-surge]')).map((node) => ({ node, uc: node.querySelector('.uc') }));
+    const branch = sl().surgeBranch;
+    const html = [surgeSpineHtml(list.filter((n) => !n.branch), 'trunk')];
+    if (sg('sg_fork')) {
+      if (!branch || !SURGE_BRANCH_META[branch]) {
+        // FORK: present the three capstones as a side-by-side choice. (An
+        // unknown branch from a corrupt save also falls here, not into a crash.)
+        const caps = ['crit', 'flow', 'hunt']
+          .map((b) => SURGE_NODES.find((n) => n.branch === b && n.req === 'sg_fork'))
+          .filter((n) => list.includes(n));
+        html.push('<div class="sg-fork">▽ CHOOSE ONE PATH ▽</div>');
+        html.push('<div class="sg-choice">' + caps.map(surgeBranchCardHtml).join('') + '</div>');
+      } else {
+        // committed: the chosen branch continues as its own spine.
+        const m = SURGE_BRANCH_META[branch];
+        const mine = list.filter((n) => n.branch === branch);
+        const owned = mine.filter((n) => sg(n.id)).length;
+        const total = SURGE_NODES.filter((n) => n.branch === branch).length;
+        const others = ['crit', 'flow', 'hunt'].filter((b) => b !== branch)
+          .map((b) => SURGE_BRANCH_META[b].icon + ' ' + SURGE_BRANCH_META[b].name).join(' · ');
+        html.push('<div class="sg-pathlabel sg--' + branch + '">' + m.icon + ' ' + m.name + ' PATH · ' + owned + '/' + total + '</div>');
+        html.push(surgeSpineHtml(mine, branch));
+        html.push('<div class="sg-givenup">Paths not taken: <b>' + others + '</b><br>Reincarnate to respec the tree free.</div>');
+      }
+    }
+    el.surgelist.innerHTML = html.join('');
+    surgeNodeCache = {};
+    el.surgelist.querySelectorAll('[data-surge]').forEach((node) => {
+      const n = SURGE_BY_ID[node.getAttribute('data-surge')];
+      const uc = node.querySelector('.uc');
+      surgeNodeCache[n.id] = { node, uc };
+      applySurgeState(node, n);
+      if (uc) uc.textContent = surgeCardUc(n);
+    });
+    surgeStructKey = surgeStructSig(list);
     if (el.surgechargecount) el.surgechargecount.textContent = fmtInt(sl().surgeCharges || 0);
   }
   function updateSurgeTree() {
     if (!el.surgelist) return;
     const list = visibleSurgeNodes();
-    const key = list.map((n) => (sg(n.id) ? 'b' : '') + n.id).join(',') + '|' + sl().surgeBranch;
-    if (key !== surgeStructKey || surgeNodeCache.length !== list.length ||
-        (surgeNodeCache[0] && !surgeNodeCache[0].node.isConnected)) { renderSurgeTree(); return; }
-    list.forEach((n, i) => {
-      const c = surgeNodeCache[i];
-      c.node.className = 'upg surge ' + surgeCardCls(n) + (n.branch ? ' path' : '');
-      c.uc.textContent = surgeCardUc(n);
-    });
+    const ids = Object.keys(surgeNodeCache);
+    if (surgeStructSig(list) !== surgeStructKey || !ids.length || !surgeNodeCache[ids[0]].node.isConnected) {
+      renderSurgeTree();
+      return;
+    }
+    for (const id of ids) {
+      const c = surgeNodeCache[id];
+      applySurgeState(c.node, SURGE_BY_ID[id]);
+      if (c.uc) c.uc.textContent = surgeCardUc(SURGE_BY_ID[id]);
+    }
     if (el.surgechargecount) el.surgechargecount.textContent = fmtInt(sl().surgeCharges || 0);
   }
 

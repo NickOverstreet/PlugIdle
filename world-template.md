@@ -82,6 +82,15 @@ hide responsively via `fitFlavor()` / `refitFlavors()` (add the world's nodes to
 `bought | ok | no` class. Affordability classes (`ok`/`no`/`bought`) and the
 `.milestone` bar are shared CSS — reuse, don't reinvent.
 
+> **Allowed exception — the Surge Grid** (Voltlands research tree, `renderSurgeTree`):
+> it is a one-time-purchase list but renders as a branching *tree* (a `.sg-node`
+> spine + a three-way `.sg-branchcard` fork + chosen-branch spine), not the flat
+> `.upg` grid, with its own `.sg-*` classes and `is-owned|is-affordable|is-unaffordable|is-locked`
+> state classes. This is a deliberate divergence from the `.upg` reuse rule because a
+> tree is not a 2-column grid. It still honors the **two-tier** contract above
+> (`renderSurgeTree` rebuilds on struct change; `updateSurgeTree` patches per tick) —
+> that part is **not** optional.
+
 ## 3. Economy formulas (shared shapes)
 
 - **Cost growth:** base `COST_GROWTH = 1.12`, geometric series for buying `count`

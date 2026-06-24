@@ -478,13 +478,75 @@ body.noanim .worldswitch{ animation:none; }
 #worldswitchBlock .worldswitch .ti{ font-size:24px; }
 #worldswitchBlock .worldswitch .tl{ font-size:12px; letter-spacing:1px; }
 
-/* Surge Grid (combat research tree) */
-.surge-intro{ font-size:15px; color:var(--dim); margin:2px 2px 10px; line-height:1.4; }
-.upg.surge.path{ border-color:var(--amber); box-shadow:0 0 8px rgba(255,194,61,.12); }
-.upg.surge.locked{ opacity:.5; }
-.surge-presets{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin:0 2px 10px; font-family:var(--pixel); font-size:8px; color:var(--dim); }
-.surge-presets .sp-grp{ display:inline-flex; gap:4px; align-items:center; }
-.sp-btn{ font-family:var(--pixel); font-size:9px; min-width:30px; min-height:30px; padding:6px 8px; border:1px solid var(--line2); border-radius:6px; background:#0a0f18; color:var(--cyan); cursor:pointer; }
+/* ---------- Surge Grid (combat research tree) ---------- */
+.surge-intro{ font-size:15px; color:var(--dim); margin:2px 2px 12px; line-height:1.4; }
+
+/* the tree flows vertically as connected spines (not the 2-col upgrade grid) */
+.surge-tree{ display:flex; flex-direction:column; }
+
+/* per-branch accents — explicit rgba (no color-mix) so older webviews are fine */
+.sg--trunk{ --acc:var(--green); --acc-soft:rgba(70,240,122,.13); --acc-line:rgba(70,240,122,.55); }
+.sg--crit { --acc:var(--red);   --acc-soft:rgba(255,106,106,.14); --acc-line:rgba(255,106,106,.55); }
+.sg--flow { --acc:var(--cyan);  --acc-soft:rgba(84,220,255,.14);  --acc-line:rgba(84,220,255,.55); }
+.sg--hunt { --acc:var(--amber); --acc-soft:rgba(255,194,77,.16);  --acc-line:rgba(255,194,77,.55); }
+
+/* a spine = vertical chain of nodes joined by a glowing conduit */
+.sg-spine{ display:flex; flex-direction:column; gap:11px; }
+.sg-node{
+  position:relative; display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  cursor:pointer; color:var(--text); font-family:var(--term);
+  background:linear-gradient(var(--panel),var(--panel2));
+  border:1px solid var(--line2); border-left:3px solid var(--acc-line);
+  border-radius:var(--r); padding:10px 12px;
+  transition:border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+.sg-node::before{ content:""; position:absolute; left:27px; top:-11px; width:2px; height:11px; background:var(--acc-line); }
+.sg-spine > .sg-node:first-child::before{ display:none; }
+.sg-node:active{ transform:translateY(1px); }
+.sg-ico{ font-size:23px; line-height:1; width:30px; flex:0 0 30px; text-align:center; }
+.sg-txt{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.sg-nm{ font-size:18px; line-height:1.05; color:var(--text); }
+.sg-dsc{ font-size:13px; line-height:1.18; color:var(--dim); }
+.sg-node .uc{ flex:0 0 auto; font-size:16px; white-space:nowrap; color:var(--amber); font-family:var(--term); }
+/* node states */
+.sg-node.is-owned{ background:linear-gradient(90deg,var(--acc-soft),var(--panel2)); border-left-color:var(--acc); }
+.sg-node.is-owned .sg-ico{ filter:drop-shadow(0 0 5px var(--acc)); }
+.sg-node.is-owned .uc{ color:var(--acc); }
+.sg-node.is-affordable{ border-color:var(--acc); box-shadow:0 0 11px -3px var(--acc), inset 0 0 16px -10px var(--acc); }
+.sg-node.is-affordable .uc{ color:var(--acc); }
+.sg-node.is-unaffordable{ opacity:.78; }
+.sg-node.is-unaffordable .uc{ color:var(--red); opacity:1; }   /* keep the cost legible (AA) even while the node is dimmed */
+/* locked: a node/path blocked by the chosen branch (or a corrupt save) — reads as disabled, not tappable */
+.sg-branchcard.is-locked, .sg-node.is-locked{ opacity:.5; box-shadow:none; }
+
+/* FORK divider + the three-way path choice */
+.sg-fork{ position:relative; text-align:center; font-family:var(--pixel); font-size:9px; letter-spacing:2px; color:var(--amber); margin:15px 0 11px; text-shadow:0 0 8px rgba(255,194,77,.4); }
+.sg-fork::before{ content:""; position:absolute; left:50%; top:-13px; width:2px; height:13px; background:rgba(255,194,77,.5); transform:translateX(-50%); }
+.sg-choice{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; }
+.sg-branchcard{
+  display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; padding:12px 6px;
+  cursor:pointer; color:var(--text); font-family:var(--term);
+  background:linear-gradient(var(--panel),var(--panel2)); border:1px solid var(--acc); border-radius:var(--r);
+  box-shadow:0 0 13px -5px var(--acc); transition:box-shadow .15s ease, transform .1s ease;
+}
+.sg-branchcard:active{ transform:translateY(1px); }
+.sg-branchcard .sg-ico{ font-size:27px; width:auto; flex:none; filter:drop-shadow(0 0 5px var(--acc)); }
+.sg-bname{ font-family:var(--pixel); font-size:8px; letter-spacing:1px; color:var(--acc); }
+.sg-beff{ font-size:12px; line-height:1.2; color:var(--dim); }
+.sg-branchcard .uc{ font-size:15px; color:var(--acc); font-family:var(--term); }
+.sg-branchcard.is-unaffordable{ opacity:.82; box-shadow:none; }
+.sg-branchcard.is-unaffordable .uc{ color:var(--red); }
+
+/* chosen-path header + paths-not-taken footer */
+.sg-pathlabel{ position:relative; text-align:center; font-family:var(--pixel); font-size:10px; letter-spacing:2px; color:var(--acc); margin:16px 0 12px; text-shadow:0 0 9px var(--acc-soft); }
+.sg-pathlabel::before{ content:""; position:absolute; left:50%; top:-14px; width:2px; height:14px; background:var(--acc-line); transform:translateX(-50%); }
+.sg-givenup{ margin-top:13px; padding:9px 11px; border:1px dashed var(--line2); border-radius:var(--r); font-size:13px; line-height:1.35; color:var(--dim); text-align:center; }
+.sg-givenup b{ color:var(--text); font-weight:normal; }
+
+/* build-preset bar */
+.surge-presets{ display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin:0 2px 12px; font-family:var(--pixel); font-size:9px; color:var(--dim); }
+.surge-presets .sp-grp{ display:inline-flex; gap:5px; align-items:center; }
+.sp-btn{ font-family:var(--pixel); font-size:9px; min-width:32px; min-height:30px; padding:6px 9px; border:1px solid var(--line2); border-radius:6px; background:#0a0f18; color:var(--cyan); cursor:pointer; }
 .sp-btn:active{ transform:translateY(1px); }
 .discharge-btn{ font-family:var(--pixel); font-size:11px; margin-top:8px; padding:11px 18px; min-height:44px; border:1px solid var(--amber); border-radius:10px; background:linear-gradient(rgba(255,194,61,.14), rgba(255,194,61,.02)); color:var(--amber); cursor:pointer; }
 .discharge-btn[hidden]{ display:none; }
