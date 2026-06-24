@@ -881,7 +881,7 @@
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     dotUp: $('#dotUp'), dotMore: $('#dotMore'), dotArsenal: $('#dotArsenal'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
-    corelist: $('#corelist'), stormlist: $('#stormlist'),
+    corelist: $('#corelist'), stormlist: $('#stormlist'), surgelist: $('#surgelist'), surgechargecount: $('#surgechargecount'),
     statTotal: $('#statTotal'), statClicks: $('#statClicks'), statWps: $('#statWps'),
     statGens: $('#statGens'), statSurges: $('#statSurges'), statAch: $('#statAch'),
     statTime: $('#statTime'), statCores: $('#statCores'),
@@ -1344,6 +1344,7 @@
     blip(700, 0.16, 'sawtooth', 0.05);
     buzz([0, 20, 40, 20]);
     toast('⚡ ' + n.name, true);
+    renderSurgeTree();   // reflect the buy: reveal next nodes, lock the other paths
     checkAchievements();
   }
 
@@ -1785,13 +1786,21 @@
         sig += sl().volts >= u.cost ? '1' : '0';
       }
     }
+    if (state.wormhole) {
+      sig += '|' + sl().surgeBranch + '|';
+      for (const n of SURGE_NODES) {
+        if (n.req && !sg(n.req)) { sig += 'x'; continue; }          // hidden (prereq unmet)
+        if (sg(n.id)) { sig += 'b'; continue; }                     // owned
+        sig += !surgeNodeUnlocked(n) ? '-' : ((sl().surgeCharges || 0) >= n.cost ? '1' : '0');
+      }
+    }
     if (sig !== lastSig) {
       lastSig = sig;
       // patch-in-place: a full rebuild here would destroy whatever button the
       // player is mid-tap on (the auto-buyer dirties this up to 10x/sec)
       updateCords();
       updateUpgrades();
-      if (state.wormhole) { updateWeapons(); updateZapUpgrades(); }
+      if (state.wormhole) { updateWeapons(); updateZapUpgrades(); updateSurgeTree(); }
     }
   }
 
@@ -2523,6 +2532,47 @@
     });
   }
 
+  // ---- Surge Grid shop (two-tier render, mirrors renderZapUpgrades) ----
+  function visibleSurgeNodes() { return SURGE_NODES.filter((n) => !n.req || sg(n.id) || sg(n.req)); }
+  function surgeCardCls(n) {
+    if (sg(n.id)) return 'bought';
+    if (!surgeNodeUnlocked(n)) return 'no locked';
+    return (sl().surgeCharges || 0) >= n.cost ? 'ok' : 'no';
+  }
+  function surgeCardUc(n) {
+    if (sg(n.id)) return '✓ OWNED';
+    if (!surgeNodeUnlocked(n)) return '🔒 OTHER PATH';
+    return fmt(n.cost) + ' ⚡';
+  }
+  let surgeStructKey = '';
+  let surgeNodeCache = [];
+  function renderSurgeTree() {
+    if (!el.surgelist) return;
+    const list = visibleSurgeNodes();
+    el.surgelist.innerHTML = list.map((n) => `
+        <button class="upg surge ${surgeCardCls(n)}${n.branch ? ' path' : ''}" data-surge="${n.id}">
+          <div class="un">${n.icon} ${n.name}</div>
+          <div class="ud">${n.desc}</div>
+          <div class="uc">${surgeCardUc(n)}</div>
+        </button>`).join('');
+    surgeStructKey = list.map((n) => (sg(n.id) ? 'b' : '') + n.id).join(',') + '|' + sl().surgeBranch;
+    surgeNodeCache = Array.from(el.surgelist.querySelectorAll('[data-surge]')).map((node) => ({ node, uc: node.querySelector('.uc') }));
+    if (el.surgechargecount) el.surgechargecount.textContent = fmtInt(sl().surgeCharges || 0);
+  }
+  function updateSurgeTree() {
+    if (!el.surgelist) return;
+    const list = visibleSurgeNodes();
+    const key = list.map((n) => (sg(n.id) ? 'b' : '') + n.id).join(',') + '|' + sl().surgeBranch;
+    if (key !== surgeStructKey || surgeNodeCache.length !== list.length ||
+        (surgeNodeCache[0] && !surgeNodeCache[0].node.isConnected)) { renderSurgeTree(); return; }
+    list.forEach((n, i) => {
+      const c = surgeNodeCache[i];
+      c.node.className = 'upg surge ' + surgeCardCls(n) + (n.branch ? ' path' : '');
+      c.uc.textContent = surgeCardUc(n);
+    });
+    if (el.surgechargecount) el.surgechargecount.textContent = fmtInt(sl().surgeCharges || 0);
+  }
+
   function renderSlayerLite() {
     if (!state.wormhole || !el.hpFill) return;
     const s = sl();
@@ -2537,6 +2587,7 @@
     if (el.zapinfo) el.zapinfo.textContent =
       `⚡${fmt(zapPower())} / zap · grid boost ×${gridZpsBoost().toFixed(2)}`;
     el.enemyBtn.classList.toggle('boss', boss);
+    if (el.surgechargecount) el.surgechargecount.textContent = fmtInt(sl().surgeCharges || 0);
   }
 
   /* ---------- World switching & the wormhole ---------- */
@@ -2944,6 +2995,7 @@
   if (el.worldBtn) el.worldBtn.addEventListener('click', switchWorld);
   delegateTap(el.weaponlist, 'data-weapon', (id) => buyWeapon(WEAPONS.find((w) => w.id === id)));
   delegateTap(el.zuplist, 'data-zupgrade', (id) => buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === id)));
+  delegateTap(el.surgelist, 'data-surge', (id) => buySurgeNode(SURGE_NODES.find((n) => n.id === id)));
   // iOS suppresses :active styling unless a touchstart listener exists.
   document.body.addEventListener('touchstart', () => {}, { passive: true });
 
@@ -3006,6 +3058,7 @@
     else if (name === 'plug') renderCords();
     else if (name === 'zap') { renderWeapons(); renderSlayerLite(); }
     else if (name === 'arsenal') renderZapUpgrades();
+    else if (name === 'surge') renderSurgeTree();
     else if (name === 'more') { renderCoreShop(); if (state.wormhole) renderStormShop(); renderChallenges(); renderMoreGating(); renderStatsLite(); syncSettingsUI(); renderStore(); }
   }
   document.querySelectorAll('.tab').forEach(tab => {
