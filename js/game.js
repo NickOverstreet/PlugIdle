@@ -586,6 +586,10 @@
   // Per-core production bonus (lifetime cores), boosted by Core Resonance.
   function corePer() { return co('resonance') ? 0.08 : 0.05; }
   function coreClickMult() { return co('thumbs') ? 3 : 1; }
+  // Tap-power multipliers ("Tap power ×N"): the 'click' upgrades plus Overclocked
+  // Thumbs. They must multiply the WHOLE tap value (the flat part AND the %-of-W/s
+  // share), so "×3" really triples your watts/tap.
+  function clickMult() { let p = 1; for (const u of UPGRADES) if (state.upgrades[u.id] && u.kind === 'click') p *= u.mult; return p * coreClickMult(); }
   function coreProdMult() { let m = 1; if (co('phantom')) m *= 1.5; if (co('overdrive')) m *= 2; return m; }
   function offlineCapMs() { return (24 + (co('battery') ? 24 : 0)) * 3600000; }
   function offlineEff() { return co('nightshift') ? 0.75 : 0.5; }
@@ -802,7 +806,9 @@
   }
   function clickPower() {
     if (ch('grid') === 'unplugged') return 0;   // UNPLUGGED challenge rule
-    const fromWps = tapWpsFrac() * totalWps();   // scales with income, keeps taps useful
+    // Tap-power mults scale the %-of-W/s share too, so "Tap power ×N" multiplies
+    // the WHOLE tap value — not just the flat part (which clickPowerFlat covers).
+    const fromWps = tapWpsFrac() * totalWps() * clickMult();
     return (clickPowerFlat() + fromWps) * buffMult('click');
   }
 

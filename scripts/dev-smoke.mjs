@@ -79,7 +79,7 @@ const hook = `
     buyCoreUpgrade, zapEnemy, buyWeapon, buyZapUpgrade, switchWorld,
     totalZps, zapPower, bossWattsMult, gridZpsBoost, prestigeGain, prestigeMult,
     carryState, defaultState, normalizeState, defaultSlayer, applyZapDamage, spawnEnemy,
-    autoBuyTick, autoBuyUpgrades, autoTapRate, autoTapGainPerSec, clickPowerFlat, totalWps,
+    autoBuyTick, autoBuyUpgrades, autoTapRate, autoTapGainPerSec, clickPowerFlat, clickPower, clickMult, tapWpsFrac, totalWps,
     reincarnate, reincarnateGain, shardMult, sl, su, killEnemy,
     sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked,
     surgeZpsMult, surgeTapMult, surgeAutoRate, surgeVoltMult, surgeShardMult, surgeCritChance, surgeCritMult,
@@ -999,6 +999,47 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   check('perk: SURGE SURPLUS doubles a normal kill mint (=2)', sR.surgeCharges === 2 && sR.surgeChargesEarned === 2);
   delete S().challengesDone.surgefamine;
   sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 1;
+}
+
+// Upgrade semantics — multipliers must be multiplicative on the value they claim.
+{
+  S().challenges = { grid: '', volt: '' };
+  S().coreUpgrades = {};
+  // Reported bug: a "Tap power xN" upgrade must multiply the WHOLE tap value
+  // (flat + the %-of-W/s share), not just the flat part.
+  S().owned = { usba: 200 };     // real W/s so the %-of-W/s share is significant
+  S().upgrades = { tw1: true };  // Live Wire: each tap earns 1% of W/s
+  const tapBefore = T.clickPower();
+  const x3 = T.UPGRADES.find((u) => u.kind === 'click' && u.mult === 3);
+  S().upgrades[x3.id] = true;
+  check('tap: a x3 tap-power upgrade triples the WHOLE tap value', Math.abs(T.clickPower() - tapBefore * 3) < tapBefore * 1e-6);
+  // Overclocked Thumbs (core "Tap power x3") is also a full tap multiplier.
+  S().upgrades = { tw1: true };
+  const tb2 = T.clickPower();
+  S().coreUpgrades = { thumbs: true };
+  check('tap: core Overclocked Thumbs triples the WHOLE tap value', Math.abs(T.clickPower() - tb2 * 3) < tb2 * 1e-6);
+  S().coreUpgrades = {};
+  // tapwps adds its % of W/s to the tap (Live Wire = +1% of W/s) on top of the flat.
+  S().upgrades = {};
+  const flatOnly = T.clickPower();
+  S().upgrades = { tw1: true };
+  check('tap: Live Wire adds 1% of W/s to the tap value', Math.abs(T.clickPower() - (flatOnly + 0.01 * T.totalWps())) < flatOnly * 1e-6);
+  // 'global' upgrade multiplies all cord production (Cable Management = +25%).
+  S().upgrades = {};
+  const wps0 = T.totalWps();
+  S().upgrades = { u_glob1: true };   // All cords +25%
+  check('upgrade: a +25% global multiplies total W/s by 1.25', Math.abs(T.totalWps() - wps0 * 1.25) < wps0 * 1e-6);
+  // 'cord' upgrade multiplies one cord's output (Gold USB Contacts = USB-A x2).
+  S().upgrades = {};
+  const wpsA = T.totalWps();          // only USB-A owned, so its x2 doubles total
+  S().upgrades = { u_usba: true };
+  check('upgrade: a cord x2 doubles that cord output', Math.abs(T.totalWps() - wpsA * 2) < wpsA * 1e-6);
+  // Voltlands 'zap' upgrade multiplies the WHOLE tap-zap (no additive term to dilute it).
+  { const sR = T.sl(); sR.upgrades = {}; const zp0 = T.zapPower();
+    sR.upgrades = { z_zap1: true };   // Rubber Gloves Off: tap-zap x2
+    check('zap: a tap-zap x2 upgrade doubles zapPower', Math.abs(T.zapPower() - zp0 * 2) < zp0 * 1e-6);
+    sR.upgrades = {}; }
+  S().owned = {}; S().upgrades = {}; S().coreUpgrades = {};
 }
 
 // Content integrity — unique ids per catalog + valid cross-references
