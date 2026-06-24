@@ -790,7 +790,7 @@ check('autotap: II is locked without I', !S().coreUpgrades.autotap10);
 S().coreUpgrades.autotap = true;
 check('autotap: base rate is 5', T.autoTapRate() === 5);
 ['autotap10', 'autotap20', 'autotap50', 'autotap100', 'autotap1000'].forEach(id => { S().coreUpgrades[id] = true; });
-check('autotap: maxed rate is 1000', T.autoTapRate() === 1000);
+check('autotap: maxed rate is 150', T.autoTapRate() === 150);
 
 // Auto-taps are identical to manual taps — full tap-power multipliers AND the
 // %-of-W/s share, just faster. (The old W/s-share cap is intentionally removed.)
@@ -801,10 +801,10 @@ S().owned = { usba: 1000 };       // nonzero W/s for the share
 check('autotap: each auto-tap equals a manual tap × rate',
   Math.abs(T.autoTapGainPerSec() - T.clickPower() * T.autoTapRate()) < T.clickPower() * T.autoTapRate() * 1e-9);
 const autoBase = T.autoTapGainPerSec();
-const x3up = T.UPGRADES.find((u) => u.kind === 'click' && u.mult === 3);
-S().upgrades[x3up.id] = true;
-check('autotap: a x3 tap-power upgrade triples auto-tap income (parity with manual)',
-  Math.abs(T.autoTapGainPerSec() - autoBase * 3) < autoBase * 1e-6);
+const cuAuto = T.UPGRADES.find((u) => u.kind === 'click');
+S().upgrades[cuAuto.id] = true;
+check('autotap: a tap-power upgrade scales auto-tap income exactly like a manual tap',
+  Math.abs(T.autoTapGainPerSec() - autoBase * cuAuto.mult) < autoBase * 1e-6);
 
 // Ouroboros Cord: 0 watts, boosts prestige core gain, never auto-bought
 const ouro = T.CORDS.find(c => c.coreGain);
@@ -1091,14 +1091,14 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   S().owned = { usba: 200 };     // real W/s so the %-of-W/s share is significant
   S().upgrades = { tw1: true };  // Live Wire: each tap earns 1% of W/s
   const tapBefore = T.clickPower();
-  const x3 = T.UPGRADES.find((u) => u.kind === 'click' && u.mult === 3);
-  S().upgrades[x3.id] = true;
-  check('tap: a x3 tap-power upgrade triples the WHOLE tap value', Math.abs(T.clickPower() - tapBefore * 3) < tapBefore * 1e-6);
+  const cu = T.UPGRADES.find((u) => u.kind === 'click');
+  S().upgrades[cu.id] = true;
+  check('tap: a tap-power upgrade multiplies the WHOLE tap value', Math.abs(T.clickPower() - tapBefore * cu.mult) < tapBefore * 1e-6);
   // Overclocked Thumbs (core "Tap power x3") is also a full tap multiplier.
   S().upgrades = { tw1: true };
   const tb2 = T.clickPower();
   S().coreUpgrades = { thumbs: true };
-  check('tap: core Overclocked Thumbs triples the WHOLE tap value', Math.abs(T.clickPower() - tb2 * 3) < tb2 * 1e-6);
+  check('tap: core Overclocked Thumbs (×2) multiplies the WHOLE tap value', Math.abs(T.clickPower() - tb2 * 2) < tb2 * 1e-6);
   S().coreUpgrades = {};
   // tapwps adds its % of W/s to the tap (Live Wire = +1% of W/s) on top of the flat.
   S().upgrades = {};

@@ -52,13 +52,13 @@
      kind: 'click' multiplies tap power; 'global' multiplies all wps;
      'cord' multiplies one cord's output. req = total owned needed to unlock. */
   const UPGRADES = [
-    { id: 'u_click1', icon: '👆', name: 'Reinforced Thumbs',  cost: 100,    kind: 'click',  mult: 2, desc: 'Tap power x2.' },
+    { id: 'u_click1', icon: '👆', name: 'Reinforced Thumbs',  cost: 100,    kind: 'click',  mult: 1.3, desc: 'Tap power ×1.3.' },
     { id: 'u_usba',   icon: '🔌', name: 'Gold USB Contacts',  cost: 500,    kind: 'cord', cord: 'usba',  mult: 2, req: { cord: 'usba', n: 5 }, desc: 'USB-A output x2.' },
-    { id: 'u_click2', icon: '✋', name: 'Two-Handed Plugging',cost: 2000,   kind: 'click',  mult: 2, desc: 'Tap power x2.' },
+    { id: 'u_click2', icon: '✋', name: 'Two-Handed Plugging',cost: 2000,   kind: 'click',  mult: 1.3, desc: 'Tap power ×1.3.' },
     { id: 'u_jack',   icon: '🎧', name: 'Hi-Fi Insulation',   cost: 5000,   kind: 'cord', cord: 'jack',  mult: 2, req: { cord: 'jack', n: 5 }, desc: '3.5mm jack output x2.' },
     { id: 'u_glob1',  icon: '🧰', name: 'Cable Management',    cost: 25000,  kind: 'global', mult: 1.25, desc: 'All cords +25%.' },
     { id: 'u_hdmi',   icon: '📺', name: 'HDMI 2.1 Spec',       cost: 60000,  kind: 'cord', cord: 'hdmi',  mult: 2, req: { cord: 'hdmi', n: 5 }, desc: 'HDMI output x2.' },
-    { id: 'u_click3', icon: '🦾', name: 'Robotic Plug Arm',   cost: 120000, kind: 'click',  mult: 3, desc: 'Tap power x3.' },
+    { id: 'u_click3', icon: '🦾', name: 'Robotic Plug Arm',   cost: 120000, kind: 'click',  mult: 1.4, desc: 'Tap power ×1.4.' },
     { id: 'u_eth',    icon: '🌐', name: 'Cat-8 Shielding',     cost: 250000, kind: 'cord', cord: 'eth',   mult: 2, req: { cord: 'eth', n: 5 }, desc: 'Ethernet output x2.' },
     { id: 'u_glob2',  icon: '🏷️', name: 'Color-Coded Labels',  cost: 1e6,    kind: 'global', mult: 1.5,  desc: 'All cords +50%.' },
     { id: 'u_usbc',   icon: '⚡', name: '240W Power Delivery', cost: 3e6,    kind: 'cord', cord: 'usbc',  mult: 2, req: { cord: 'usbc', n: 5 }, desc: 'USB-C output x2.' },
@@ -67,14 +67,14 @@
     { id: 'u_thndr',  icon: '🌩️', name: 'Active Repeaters',    cost: 5e8,    kind: 'cord', cord: 'thndr', mult: 2, req: { cord: 'thndr', n: 5 }, desc: 'Thunderbolt output x2.' },
     { id: 'u_fiber',  icon: '✨', name: 'Dense WDM',           cost: 8e9,    kind: 'cord', cord: 'fiber', mult: 2, req: { cord: 'fiber', n: 5 }, desc: 'Fiber output x2.' },
     { id: 'u_glob4',  icon: '🛸', name: 'Self-Plugging Drones',cost: 1e11,   kind: 'global', mult: 3,    desc: 'All cords x3.' },
-    { id: 'u_click4', icon: '🦿', name: 'Exoskeleton Glove',  cost: 5e7,    kind: 'click',  mult: 3, desc: 'Tap power x3.' },
-    { id: 'u_click5', icon: '🐝', name: 'Nanobot Swarm',      cost: 1e11,   kind: 'click',  mult: 4, desc: 'Tap power x4.' },
-    { id: 'u_click6', icon: '🧠', name: 'Hive-Mind Tap',      cost: 1e16,   kind: 'click',  mult: 5, desc: 'Tap power x5.' },
+    { id: 'u_click4', icon: '🦿', name: 'Exoskeleton Glove',  cost: 5e7,    kind: 'click',  mult: 1.4, desc: 'Tap power ×1.4.' },
+    { id: 'u_click5', icon: '🐝', name: 'Nanobot Swarm',      cost: 1e11,   kind: 'click',  mult: 1.4, desc: 'Tap power ×1.4.' },
+    { id: 'u_click6', icon: '🧠', name: 'Hive-Mind Tap',      cost: 1e16,   kind: 'click',  mult: 1.4, desc: 'Tap power ×1.4.' },
     { id: 'u_glob5',  icon: '🎛️', name: 'Plug Orchestra',     cost: 1e14,   kind: 'global', mult: 3, desc: 'All cords x3.' },
     { id: 'u_glob6',  icon: '🧮', name: 'AI Cable Router',     cost: 1e18,   kind: 'global', mult: 4, desc: 'All cords x4.' },
     { id: 'u_glob7',  icon: '🌐', name: 'Reality Patchbay',    cost: 1e23,   kind: 'global', mult: 5, desc: 'All cords x5.' },
-    { id: 'u_click7', icon: '🥊', name: 'Plasma Gauntlet',     cost: 5e13,   kind: 'click',  mult: 5, desc: 'Tap power x5.' },
-    { id: 'u_click8', icon: '🌟', name: 'Singularity Grip',    cost: 1e19,   kind: 'click',  mult: 10, desc: 'Tap power x10.' },
+    { id: 'u_click7', icon: '🥊', name: 'Plasma Gauntlet',     cost: 5e13,   kind: 'click',  mult: 1.5, desc: 'Tap power ×1.5.' },
+    { id: 'u_click8', icon: '🌟', name: 'Singularity Grip',    cost: 1e19,   kind: 'click',  mult: 2, desc: 'Tap power ×2.' },
     // Tap-scaling upgrades — each hand-plug also earns a % of your current W/s.
     { id: 'tw1', icon: '⚡', name: 'Live Wire',      cost: 5e4,  kind: 'tapwps', frac: 0.01, req: { cord: 'usbc',  n: 1 }, desc: 'Each tap also earns 1% of your W/s.' },
     { id: 'tw2', icon: '🔋', name: 'Capacitor Bank', cost: 5e7,  kind: 'tapwps', frac: 0.02, req: { cord: 'thndr', n: 1 }, desc: 'Each tap earns +2% of your W/s.' },
@@ -108,7 +108,7 @@
      Bought with Prestige Cores (◆). Cores are spent, but your per-core
      production bonus is based on cores ever EARNED, so it never drops. */
   const CORE_UPGRADES = [
-    { id: 'thumbs',    icon: '👍', name: 'Overclocked Thumbs', cost: 1,  desc: 'Tap power ×3.' },
+    { id: 'thumbs',    icon: '👍', name: 'Overclocked Thumbs', cost: 1,  desc: 'Tap power ×2.' },
     { id: 'static',    icon: '🔱', name: 'Static Discharge',   cost: 5,  desc: 'Each tap also earns 4% of your W/s.' },
     { id: 'phantom',   icon: '🔌', name: 'Phantom Power',      cost: 2,  desc: 'All production ×1.5.' },
     { id: 'battery',   icon: '🔋', name: 'Battery Backup',     cost: 2,  desc: 'Offline cap +24h (48h total).' },
@@ -121,11 +121,11 @@
     { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
     { id: 'autotap',    icon: '🤖', name: 'Auto-Tapper',       cost: 15,  desc: 'Auto-plugs 5×/sec, free forever.' },
     // Auto-Tapper ladder — each unlocks once the previous is owned.
-    { id: 'autotap10',  icon: '🤖', name: 'Auto-Tapper II',    cost: 25,  req: 'autotap',    desc: 'Auto-plugs 10×/sec.' },
-    { id: 'autotap20',  icon: '🤖', name: 'Auto-Tapper III',   cost: 45,  req: 'autotap10',  desc: 'Auto-plugs 20×/sec.' },
-    { id: 'autotap50',  icon: '🤖', name: 'Auto-Tapper IV',    cost: 80,  req: 'autotap20',  desc: 'Auto-plugs 50×/sec.' },
-    { id: 'autotap100', icon: '🤖', name: 'Auto-Tapper V',     cost: 150, req: 'autotap50',  desc: 'Auto-plugs 100×/sec.' },
-    { id: 'autotap1000',icon: '🤖', name: 'Auto-Tapper VI',    cost: 400, req: 'autotap100', desc: 'Auto-plugs 1000×/sec.' },
+    { id: 'autotap10',  icon: '🤖', name: 'Auto-Tapper II',    cost: 60,  req: 'autotap',    desc: 'Auto-plugs 10×/sec.' },
+    { id: 'autotap20',  icon: '🤖', name: 'Auto-Tapper III',   cost: 250, req: 'autotap10',  desc: 'Auto-plugs 20×/sec.' },
+    { id: 'autotap50',  icon: '🤖', name: 'Auto-Tapper IV',    cost: 1000, req: 'autotap20',  desc: 'Auto-plugs 50×/sec.' },
+    { id: 'autotap100', icon: '🤖', name: 'Auto-Tapper V',     cost: 5000, req: 'autotap50',  desc: 'Auto-plugs 100×/sec.' },
+    { id: 'autotap1000',icon: '🤖', name: 'Auto-Tapper VI',    cost: 30000, req: 'autotap100', desc: 'Auto-plugs 150×/sec.' },
     { id: 'autobuy',   icon: '🛒', name: 'Auto-Buyer',         cost: 18, desc: 'Auto-buys cords for you — cheapest first, many at once.' },
     { id: 'autoupg',   icon: '🛠️', name: 'Auto-Upgrader',      cost: 22, desc: 'Auto-buys upgrades the moment you can afford them.' },
     // Late-game core accelerators — the ladder that makes ??? reachable.
@@ -599,7 +599,7 @@
   function shardGainMult() { let m = 1; if (su('chaser')) m *= 1.5; if (su('stormfission')) m *= 5; return m * stormEffProduct('shardGain', 1); }
   // Per-core production bonus (lifetime cores), boosted by Core Resonance.
   function corePer() { return co('resonance') ? 0.08 : 0.05; }
-  function coreClickMult() { return co('thumbs') ? 3 : 1; }
+  function coreClickMult() { return co('thumbs') ? 2 : 1; }
   // Tap-power multipliers ("Tap power ×N"): the 'click' upgrades plus Overclocked
   // Thumbs. They must multiply the WHOLE tap value (the flat part AND the %-of-W/s
   // share), so "×3" really triples your watts/tap.
@@ -665,7 +665,7 @@
     return m;
   }
   function autoTapRate() {
-    if (co('autotap1000')) return 1000;
+    if (co('autotap1000')) return 150;
     if (co('autotap100')) return 100;
     if (co('autotap50')) return 50;
     if (co('autotap20')) return 20;
