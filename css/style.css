@@ -486,6 +486,10 @@ body.noanim .worldswitch{ animation:none; }
 .surge-presets .sp-grp{ display:inline-flex; gap:4px; align-items:center; }
 .sp-btn{ font-family:var(--pixel); font-size:9px; min-width:30px; min-height:30px; padding:6px 8px; border:1px solid var(--line2); border-radius:6px; background:#0a0f18; color:var(--cyan); cursor:pointer; }
 .sp-btn:active{ transform:translateY(1px); }
+.discharge-btn{ font-family:var(--pixel); font-size:11px; margin-top:8px; padding:11px 18px; min-height:44px; border:1px solid var(--amber); border-radius:10px; background:linear-gradient(rgba(255,194,61,.14), rgba(255,194,61,.02)); color:var(--amber); cursor:pointer; }
+.discharge-btn[hidden]{ display:none; }
+.discharge-btn:disabled{ opacity:.5; color:var(--dim); border-color:var(--line2); cursor:default; }
+.discharge-btn.ready{ animation:wormpulse 1.2s ease-in-out infinite; box-shadow:0 0 12px rgba(255,194,61,.3); }
 
 /* arena */
 .arena{ display:flex; flex-direction:column; align-items:center; padding:8px 0 4px; }

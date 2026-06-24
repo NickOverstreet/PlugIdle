@@ -170,6 +170,8 @@
     { id: 'stormfiss2', icon: '☢️', name: 'Storm Fission II',  cost: 1e10, req: 'stormfission',eff: { shardGain: 2 },   desc: 'Storm Shard gains ×2 more.' },
     { id: 'eyestorm',   icon: '👁️', name: 'Eye of the Storm', cost: 5e10,                     eff: { zps: 5, tap: 5 }, desc: 'All ZPS ×5 and tap-zap ×5.' },
     { id: 'tempestcore',icon: '🌪️', name: 'Tempest Core',     cost: 1e11,                     eff: { zps: 5 },         desc: 'All ZPS ×5.' },
+    { id: 'discharge',     icon: '💥', name: 'Discharge Capacitor', cost: 4,  desc: 'Unlock DISCHARGE: tap to dump ~15s of ZPS in one burst (20s cooldown).' },
+    { id: 'autodischarge', icon: '🔁', name: 'Auto-Discharge',      cost: 12, req: 'discharge', desc: 'Fires Discharge automatically the moment it is ready.' },
     { id: 'w3teaser',    icon: '🌌', name: '???',             disabled: true, desc: 'Coming soon…' },
   ];
 
@@ -512,6 +514,7 @@
       surgeNodes: {},        // surgeNodeId -> true; RESET on reincarnate (the free respec)
       surgeBranch: '',       // chosen mutually-exclusive branch; RESET on reincarnate
       surgePresets: [null, null, null],   // 3 saved build templates; KEPT across reincarnation & prestige
+      dischargeCd: 0,        // Discharge ability cooldown, seconds (run-scoped)
     };
   }
 
@@ -566,6 +569,7 @@
     if (typeof s.slayer.surgeChargesEarned !== 'number') s.slayer.surgeChargesEarned = 0;
     if (typeof s.slayer.surgeBranch !== 'string') s.slayer.surgeBranch = '';
     if (!Array.isArray(s.slayer.surgePresets)) s.slayer.surgePresets = [null, null, null];
+    if (typeof s.slayer.dischargeCd !== 'number') s.slayer.dischargeCd = 0;
     // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
     // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
     // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
@@ -1018,7 +1022,7 @@
     storageStatus: $('#storageStatus'), version: $('#version'),
     // Voltlands
     worldBtn: $('#worldBtn'), wattsUnit: $('#wattsUnit'), wpsUnit: $('#wpsUnit'), tapUnit: $('#tapUnit'),
-    enemyBtn: $('#enemyBtn'), enemyEmoji: $('#enemyEmoji'), enemyName: $('#enemyName'),
+    enemyBtn: $('#enemyBtn'), enemyEmoji: $('#enemyEmoji'), enemyName: $('#enemyName'), dischargeBtn: $('#dischargeBtn'),
     zoneName: $('#zoneName'), hpFill: $('#hpFill'), hpText: $('#hpText'), zapinfo: $('#zapinfo'),
     weaponlist: $('#weaponlist'), zuplist: $('#zuplist'), bulkBarZap: $('#bulkBarZap'),
   };
@@ -2057,6 +2061,7 @@
     s.surgeCharges = 0;
     s.surgeNodes = {};
     s.surgeBranch = '';
+    s.dischargeCd = 0;
     state.challenges.volt = '';   // reincarnation clears the active volt challenge
     if (state.challengeBackup) state.challengeBackup.volt = null;   // no run to restore — reincarnation already reset it
     applyReincarnatePerks();
@@ -2457,6 +2462,19 @@
     if (s.hp <= 0) s.hp = 1;   // floor after the per-call kill cap
   }
 
+  // ---- Discharge: an active burst ability (unlocked by a Storm Upgrade) ----
+  // Tap to dump a chunk of ZPS in one hit on a cooldown; the Auto-Discharge upgrade
+  // fires it for you. Routed through the capped applyZapDamage so it can't balloon.
+  const DISCHARGE_CD = 20;       // cooldown, seconds
+  const DISCHARGE_BURST = 15;    // dumps ~15s of ZPS in one hit
+  function dischargeReady() { return su('discharge') && (sl().dischargeCd || 0) <= 0; }
+  function fireDischarge(silent) {
+    if (!dischargeReady()) { if (!silent) { toast(su('discharge') ? 'Discharge is charging…' : 'Unlock Discharge first'); blip(120, 0.06); } return; }
+    applyZapDamage(totalZps() * DISCHARGE_BURST + zapPower() * 20, 5000);
+    sl().dischargeCd = DISCHARGE_CD;
+    if (!silent) { blip(1400, 0.25, 'sawtooth', 0.07); buzz([0, 60, 80, 60, 100]); screenShake(2); toast('⚡ DISCHARGE!', true); }
+    renderSlayerLite();
+  }
   function slayerTick(dt) {
     if (!state.wormhole) return;
     const zps = totalZps();
@@ -2471,6 +2489,9 @@
     if ((su('autozap') || chDone('staticcling')) && state.settings.world.volt.autoclickOn) {
       applyZapDamage(zapPower() * AUTO_ZAP_RATE * surgeAutoRate() * dt, cap);
     }
+    // DISCHARGE: cooldown ticks down; Auto-Discharge fires it the moment it's ready.
+    if (su('discharge') && (sl().dischargeCd || 0) > 0) sl().dischargeCd = Math.max(0, sl().dischargeCd - dt);
+    if (su('autodischarge') && dischargeReady()) fireDischarge(true);
   }
 
   function zapEnemy() {
@@ -2743,6 +2764,16 @@
     if (el.zapinfo) el.zapinfo.textContent =
       `⚡${fmt(zapPower())} / zap · grid boost ×${gridZpsBoost().toFixed(2)}`;
     el.enemyBtn.classList.toggle('boss', boss);
+    if (el.dischargeBtn) {
+      const unlocked = su('discharge');
+      el.dischargeBtn.hidden = !unlocked;
+      if (unlocked) {
+        const cd = Math.ceil(sl().dischargeCd || 0);
+        el.dischargeBtn.textContent = cd > 0 ? ('⏳ ' + cd + 's') : '⚡ DISCHARGE';
+        el.dischargeBtn.disabled = cd > 0;
+        el.dischargeBtn.classList.toggle('ready', cd <= 0);
+      }
+    }
     if (el.surgechargecount) el.surgechargecount.textContent = fmtInt(sl().surgeCharges || 0);
   }
 
@@ -3149,6 +3180,7 @@
   ['gesturestart', 'gesturechange', 'gestureend'].forEach((evt) =>
     document.addEventListener(evt, (e) => e.preventDefault(), { passive: false }));
   if (el.worldBtn) el.worldBtn.addEventListener('click', switchWorld);
+  if (el.dischargeBtn) el.dischargeBtn.addEventListener('click', () => fireDischarge());
   delegateTap(el.weaponlist, 'data-weapon', (id) => buyWeapon(WEAPONS.find((w) => w.id === id)));
   delegateTap(el.zuplist, 'data-zupgrade', (id) => buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === id)));
   delegateTap(el.surgelist, 'data-surge', (id) => buySurgeNode(SURGE_NODES.find((n) => n.id === id)));

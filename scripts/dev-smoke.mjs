@@ -81,7 +81,7 @@ const hook = `
     carryState, defaultState, normalizeState, defaultSlayer, applyZapDamage, spawnEnemy,
     autoBuyTick, autoBuyUpgrades, autoTapRate, autoTapGainPerSec, clickPowerFlat, clickPower, clickMult, tapWpsFrac, totalWps,
     reincarnate, reincarnateGain, shardMult, sl, su, killEnemy,
-    sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked, saveSurgePreset, loadSurgePreset,
+    sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked, saveSurgePreset, loadSurgePreset, dischargeReady, fireDischarge,
     surgeZpsMult, surgeTapMult, surgeAutoRate, surgeVoltMult, surgeShardMult, surgeCritChance, surgeCritMult,
     STORM_UPGRADES, buyStormUpgrade,
     autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
@@ -321,7 +321,7 @@ check('migrate: new save has both challenge slots', (() => { const c = T.normali
 // Stage 3 — Storm Upgrades shop: catalogue, effects, teaser is non-purchasable
 {
   const SU = T.STORM_UPGRADES;
-  check('content: 27 storm upgrades', SU.length === 27);
+  check('content: 29 storm upgrades', SU.length === 29);
   const teaser = SU[SU.length - 1];
   check('storm: w3teaser is last', teaser.id === 'w3teaser');
   check('storm: w3teaser is disabled', teaser.disabled === true);
@@ -1000,6 +1000,30 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   check('perk: SURGE SURPLUS doubles a normal kill mint (=2)', sR.surgeCharges === 2 && sR.surgeChargesEarned === 2);
   delete S().challengesDone.surgefamine;
   sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 1;
+}
+
+// Discharge active ability (Storm-Upgrade unlock + Auto-Discharge)
+{
+  const sR = T.sl();
+  S().wormhole = true; S().challenges = { grid: '', volt: '' };
+  sR.shardUpgrades = {}; sR.dischargeCd = 0; sR.weapons = { glove: 100 }; sR.upgrades = {};
+  sR.wave = 5; sR.killsThisWave = 0; sR.kills = 0;
+  T.spawnEnemy();
+  check('discharge: locked until the Storm Upgrade is owned', !T.dischargeReady());
+  T.fireDischarge();
+  check('discharge: firing while locked is a no-op', (sR.dischargeCd || 0) === 0);
+  sR.shardUpgrades = { discharge: true };
+  check('discharge: ready once unlocked', T.dischargeReady());
+  const k0 = sR.kills;
+  T.fireDischarge();
+  check('discharge: firing deals a burst (advances kills) + sets the cooldown', sR.kills > k0 && Math.abs(sR.dischargeCd - 20) < 1e-9 && !T.dischargeReady());
+  for (let i = 0; i < 20; i++) T.slayerTick(1);
+  check('discharge: cooldown ticks to 0 after ~20s', (sR.dischargeCd || 0) <= 0 && T.dischargeReady());
+  sR.shardUpgrades = { discharge: true, autodischarge: true };
+  sR.dischargeCd = 0;
+  T.slayerTick(1);
+  check('discharge: Auto-Discharge fires it when ready (sets cooldown)', sR.dischargeCd > 0);
+  sR.shardUpgrades = {}; sR.dischargeCd = 0; sR.weapons = {};
 }
 
 // Tiered volt challenges + cross-world (volt tiers -> Grid watts) coupling
