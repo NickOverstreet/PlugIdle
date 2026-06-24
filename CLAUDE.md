@@ -20,7 +20,10 @@ settings page all match:
 | `js/game.js` | `const VERSION` | the string shown on the settings page ("PlugIdle vX.Y.Z") |
 | `android/app/build.gradle` | `versionName` | the version players see on the Play Store |
 
-Current version: **0.14.9** (pre-release; intentionally on the 0.x line until launch).
+Current version: **1.0.1** (jumped from the 0.x line to 1.0.x because the iOS
+TestFlight train already shipped under marketing version 1.0, so any 0.x build
+reads as older and Apple rejects it; still distributing on test tracks, not yet
+a public store launch).
 
 ### Do NOT confuse these with the app version
 - `android/app/build.gradle` → `versionCode`: a monotonic **integer** counter for
