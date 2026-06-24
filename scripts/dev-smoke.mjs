@@ -978,5 +978,19 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 0; sR.weapons = {}; sR.runVolts = 0;
 }
 
+// Content integrity — unique ids per catalog + valid cross-references
+{
+  const uniq = (name, arr) => { const ids = arr.map((x) => x.id).filter(Boolean); check('content: ' + name + ' ids unique', new Set(ids).size === ids.length); };
+  uniq('CORDS', T.CORDS); uniq('UPGRADES', T.UPGRADES); uniq('CORE_UPGRADES', T.CORE_UPGRADES);
+  uniq('WEAPONS', T.WEAPONS); uniq('ZAP_UPGRADES', T.ZAP_UPGRADES); uniq('STORM_UPGRADES', T.STORM_UPGRADES);
+  uniq('SURGE_NODES', T.SURGE_NODES); uniq('CHALLENGES', T.CHALLENGES); uniq('ACHIEVEMENTS', T.ACHIEVEMENTS);
+  check('content: weapon-kind zap upgrades target real weapons',
+    T.ZAP_UPGRADES.filter((u) => u.kind === 'weapon').every((u) => T.WEAPONS.some((w) => w.id === u.weapon)));
+  check('content: surge node reqs reference real nodes',
+    T.SURGE_NODES.every((n) => !n.req || T.SURGE_NODES.some((m) => m.id === n.req)));
+  check('content: Voltlands exceeds the Grid in generators', T.WEAPONS.length > T.CORDS.length);
+  check('content: Voltlands exceeds the Grid in upgrades', T.ZAP_UPGRADES.length > T.UPGRADES.length);
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

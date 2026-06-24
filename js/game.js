@@ -231,6 +231,26 @@
     { id: 'storm',   icon: '🌩️', name: 'Storm Caller',     baseCost: 3.3e8,   zps: 44000, desc: 'Subscribe to lightning. Cancel anytime.' },
     { id: 'ball',    icon: '🔮', name: 'Ball Lightning',   baseCost: 5.1e9,   zps: 4e5,   desc: 'Science still cannot explain it. It hurts.' },
     { id: 'zeus',    icon: '🏛️', name: 'Zeus Rig',         baseCost: 7.5e10,  zps: 3.6e6, desc: 'Borrowed. Do not tell him.' },
+    // ---- Voltlands expansion: 19 more weapons (continues the geometric ladder) ----
+    { id: 'lance',    icon: '⚔️', name: 'Plasma Lance',     baseCost: 1e12,    zps: 3.2e7,   desc: 'Pointy end goes toward the enemy.' },
+    { id: 'mortar',   icon: '💣', name: 'Ion Mortar',       baseCost: 1.4e13,  zps: 2.9e8,   desc: 'Lobs a ball of very angry electrons.' },
+    { id: 'spire',    icon: '🏯', name: 'Tesla Spire',      baseCost: 2e14,    zps: 2.6e9,   desc: 'A skyscraper whose only job is damage.' },
+    { id: 'striker',  icon: '🛰️', name: 'Orbital Striker',  baseCost: 3e15,    zps: 2.3e10,  desc: 'Death from low-earth orbit.' },
+    { id: 'nullbolt', icon: '🧿', name: 'Nullbolt Array',   baseCost: 4e16,    zps: 2.1e11,  desc: 'Fires the pure absence of resistance.' },
+    { id: 'darkdis',  icon: '🕳️', name: 'Dark Discharger',  baseCost: 6e17,    zps: 1.9e12,  desc: 'Voltage drawn straight from the void.' },
+    { id: 'whip',     icon: '🌌', name: 'Wormhole Whip',    baseCost: 9e18,    zps: 1.7e13,  desc: 'Cracks it here, lands it everywhere.' },
+    { id: 'meteor',   icon: '☄️', name: 'Meteor Coil',      baseCost: 1.3e20,  zps: 1.5e14,  desc: 'Calls down a charged rock or two.' },
+    { id: 'ttaser',   icon: '💫', name: 'Tachyon Taser',    baseCost: 2e21,    zps: 1.4e15,  desc: 'Zaps them slightly before they spawn.' },
+    { id: 'sprod',    icon: '⚫', name: 'Singularity Prod',  baseCost: 3e22,    zps: 1.25e16, desc: 'Pokes a small hole in causality.' },
+    { id: 'conduit',  icon: '✴️', name: 'Cosmic Conduit',   baseCost: 4.5e23,  zps: 1.1e17,  desc: 'Routes a whole galaxy through one tip.' },
+    { id: 'grail',    icon: '🪐', name: 'Galactic Railgun', baseCost: 7e24,    zps: 1e18,    desc: 'Muzzle velocity: yes.' },
+    { id: 'seraph',   icon: '😇', name: "Seraph's Spark",   baseCost: 1e26,    zps: 9e18,    desc: 'Smiting, but make it electrical.' },
+    { id: 'ostrike',  icon: '🅾️', name: 'Omega Striker',    baseCost: 1.5e27,  zps: 8e19,    desc: 'The last weapon. Probably.' },
+    { id: 'axarc',    icon: '📐', name: 'Axiom Arc',        baseCost: 2.5e29,  zps: 7e20,    desc: 'Damage proven from first principles.' },
+    { id: 'gjolt',    icon: '🌱', name: 'Genesis Jolt',     baseCost: 4e31,    zps: 6.5e21,  desc: 'The spark the next universe zaps with.' },
+    { id: 'edynamo',  icon: '♾️', name: 'Eternal Dynamo',   baseCost: 6e32,    zps: 5.5e22,  desc: 'It was zapping before time began.' },
+    { id: 'bigbang',  icon: '💥', name: 'Big Bang Battery', baseCost: 9e33,    zps: 5e23,    desc: 'One AA cell. Do not swallow.' },
+    { id: 'voltdoom', icon: '👑', name: 'Voltdoom',         baseCost: 1.4e35,  zps: 4.5e24,  desc: 'The final word in applied electrocution.' },
   ];
 
   /* kinds: 'zap' multiplies tap-zap power; 'weapon' doubles one weapon
@@ -248,6 +268,47 @@
     { id: 'z_ladder',icon: '🪜', name: 'Extension Rungs',   cost: 8e6,   kind: 'weapon', weapon: 'ladder', mult: 2, req: { weapon: 'ladder', n: 5 }, desc: "Jacob's Ladder zaps x2." },
     { id: 'z_zap3',  icon: '🔨', name: 'Mjolnir Grip',      cost: 5e7,   kind: 'zap', mult: 5, desc: 'Tap-zap power x5.' },
     { id: 'z_glob3', icon: '🧲', name: 'Superconductors',   cost: 1e8,   kind: 'zglobal', mult: 3, desc: 'All weapons x3.' },
+    // ---- Voltlands expansion: weapon doublers (one per weapon) + more globals/taps ----
+    { id: 'z_cannon',  icon: '🧨', name: 'Recoil Damper',        cost: 5.6e7, kind: 'weapon', weapon: 'cannon',  mult: 2, req: { weapon: 'cannon',  n: 5 }, desc: 'Capacitor Cannon zaps ×2.' },
+    { id: 'z_railgun', icon: '🎯', name: 'Rifled Rails',         cost: 8e8,   kind: 'weapon', weapon: 'railgun', mult: 2, req: { weapon: 'railgun', n: 5 }, desc: 'Volt Railgun zaps ×2.' },
+    { id: 'z_storm',   icon: '🌩️', name: 'Premium Subscription', cost: 1.3e10,kind: 'weapon', weapon: 'storm',   mult: 2, req: { weapon: 'storm',   n: 5 }, desc: 'Storm Caller zaps ×2.' },
+    { id: 'z_ball',    icon: '🔮', name: 'Contained Chaos',      cost: 2e11,  kind: 'weapon', weapon: 'ball',    mult: 2, req: { weapon: 'ball',    n: 5 }, desc: 'Ball Lightning zaps ×2.' },
+    { id: 'z_zeus',    icon: '🏛️', name: 'Divine Right',         cost: 3e12,  kind: 'weapon', weapon: 'zeus',    mult: 2, req: { weapon: 'zeus',    n: 5 }, desc: 'Zeus Rig zaps ×2.' },
+    { id: 'z_lance',   icon: '⚔️', name: 'Honed Tip',            cost: 4e13,  kind: 'weapon', weapon: 'lance',    mult: 2, req: { weapon: 'lance',    n: 5 }, desc: 'Plasma Lance zaps ×2.' },
+    { id: 'z_mortar',  icon: '💣', name: 'Bigger Payload',       cost: 5.6e14,kind: 'weapon', weapon: 'mortar',   mult: 2, req: { weapon: 'mortar',   n: 5 }, desc: 'Ion Mortar zaps ×2.' },
+    { id: 'z_spire',   icon: '🏯', name: 'Taller Spire',         cost: 8e15,  kind: 'weapon', weapon: 'spire',    mult: 2, req: { weapon: 'spire',    n: 5 }, desc: 'Tesla Spire zaps ×2.' },
+    { id: 'z_striker', icon: '🛰️', name: 'Lower Orbit',          cost: 1.2e17,kind: 'weapon', weapon: 'striker',  mult: 2, req: { weapon: 'striker',  n: 5 }, desc: 'Orbital Striker zaps ×2.' },
+    { id: 'z_nullbolt',icon: '🧿', name: 'Deeper Null',          cost: 1.6e18,kind: 'weapon', weapon: 'nullbolt', mult: 2, req: { weapon: 'nullbolt', n: 5 }, desc: 'Nullbolt Array zaps ×2.' },
+    { id: 'z_darkdis', icon: '🕳️', name: 'Voidtap',              cost: 2.4e19,kind: 'weapon', weapon: 'darkdis',  mult: 2, req: { weapon: 'darkdis',  n: 5 }, desc: 'Dark Discharger zaps ×2.' },
+    { id: 'z_whip',    icon: '🌌', name: 'Tighter Crack',        cost: 3.6e20,kind: 'weapon', weapon: 'whip',     mult: 2, req: { weapon: 'whip',     n: 5 }, desc: 'Wormhole Whip zaps ×2.' },
+    { id: 'z_meteor',  icon: '☄️', name: 'Denser Rock',          cost: 5.2e21,kind: 'weapon', weapon: 'meteor',   mult: 2, req: { weapon: 'meteor',   n: 5 }, desc: 'Meteor Coil zaps ×2.' },
+    { id: 'z_ttaser',  icon: '💫', name: 'Earlier Zap',          cost: 8e22,  kind: 'weapon', weapon: 'ttaser',   mult: 2, req: { weapon: 'ttaser',   n: 5 }, desc: 'Tachyon Taser zaps ×2.' },
+    { id: 'z_sprod',   icon: '⚫', name: 'Sharper Poke',         cost: 1.2e24,kind: 'weapon', weapon: 'sprod',    mult: 2, req: { weapon: 'sprod',    n: 5 }, desc: 'Singularity Prod zaps ×2.' },
+    { id: 'z_conduit', icon: '✴️', name: 'Wider Routing',        cost: 1.8e25,kind: 'weapon', weapon: 'conduit',  mult: 2, req: { weapon: 'conduit',  n: 5 }, desc: 'Cosmic Conduit zaps ×2.' },
+    { id: 'z_grail',   icon: '🪐', name: 'More Velocity',        cost: 2.8e26,kind: 'weapon', weapon: 'grail',    mult: 2, req: { weapon: 'grail',    n: 5 }, desc: 'Galactic Railgun zaps ×2.' },
+    { id: 'z_seraph',  icon: '😇', name: 'Holier Spark',         cost: 4e27,  kind: 'weapon', weapon: 'seraph',   mult: 2, req: { weapon: 'seraph',   n: 5 }, desc: "Seraph's Spark zaps ×2." },
+    { id: 'z_ostrike', icon: '🅾️', name: 'Final Polish',         cost: 6e28,  kind: 'weapon', weapon: 'ostrike',  mult: 2, req: { weapon: 'ostrike',  n: 5 }, desc: 'Omega Striker zaps ×2.' },
+    { id: 'z_axarc',   icon: '📐', name: 'Tighter Proof',        cost: 1e31,  kind: 'weapon', weapon: 'axarc',    mult: 2, req: { weapon: 'axarc',    n: 5 }, desc: 'Axiom Arc zaps ×2.' },
+    { id: 'z_gjolt',   icon: '🌱', name: 'Brighter Spark',       cost: 1.6e33,kind: 'weapon', weapon: 'gjolt',    mult: 2, req: { weapon: 'gjolt',    n: 5 }, desc: 'Genesis Jolt zaps ×2.' },
+    { id: 'z_edynamo', icon: '♾️', name: 'Faster Spin',          cost: 2.4e34,kind: 'weapon', weapon: 'edynamo',  mult: 2, req: { weapon: 'edynamo',  n: 5 }, desc: 'Eternal Dynamo zaps ×2.' },
+    { id: 'z_bigbang', icon: '💥', name: 'Fresh Cell',           cost: 3.6e35,kind: 'weapon', weapon: 'bigbang',  mult: 2, req: { weapon: 'bigbang',  n: 5 }, desc: 'Big Bang Battery zaps ×2.' },
+    { id: 'z_voltdoom',icon: '👑', name: 'Last Word',            cost: 5.6e36,kind: 'weapon', weapon: 'voltdoom', mult: 2, req: { weapon: 'voltdoom', n: 5 }, desc: 'Voltdoom zaps ×2.' },
+    { id: 'z_glob4',  icon: '🌫️', name: 'Plasma Field',       cost: 5e9,  kind: 'zglobal', mult: 3,  desc: 'All weapons ×3.' },
+    { id: 'z_glob5',  icon: '🧲', name: 'Magnetic Lattice',   cost: 1e12, kind: 'zglobal', mult: 3,  desc: 'All weapons ×3.' },
+    { id: 'z_glob6',  icon: '🌀', name: 'Graviton Mesh',      cost: 5e14, kind: 'zglobal', mult: 5,  desc: 'All weapons ×5.' },
+    { id: 'z_glob7',  icon: '♾️', name: 'Quantum Entangler',  cost: 1e18, kind: 'zglobal', mult: 5,  desc: 'All weapons ×5.' },
+    { id: 'z_glob8',  icon: '✴️', name: 'Cosmic Resonator',   cost: 1e22, kind: 'zglobal', mult: 5,  desc: 'All weapons ×5.' },
+    { id: 'z_glob9',  icon: '🅾️', name: 'Omega Field',        cost: 1e27, kind: 'zglobal', mult: 5,  desc: 'All weapons ×5.' },
+    { id: 'z_glob10', icon: '📐', name: 'Axiomatic Boost',    cost: 1e32, kind: 'zglobal', mult: 5,  desc: 'All weapons ×5.' },
+    { id: 'z_glob11', icon: '👑', name: 'Voltlords',          cost: 1e36, kind: 'zglobal', mult: 10, desc: 'All weapons ×10.' },
+    { id: 'z_zap4',  icon: '🔨', name: 'Thunder Fist',  cost: 1e9,  kind: 'zap', mult: 5,  desc: 'Tap-zap power ×5.' },
+    { id: 'z_zap5',  icon: '⚡', name: 'Storm Knuckle', cost: 1e13, kind: 'zap', mult: 5,  desc: 'Tap-zap power ×5.' },
+    { id: 'z_zap6',  icon: '🌟', name: 'Godhand',       cost: 1e18, kind: 'zap', mult: 10, desc: 'Tap-zap power ×10.' },
+    { id: 'z_zap7',  icon: '💥', name: 'Voltfist',      cost: 1e24, kind: 'zap', mult: 10, desc: 'Tap-zap power ×10.' },
+    { id: 'z_zap8',  icon: '☄️', name: 'Meteor Punch',  cost: 1e29, kind: 'zap', mult: 10, desc: 'Tap-zap power ×10.' },
+    { id: 'z_zap9',  icon: '🌌', name: 'Reality Slap',  cost: 1e33, kind: 'zap', mult: 15, desc: 'Tap-zap power ×15.' },
+    { id: 'z_zap10', icon: '♾️', name: 'Eternal Jab',   cost: 1e36, kind: 'zap', mult: 15, desc: 'Tap-zap power ×15.' },
+    { id: 'z_zap11', icon: '👑', name: 'Doomstrike',    cost: 1e38, kind: 'zap', mult: 20, desc: 'Tap-zap power ×20.' },
   ];
 
   const ENEMIES = [
@@ -261,6 +322,12 @@
     { icon: '👾', name: 'Glitch Wraith' },
     { icon: '🦞', name: 'Cable Crab' },
     { icon: '🐍', name: 'Inductor Serpent' },
+    { icon: '🦗', name: 'Capacitor Cricket' },
+    { icon: '🪲', name: 'Diode Beetle' },
+    { icon: '🦟', name: 'Amp Gnat' },
+    { icon: '🐙', name: 'Octocoil' },
+    { icon: '🦅', name: 'Arc Raptor' },
+    { icon: '👻', name: 'Leyden Ghost' },
   ];
   const BOSSES = [
     { icon: '🐉', name: 'Fuse Dragon' },
@@ -268,10 +335,14 @@
     { icon: '🦑', name: 'Grounding Kraken' },
     { icon: '👹', name: 'Overload Oni' },
     { icon: '🌪️', name: 'Storm Tyrant' },
+    { icon: '🐲', name: 'Arc Wyrm' },
+    { icon: '🗿', name: 'Capacitor Colossus' },
+    { icon: '👽', name: 'The Singularity' },
   ];
   const ZONES = ['Static Fields', 'Copper Canyons', 'Insulator Wastes', 'Capacitor Crypts',
     'Magnet Mires', 'Dynamo Dunes', 'The Short Circuit', 'Transformer Tombs',
-    'Gigavolt Glacier', 'The Eye of the Storm'];
+    'Gigavolt Glacier', 'The Eye of the Storm', 'Plasma Reaches', 'The Null Expanse',
+    'Singularity Shore', 'The Last Volt'];
 
   // Cord output milestones: every CORD_MILESTONE owned grants ×2, except every
   // BIG_MILESTONE owned grants ×BIG_MILESTONE_MULT instead — near-term goals
