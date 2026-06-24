@@ -792,13 +792,19 @@ check('autotap: base rate is 5', T.autoTapRate() === 5);
 ['autotap10', 'autotap20', 'autotap50', 'autotap100', 'autotap1000'].forEach(id => { S().coreUpgrades[id] = true; });
 check('autotap: maxed rate is 1000', T.autoTapRate() === 1000);
 
-// W/s share of auto-taps is capped: 1000/sec × Static must NOT give ~40× W/s
+// Auto-taps are identical to manual taps — full tap-power multipliers AND the
+// %-of-W/s share, just faster. (The old W/s-share cap is intentionally removed.)
 S().challenges.grid = '';
-S().coreUpgrades.static = true;   // each tap earns 4% of W/s
+S().coreUpgrades.static = true;   // each tap earns 4% of W/s (autotap ladder set above)
 S().upgrades = {};
-S().owned = { usba: 1000 };       // gives a nonzero W/s to draw the share from
-const apShare = T.autoTapGainPerSec() - T.clickPowerFlat() * T.autoTapRate();
-check('autotap: W/s share is capped (no balloon)', apShare <= T.totalWps() * 1.001);
+S().owned = { usba: 1000 };       // nonzero W/s for the share
+check('autotap: each auto-tap equals a manual tap × rate',
+  Math.abs(T.autoTapGainPerSec() - T.clickPower() * T.autoTapRate()) < T.clickPower() * T.autoTapRate() * 1e-9);
+const autoBase = T.autoTapGainPerSec();
+const x3up = T.UPGRADES.find((u) => u.kind === 'click' && u.mult === 3);
+S().upgrades[x3up.id] = true;
+check('autotap: a x3 tap-power upgrade triples auto-tap income (parity with manual)',
+  Math.abs(T.autoTapGainPerSec() - autoBase * 3) < autoBase * 1e-6);
 
 // Ouroboros Cord: 0 watts, boosts prestige core gain, never auto-bought
 const ouro = T.CORDS.find(c => c.coreGain);

@@ -829,15 +829,13 @@
     return (clickPowerFlat() + fromWps) * buffMult('click');
   }
 
-  // Watts earned per second by the Auto-Tapper. Flat tap power applies to every
-  // tap, but the "% of W/s" share is capped (AUTO_TAP_WPS_CAP) so very high tap
-  // rates — e.g. 1000/sec × Static Discharge — can't balloon production.
-  const AUTO_TAP_WPS_CAP = 1;   // auto-taps' W/s share tops out at +100% of W/s
+  // Watts earned per second by the Auto-Tapper. Each auto-tap is worth exactly a
+  // manual tap (clickPower) -- the SAME tap-power multipliers AND %-of-W/s share --
+  // so automating tapping is identical to tapping by hand, just at the auto rate.
   function autoTapGainPerSec() {
     const taps = autoTapRate();
-    if (taps <= 0 || ch('grid') === 'unplugged') return 0;   // UNPLUGGED: hand-plugs earn nothing
-    const wpsShare = Math.min(tapWpsFrac() * taps, AUTO_TAP_WPS_CAP);
-    return (clickPowerFlat() * taps + wpsShare * totalWps()) * buffMult('click');
+    if (taps <= 0) return 0;
+    return clickPower() * taps;   // clickPower() already applies the UNPLUGGED rule + buffs
   }
 
   // OVERPRICED challenge steepens cost growth; its WHOLESALE perk discounts.
