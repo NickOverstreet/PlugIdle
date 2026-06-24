@@ -200,9 +200,10 @@ workflows:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
-        # Land the upload as a draft on the internal track rather than
-        # auto-rolling it out to testers. Set to false to push live immediately.
-        submit_as_draft: true
+        # Auto-roll the upload out to the internal track instead of landing it
+        # as a draft. Set submit_as_draft to true to gate behind a manual
+        # rollout in Play Console instead.
+        submit_as_draft: false
 
 # ----------------------------------------------------------------------------
 # Codemagic setup (one-time, done by the user in the Codemagic UI — never in
