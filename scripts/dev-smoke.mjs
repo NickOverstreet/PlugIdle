@@ -81,6 +81,8 @@ const hook = `
     carryState, defaultState, normalizeState, defaultSlayer, applyZapDamage, spawnEnemy,
     autoBuyTick, autoBuyUpgrades, autoTapRate, autoTapGainPerSec, clickPowerFlat, totalWps,
     reincarnate, reincarnateGain, shardMult, sl, su, killEnemy,
+    sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked,
+    surgeZpsMult, surgeTapMult, surgeAutoRate, surgeVoltMult, surgeShardMult, surgeCritChance, surgeCritMult,
     STORM_UPGRADES, buyStormUpgrade,
     autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
     ch, chDone, startChallenge, beginChallenge, checkChallenge, abandonChallenge, restoreChallengeBackup,
@@ -922,6 +924,58 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   check('surge: reincarnate resets spendable charges to 0', T.sl().surgeCharges === 0);
   check('surge: reincarnate clears nodes + branch (free respec)', Object.keys(T.sl().surgeNodes).length === 0 && T.sl().surgeBranch === '');
   check('surge: reincarnate KEEPS lifetime surgeChargesEarned', T.sl().surgeChargesEarned === earnedBefore);
+}
+
+// Surge Grid — Phase 2/3: tree buy logic + tick-hook multipliers
+{
+  const sR = T.sl();
+  sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 0; sR.weapons = {};
+  const N = (id) => T.SURGE_NODES.find(n => n.id === id);
+
+  // empty tree => every surge multiplier is its no-op base
+  check('surge: empty tree => zps/tap/volt/shard/auto mult all 1',
+    T.surgeZpsMult() === 1 && T.surgeTapMult() === 1 && T.surgeVoltMult() === 1 && T.surgeShardMult() === 1 && T.surgeAutoRate() === 1);
+  check('surge: empty tree => crit base 10% / x10', Math.abs(T.surgeCritChance() - 0.10) < 1e-9 && T.surgeCritMult() === 10);
+
+  // buy guard: not enough charges
+  sR.surgeCharges = 1;
+  T.buySurgeNode(N('sg_root'));
+  check('surge: buy blocked when charges < cost', !T.sg('sg_root'));
+  // enough charges => buy + decrement
+  sR.surgeCharges = 1000;
+  T.buySurgeNode(N('sg_root'));
+  check('surge: node bought + charges decremented', T.sg('sg_root') && sR.surgeCharges === 1000 - N('sg_root').cost);
+  check('surge: bought tap node lifts surgeTapMult', Math.abs(T.surgeTapMult() - 1.5) < 1e-9);
+  // prereq gating
+  T.buySurgeNode(N('sg_t3'));
+  check('surge: prereq-gated node refused until its req is owned', !T.sg('sg_t3'));
+  T.buySurgeNode(N('sg_t2'));
+  check('surge: prereq met => node buys; surgeZpsMult lifts', T.sg('sg_t2') && Math.abs(T.surgeZpsMult() - 1.5) < 1e-9);
+
+  // branch exclusivity
+  T.buySurgeNode(N('sg_t3')); T.buySurgeNode(N('sg_fork')); T.buySurgeNode(N('sg_crit'));
+  check('surge: picking a capstone sets surgeBranch', sR.surgeBranch === 'crit');
+  check('surge: a different-branch node is locked once a path is chosen', !T.surgeNodeUnlocked(N('sg_flow')));
+  T.buySurgeNode(N('sg_flow'));
+  check('surge: buying a locked cross-branch node is refused', !T.sg('sg_flow'));
+  check('surge: crit capstone raises crit chance + mult', T.surgeCritChance() > 0.10 && T.surgeCritMult() > 10);
+
+  // tick-hook integration: surge mults actually move combat outputs
+  sR.weapons = { glove: 100 };
+  sR.surgeNodes = {}; sR.surgeBranch = '';
+  const zps0 = T.totalZps(), tap0 = T.zapPower(), volt0 = T.voltReward(5);
+  sR.surgeNodes = { sg_root: true, sg_t2: true };   // tap x1.5, zps x1.5
+  check('surge: totalZps scales with surgeZpsMult', Math.abs(T.totalZps() - zps0 * 1.5) < zps0 * 1e-6);
+  check('surge: zapPower scales with surgeTapMult', Math.abs(T.zapPower() - tap0 * 1.5) < tap0 * 1e-6);
+  sR.surgeNodes = { sg_hunt: true };   // volt x1.5
+  check('surge: voltReward scales with surgeVoltMult', Math.abs(T.voltReward(5) - volt0 * 1.5) < volt0 * 1e-6);
+  // reincarnateGain scales with surgeShardMult
+  sR.runVolts = 1e12; sR.surgeNodes = {};
+  const g0 = T.reincarnateGain();
+  sR.surgeNodes = { sg_hunt: true, sg_hunt2: true, sg_hunt3: true };   // shard x1.25 x1.5
+  check('surge: reincarnateGain scales with surgeShardMult', T.reincarnateGain() > g0);
+
+  sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 0; sR.weapons = {}; sR.runVolts = 0;
 }
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);

@@ -156,6 +156,39 @@
     { id: 'w3teaser',    icon: '🌌', name: '???',             disabled: true, desc: 'Coming soon…' },
   ];
 
+  /* ---------- Content: the Surge Grid (Voltlands combat research tree) ----------
+     Bought with Surge Charges (minted by kills). Linear prereq chains feed three
+     MUTUALLY-EXCLUSIVE branch capstones (crit / flow / hunt); each node folds a
+     multiplier into the EXISTING combat chains, so an un-specced tree is a no-op.
+     Free respec on reincarnate. eff keys: zps/tap/autoRate/volt/shard are
+     multipliers; critChance is additive; critMult is a multiplier. */
+  const SURGE_NODES = [
+    // Trunk — linear, no branch.
+    { id: 'sg_root', icon: '⚡', name: 'Live Current',    cost: 3,   req: null,      branch: '', eff: { tap: 1.5 },             desc: 'Tap-zap power ×1.5.' },
+    { id: 'sg_t2',   icon: '🔌', name: 'Conductive Core', cost: 6,   req: 'sg_root', branch: '', eff: { zps: 1.5 },             desc: 'All ZPS ×1.5.' },
+    { id: 'sg_t3',   icon: '🌀', name: 'Overdrive Coils', cost: 12,  req: 'sg_t2',   branch: '', eff: { zps: 1.5, tap: 1.5 },   desc: 'ZPS ×1.5 and tap-zap ×1.5.' },
+    { id: 'sg_fork', icon: '🔱', name: 'Surge Fork',      cost: 20,  req: 'sg_t3',   branch: '', eff: { zps: 1.25 },            desc: 'All ZPS ×1.25. Opens the three paths.' },
+    // CHOOSE ONE PATH — three mutually-exclusive capstones (each commits surgeBranch).
+    { id: 'sg_crit', icon: '💥', name: 'Critical Path',   cost: 30,  req: 'sg_fork', branch: 'crit', eff: { critChance: 0.05, critMult: 1.5 }, desc: 'PATH — enable & boost crits: +5% crit chance, crit ×1.5.' },
+    { id: 'sg_flow', icon: '🌊', name: 'Flow State',      cost: 30,  req: 'sg_fork', branch: 'flow', eff: { zps: 2, autoRate: 1.5 },           desc: 'PATH — ZPS ×2, auto-zapper rate ×1.5.' },
+    { id: 'sg_hunt', icon: '🎯', name: 'Boss Hunter',     cost: 30,  req: 'sg_fork', branch: 'hunt', eff: { volt: 1.5, shard: 1.25 },          desc: 'PATH — volt income ×1.5, shard gain ×1.25.' },
+    // Crit sub-chain.
+    { id: 'sg_crit2', icon: '🔪', name: 'Hair Trigger', cost: 45,  req: 'sg_crit',  branch: 'crit', eff: { critChance: 0.07 },        desc: '+7% crit chance.' },
+    { id: 'sg_crit3', icon: '⚔️', name: 'Overkill',     cost: 70,  req: 'sg_crit2', branch: 'crit', eff: { critMult: 2 },             desc: 'Crit damage ×2.' },
+    { id: 'sg_crit4', icon: '🗡️', name: 'Arc Flash',    cost: 110, req: 'sg_crit3', branch: 'crit', eff: { tap: 2, critChance: 0.05 }, desc: 'Tap-zap ×2 and +5% crit chance.' },
+    { id: 'sg_crit5', icon: '☄️', name: 'Annihilation', cost: 170, req: 'sg_crit4', branch: 'crit', eff: { critMult: 2.5 },           desc: 'Crit damage ×2.5.' },
+    // Flow sub-chain.
+    { id: 'sg_flow2', icon: '💧', name: 'Steady Stream',   cost: 45,  req: 'sg_flow',  branch: 'flow', eff: { zps: 2 },                 desc: 'All ZPS ×2.' },
+    { id: 'sg_flow3', icon: '🤖', name: 'Rapid Discharge', cost: 70,  req: 'sg_flow2', branch: 'flow', eff: { autoRate: 2 },            desc: 'Auto-zapper rate ×2.' },
+    { id: 'sg_flow4', icon: '🌧️', name: 'Cascade',         cost: 110, req: 'sg_flow3', branch: 'flow', eff: { zps: 2 },                 desc: 'All ZPS ×2.' },
+    { id: 'sg_flow5', icon: '🌊', name: 'Tidal Force',     cost: 170, req: 'sg_flow4', branch: 'flow', eff: { zps: 2.5, autoRate: 1.5 }, desc: 'ZPS ×2.5, auto-zapper rate ×1.5.' },
+    // Hunt sub-chain.
+    { id: 'sg_hunt2', icon: '🏹', name: 'Bounty',        cost: 45,  req: 'sg_hunt',  branch: 'hunt', eff: { volt: 1.5 },            desc: 'Volt income ×1.5.' },
+    { id: 'sg_hunt3', icon: '⛈️', name: 'Storm Harvest', cost: 70,  req: 'sg_hunt2', branch: 'hunt', eff: { shard: 1.5 },           desc: 'Shard gain ×1.5.' },
+    { id: 'sg_hunt4', icon: '🐉', name: 'Giant Killer',  cost: 110, req: 'sg_hunt3', branch: 'hunt', eff: { volt: 2 },              desc: 'Volt income ×2.' },
+    { id: 'sg_hunt5', icon: '👑', name: 'Apex Predator', cost: 170, req: 'sg_hunt4', branch: 'hunt', eff: { volt: 1.5, shard: 1.5 }, desc: 'Volt ×1.5, shard ×1.5.' },
+  ];
+
   /* ---------- Content: challenges ----------
      Special runs with one rule mutated (started from the More tab after the
      first prestige). Resets the run like recycling, no cores gained; reaching
@@ -441,6 +474,8 @@
   const co = (id) => !!(state.coreUpgrades && state.coreUpgrades[id]);
   // Storm-Upgrade-owned helper (mirror of `co` for the Voltlands shard shop).
   const su = (id) => !!(state.slayer && state.slayer.shardUpgrades && state.slayer.shardUpgrades[id]);
+  // Surge-node-owned helper (mirror of `su` for the Surge Grid research tree).
+  const sg = (id) => !!(state.slayer && state.slayer.surgeNodes && state.slayer.surgeNodes[id]);
   // Per-shard ZPS bonus (lifetime shards), boosted by Resonant Core.
   function shardPer() { return su('resocore') ? 0.08 : 0.05; }
   // Storm Shard gain multiplier (mirror of prestigeGainMult).
@@ -728,7 +763,7 @@
   // earned THIS run (×Storm Chaser/Fission bonus). Unlike grid cores, shards are
   // pure gain per run — there is no lifetime subtraction.
   function reincarnateGain() {
-    return Math.max(0, Math.floor(Math.cbrt(((state.slayer && state.slayer.runVolts) || 0) / STORM_THRESHOLD) * shardGainMult()));
+    return Math.max(0, Math.floor(Math.cbrt(((state.slayer && state.slayer.runVolts) || 0) / STORM_THRESHOLD) * shardGainMult() * surgeShardMult()));
   }
 
   /* ---------- Number formatting ---------- */
@@ -1291,6 +1326,25 @@
     renderStormShop();
     syncSettingsUI();    // reveal the Auto-* toggle if just bought
     renderStatsLite();
+  }
+
+  // Surge Grid node purchase (mirror of buyStormUpgrade, spent with Surge Charges).
+  function surgeNodeUnlocked(n) {
+    if (n.req && !sg(n.req)) return false;                                        // prerequisite not owned yet
+    if (n.branch && sl().surgeBranch && sl().surgeBranch !== n.branch) return false;   // a different path is already chosen
+    return true;
+  }
+  function buySurgeNode(n) {
+    if (!n || sg(n.id)) return;
+    if (!surgeNodeUnlocked(n)) { toast(n.req && !sg(n.req) ? 'Research its prerequisite first' : 'Locked by your chosen path'); blip(120, 0.06); return; }
+    if ((sl().surgeCharges || 0) < n.cost) { toast('Not enough Surge Charges'); blip(120, 0.06); return; }
+    sl().surgeCharges -= n.cost;
+    sl().surgeNodes[n.id] = true;
+    if (n.branch) sl().surgeBranch = n.branch;   // committing to a mutually-exclusive path
+    blip(700, 0.16, 'sawtooth', 0.05);
+    buzz([0, 20, 40, 20]);
+    toast('⚡ ' + n.name, true);
+    checkAchievements();
   }
 
   /* ---------- Rendering ---------- */
@@ -2104,7 +2158,7 @@
     // HP) is what made the Voltlands crawl the deeper you pushed. The base of 8
     // (vs HP base 10) puts a normal wave's volts/sec at ~0.8× the grid's watts/sec
     // for the same production, so World 2 runs a bit slower than World 1, not 10×+.
-    return 8 * Math.pow(1.22, wave - 1) * (boss ? 12 : 1) * slayerBonus;
+    return 8 * Math.pow(1.22, wave - 1) * (boss ? 12 : 1) * slayerBonus * surgeVoltMult();
   }
 
   // ---- cross-world synergy ----
@@ -2112,6 +2166,19 @@
   function bossWattsMult() { return 1 + 0.02 * ((state.slayer && state.slayer.bosses) || 0); }
   // Grid->Volt: +1% ZPS per order of magnitude of watts EVER generated.
   function gridZpsBoost() { return 1 + 0.01 * Math.log10(1 + (state.lifetimeEarned || 0)); }
+
+  // ---- Surge Grid multipliers ----
+  // Fold owned research nodes into the combat chains. Each returns its no-op base
+  // when nothing is specced, so an empty tree is byte-identical to old behaviour.
+  function surgeEffProduct(key, base) { let m = base; const o = sl().surgeNodes || {}; for (const n of SURGE_NODES) if (o[n.id] && n.eff && n.eff[key] != null) m *= n.eff[key]; return m; }
+  function surgeEffSum(key, base) { let s = base; const o = sl().surgeNodes || {}; for (const n of SURGE_NODES) if (o[n.id] && n.eff && n.eff[key] != null) s += n.eff[key]; return s; }
+  function surgeZpsMult()    { return surgeEffProduct('zps', 1); }
+  function surgeTapMult()    { return surgeEffProduct('tap', 1); }
+  function surgeAutoRate()   { return surgeEffProduct('autoRate', 1); }
+  function surgeVoltMult()   { return surgeEffProduct('volt', 1); }
+  function surgeShardMult()  { return surgeEffProduct('shard', 1); }   // Surge-Grid shard-gain bonus (distinct from shardMult, the lifetime-shard ZPS bonus)
+  function surgeCritChance() { return Math.min(1, surgeEffSum('critChance', 0.10)); }   // base 10% (matches the old z_crit hardcode)
+  function surgeCritMult()   { return surgeEffProduct('critMult', 10); }                // base ×10
 
   function weaponMultiplier(weaponId) {
     let m = 1;
@@ -2131,14 +2198,14 @@
     // iapProdMult (Overclock +25% MTX) and buffMult('prod') (×2 ad/supporter
     // boost) both apply here too, so production purchases & ad boosts lift the
     // Voltlands exactly like they lift the Grid.
-    return sum * gridZpsBoost() * iapProdMult() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * cling;
+    return sum * gridZpsBoost() * iapProdMult() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * surgeZpsMult() * cling;
   }
   function zapPower() {
     if (ch('volt') === 'numbfingers') return 0;   // NUMB FINGERS rule
     let p = 1;
     for (const u of ZAP_UPGRADES) if (sl().upgrades[u.id] && u.kind === 'zap') p *= u.mult;
     if (su('livewire')) p *= 3;   // Storm Upgrade: tap-zap power ×3
-    return p * gridZpsBoost() * achMult() * buffMult('click');
+    return p * gridZpsBoost() * achMult() * buffMult('click') * surgeTapMult();
   }
   function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : VOLT_COST_GROWTH; }   // POWER DRAIN rule; base 1.14 paces World 2 ~0.8× the Grid
   function weaponCostDiscount() { return chDone('powerdrain') ? 0.97 : 1; }   // SURPLUS perk
@@ -2237,14 +2304,17 @@
     // Settings toggle. Granted by the Auto-Zapper Storm Upgrade OR the STATIC
     // CLING perk (STATIC FIELD). Silent — no floats/sound, just damage.
     if ((su('autozap') || chDone('staticcling')) && state.settings.world.volt.autoclickOn) {
-      applyZapDamage(zapPower() * AUTO_ZAP_RATE * dt, cap);
+      applyZapDamage(zapPower() * AUTO_ZAP_RATE * surgeAutoRate() * dt, cap);
     }
   }
 
   function zapEnemy() {
     let dmg = zapPower();
     let crit = false;
-    if (zu('z_crit') && Math.random() < 0.10) { dmg *= 10; crit = true; }
+    // Crit is enabled by the z_crit zap upgrade OR the Surge Grid crit path; the
+    // chance/multiplier read from the Surge helpers (base 10% / ×10 when un-specced).
+    const critOn = zu('z_crit') || sl().surgeBranch === 'crit';
+    if (critOn && Math.random() < surgeCritChance()) { dmg *= surgeCritMult(); crit = true; }
     applyZapDamage(dmg);
     if (state.settings.floats) {
       const anchor = tapAnchor();   // the visible zap control (big button, compact bar, or mini bar)
