@@ -234,6 +234,14 @@
   // only ever called at runtime here (late binding is safe).
   const ch = (w) => (state && state.challenges && state.challenges[w || activeWorld()]) || '';
   const chDone = (id) => !!(state && state.challengesDone && state.challengesDone[id]);
+  // Tiered challenges: challengesDone[id] is the COUNT of cleared tiers (a legacy
+  // boolean `true` counts as 1). Volt challenges are 3 escalating tiers (×8 goal
+  // each); grid challenges stay one-shot. The reward/perk is granted at tier 1
+  // (chDone), higher tiers just feed trialGridBoost().
+  const chTier = (id) => { const v = state && state.challengesDone && state.challengesDone[id]; return v === true ? 1 : (v || 0); };
+  const chMaxTier = (c) => (c.world === 'volt' ? 3 : 1);
+  const chGoalFor = (c) => c.goal * Math.pow(8, chTier(c.id));
+  const chFullyDone = (c) => chTier(c.id) >= chMaxTier(c);
 
   /* ---------- Content: the Voltlands (idle slayer) ----------
      Unlocked by the ??? core upgrade. Weapons are this world's generators
@@ -763,11 +771,14 @@
   }
   function achMult() { return 1 + 0.01 * achCount(); }
 
+  // Volt->Grid synergy: every cleared volt-challenge tier permanently boosts Grid
+  // watts by +2% (a named cross-world fn, per the world-template parity contract).
+  function trialGridBoost() { let t = 0; for (const c of CHALLENGES) if (c.world === 'volt') t += chTier(c.id); return 1 + 0.02 * t; }
   function totalWps() {
     let sum = 0;
     for (const c of CORDS) sum += cordWps(c);
     const challengePenalty = ch('grid') === 'brownout' ? 0.5 : 1;
-    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod') * challengePenalty * bossWattsMult();
+    return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod') * challengePenalty * bossWattsMult() * trialGridBoost();
   }
 
   // ---- Tap power: keep hand-plugging relevant for the whole game ----
@@ -1228,7 +1239,7 @@
       head: `${chal.icon} ${chal.name} · `,
       val: () => {
         const prog = (chal.world === 'volt') ? (sl().runVolts || 0) : state.totalEarned;
-        return `${fmt(Math.min(prog, chal.goal))}/${fmt(chal.goal)}`;
+        return `${fmt(Math.min(prog, chGoalFor(chal)))}/${fmt(chGoalFor(chal))}`;
       },
     });
     void now;
@@ -2166,7 +2177,7 @@
     showModal(`
       <h2>${c.icon} ${c.name}</h2>
       <p class="dim">${c.rule}</p>
-      <p>Goal: earn <b style="color:var(--amber)">${fmt(c.goal)} ${goalUnit}</b> in one run</p>
+      <p>Goal: earn <b style="color:var(--amber)">${fmt(chGoalFor(c))} ${goalUnit}</b> in one run${chMaxTier(c) > 1 ? ` · tier ${Math.min(chTier(c.id) + 1, chMaxTier(c))}/${chMaxTier(c)}` : ''}</p>
       <p class="dim">Starts a separate attempt run — your current progress is saved and restored when you finish or abandon. The challenge run grants no ${w === 'volt' ? 'shards' : 'cores'}.<br>Reward: ${c.reward}</p>
       <div class="row2" style="margin-top:14px">
         <button class="bigbtn" id="mYes">START</button>
@@ -2203,11 +2214,12 @@
       const c = CHALLENGES.find((x) => x.id === id);
       if (!c) continue;
       const progress = w === 'volt' ? (sl().runVolts || 0) : state.totalEarned;
-      if (progress < c.goal) continue;
-      state.challengesDone[c.id] = true;
+      if (progress < chGoalFor(c)) continue;
+      const newTier = chTier(c.id) + 1;
+      state.challengesDone[c.id] = newTier;
       state.challenges[w] = '';
       restoreChallengeBackup(w);   // perk is permanent; the run returns to pre-challenge
-      toast(`${c.icon} CHALLENGE COMPLETE! ${c.reward.split(' — ')[0]} unlocked`, true);
+      toast(`${c.icon} ${c.name} TIER ${newTier}/${chMaxTier(c)}! ${c.reward.split(' — ')[0]}${newTier >= chMaxTier(c) ? ' — MAXED' : ' — next ×8 harder'}`, true);
       blip(1320, 0.2, 'triangle', 0.06);
       buzz([0, 30, 50, 30, 50, 60]);
       screenShake(1.2);
@@ -2235,21 +2247,21 @@
     if (ca) {
       ca.hidden = !active;
       if (active) {
-        ca.innerHTML = `<p>${active.icon} <b class="hi">${active.name}</b> in progress — earn ${fmt(active.goal)} ${unit} this run.</p>
+        ca.innerHTML = `<p>${active.icon} <b class="hi">${active.name}</b> in progress — earn ${fmt(chGoalFor(active))} ${unit} this run.</p>
           <button class="smbtn danger" id="chAbandon" style="width:100%">ABANDON CHALLENGE</button>`;
       }
     }
     const list = document.getElementById('chlist');
     if (list) {
       list.innerHTML = set.map((c) => {
-        const done = chDone(c.id);
+        const done = chFullyDone(c);
         const isActive = !!active && active.id === c.id;
         const cls = done ? 'bought' : active ? 'no' : 'ok';
         return `
           <button class="upg ${cls}" data-ch="${c.id}" ${done || active ? 'disabled' : ''}>
             <div class="un">${c.icon} ${c.name}</div>
-            <div class="ud">${c.rule}<br>Goal: ${fmt(c.goal)} ${unit} · ${c.reward}</div>
-            <div class="uc">${done ? '✓ DONE' : isActive ? 'In progress…' : 'START'}</div>
+            <div class="ud">${c.rule}<br>Goal: ${fmt(chGoalFor(c))} ${unit}${chMaxTier(c) > 1 ? ' · tier ' + Math.min(chTier(c.id) + 1, chMaxTier(c)) + '/' + chMaxTier(c) : ''} · ${c.reward}</div>
+            <div class="uc">${done ? '✓ MAXED' : isActive ? 'In progress…' : (chTier(c.id) > 0 ? 'NEXT TIER ▸' : 'START')}</div>
           </button>`;
       }).join('');
     }

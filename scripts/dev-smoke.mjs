@@ -86,6 +86,7 @@ const hook = `
     STORM_UPGRADES, buyStormUpgrade,
     autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
     ch, chDone, startChallenge, beginChallenge, checkChallenge, abandonChallenge, restoreChallengeBackup,
+    chTier, chMaxTier, chGoalFor, chFullyDone, trialGridBoost,
     weaponCost, weaponCostGrowth, VOLT_COST_GROWTH, enemyHp, voltReward, weaponMultiplier, applyReincarnatePerks,
     weaponBuyCount, maxAffordableWeapon,
     renderMoreGating, syncSettingsUI, applyWorld, co,
@@ -999,6 +1000,32 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   check('perk: SURGE SURPLUS doubles a normal kill mint (=2)', sR.surgeCharges === 2 && sR.surgeChargesEarned === 2);
   delete S().challengesDone.surgefamine;
   sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 1;
+}
+
+// Tiered volt challenges + cross-world (volt tiers -> Grid watts) coupling
+{
+  S().challengesDone = {};
+  const bk = T.CHALLENGES.find((x) => x.id === 'bareknuckle');   // volt
+  const solo = T.CHALLENGES.find((x) => x.id === 'solo');        // grid
+  check('tier: volt challenges are 3 tiers, grid stay 1', T.chMaxTier(bk) === 3 && T.chMaxTier(solo) === 1);
+  check('tier: tier-1 goal is the base goal', T.chGoalFor(bk) === bk.goal);
+  S().challengesDone = { bareknuckle: 1 };
+  check('tier: next goal after tier 1 is x8', Math.abs(T.chGoalFor(bk) - bk.goal * 8) < 1);
+  S().challengesDone = { bareknuckle: true };
+  check('tier: legacy boolean true counts as tier 1', T.chTier('bareknuckle') === 1);
+  // cross-world coupling: cleared volt tiers boost Grid watts (+2% each)
+  S().challengesDone = {};
+  check('tier: trialGridBoost is 1.0 with no tiers', T.trialGridBoost() === 1);
+  S().challengesDone = { bareknuckle: 3, numbfingers: 2 };   // 5 volt tiers
+  check('tier: trialGridBoost +2% per cleared volt tier (=1.10)', Math.abs(T.trialGridBoost() - 1.1) < 1e-9);
+  // completing a volt challenge increments the tier count (not a boolean)
+  S().challengesDone = {}; S().world = 'volt';
+  S().challenges = { grid: '', volt: '' }; S().challengeBackup = { grid: null, volt: null };
+  T.beginChallenge(bk);
+  T.sl().runVolts = bk.goal;        // reach the tier-1 goal
+  T.checkChallenge();
+  check('tier: completing tier 1 sets count to 1 and clears the run', T.chTier('bareknuckle') === 1 && S().challenges.volt === '');
+  S().challengesDone = {}; S().world = 'grid';
 }
 
 // Surge build presets — save / load across runs
