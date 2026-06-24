@@ -12,6 +12,7 @@
   const SAVE_EVERY_MS = 5000;     // autosave cadence
   const PROD_MULT = 1.6;          // global pacing: scales all income (active, idle & clicks)
   const COST_GROWTH = 1.12;       // per-buy cost multiplier (lower = smoother stacking; was 1.15)
+  const VOLT_COST_GROWTH = 1.14;  // Voltlands per-buy cost growth — steeper than the Grid's 1.12 so World 2 paces ~0.8× the Grid (retune via the dev-smoke ratio measurement; do NOT hardcode 0.8 anywhere)
 
   /* ---------- Content: cord generators ----------
      Each generator produces watts/sec. Cost grows 1.15x per buy. */
@@ -366,6 +367,11 @@
       shards: 0,         // spendable Storm Shards ⚡
       shardsEarned: 0,   // lifetime shards — drives the permanent ZPS multiplier
       shardUpgrades: {}, // stormUpgradeId -> true (persists across reincarnation)
+      // ---- Surge Grid (branching combat research tree) ----
+      surgeCharges: 0,       // spendable Surge Charges, minted by kills; RESET on reincarnate
+      surgeChargesEarned: 0, // lifetime Surge Charges ever minted; KEPT across reincarnation
+      surgeNodes: {},        // surgeNodeId -> true; RESET on reincarnate (the free respec)
+      surgeBranch: '',       // chosen mutually-exclusive branch; RESET on reincarnate
     };
   }
 
@@ -414,6 +420,11 @@
     if (!hadLifetime) s.lifetimeEarned = s.totalEarned || 0;   // best available seed
     s.slayer = Object.assign(defaultSlayer(), s.slayer || {});
     if (s.slayer.shardUpgrades == null || typeof s.slayer.shardUpgrades !== 'object') s.slayer.shardUpgrades = {};
+    // Surge Grid backfill (defaultSlayer seeds these, but coerce a malformed import).
+    if (s.slayer.surgeNodes == null || typeof s.slayer.surgeNodes !== 'object') s.slayer.surgeNodes = {};
+    if (typeof s.slayer.surgeCharges !== 'number') s.slayer.surgeCharges = 0;
+    if (typeof s.slayer.surgeChargesEarned !== 'number') s.slayer.surgeChargesEarned = 0;
+    if (typeof s.slayer.surgeBranch !== 'string') s.slayer.surgeBranch = '';
     // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
     // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
     // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
@@ -843,7 +854,7 @@
     prestigeBtn: $('#prestigeBtn'),
     shardgain: $('#shardgain'), shardcount: $('#shardcount'), shardmult: $('#shardmult'),
     reincarnateBtn: $('#reincarnateBtn'),
-    recycleBlock: $('#recycleBlock'), coreShopBlock: $('#coreShopBlock'),
+    recycleBlock: $('#recycleBlock'), coreShopBlock: $('#coreShopBlock'), worldswitchBlock: $('#worldswitchBlock'),
     voltPrestigeBlock: $('#voltPrestigeBlock'), voltShopBlock: $('#voltShopBlock'),
     toast: $('#toast'), modal: $('#modal'), mbox: $('#mbox'),
     savebox: $('#savebox'), exportBtn: $('#exportBtn'), importBtn: $('#importBtn'), wipeBtn: $('#wipeBtn'),
@@ -1466,6 +1477,9 @@
     for (const cu of CORE_UPGRADES) {
       // req-gated upgrades (e.g. the Auto-Tapper ladder) stay hidden until owned.
       if (cu.req && !co(cu.req) && !state.coreUpgrades[cu.id]) continue;
+      // Once bought, the ??? upgrade transforms into the dedicated world-switch block
+      // below the shop — so drop its card from the Core Upgrades grid.
+      if (cu.id === 'mystery' && state.coreUpgrades[cu.id] && state.wormhole) continue;
       const bought = !!state.coreUpgrades[cu.id];
       const can = !bought && (state.cores || 0) >= cu.cost;
       const cls = bought ? 'bought' : can ? 'ok' : 'no';
@@ -1603,6 +1617,9 @@
     const volt = activeWorld() === 'volt';
     if (el.recycleBlock) el.recycleBlock.hidden = volt;
     if (el.coreShopBlock) el.coreShopBlock.hidden = volt;
+    // The world-switch block (the transformed ??? upgrade) shows in BOTH worlds once
+    // the wormhole is open — it's the persistent gateway between the Grid and Voltlands.
+    if (el.worldswitchBlock) el.worldswitchBlock.hidden = !state.wormhole;
     if (el.voltPrestigeBlock) el.voltPrestigeBlock.hidden = !state.wormhole || !volt;
     if (el.voltShopBlock) el.voltShopBlock.hidden = !state.wormhole || !volt;
   }
@@ -1822,6 +1839,11 @@
     s.killsThisWave = 0;
     s.weapons = {};
     s.upgrades = {};
+    // Surge Grid: the run boundary IS the free respec — wipe spent charges and the
+    // node allocation; lifetime surgeChargesEarned is kept (drives permanent bonuses).
+    s.surgeCharges = 0;
+    s.surgeNodes = {};
+    s.surgeBranch = '';
     state.challenges.volt = '';   // reincarnation clears the active volt challenge
     if (state.challengeBackup) state.challengeBackup.volt = null;   // no run to restore — reincarnation already reset it
     applyReincarnatePerks();
@@ -2118,7 +2140,7 @@
     if (su('livewire')) p *= 3;   // Storm Upgrade: tap-zap power ×3
     return p * gridZpsBoost() * achMult() * buffMult('click');
   }
-  function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : COST_GROWTH; }   // POWER DRAIN rule
+  function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : VOLT_COST_GROWTH; }   // POWER DRAIN rule; base 1.14 paces World 2 ~0.8× the Grid
   function weaponCostDiscount() { return chDone('powerdrain') ? 0.97 : 1; }   // SURPLUS perk
   function weaponCost(w, count) {
     const owned = sl().weapons[w.id] || 0;
@@ -2162,6 +2184,11 @@
     s.runVolts += reward;
     s.kills++;
     s.killsThisWave++;
+    // Surge Grid currency: combat mints Surge Charges (flat per kill, deliberately
+    // un-inflated like AD Time Theorems) — bosses are worth 5×.
+    const surge = boss ? 5 : 1;
+    s.surgeCharges += surge;
+    s.surgeChargesEarned += surge;
     if (boss) {
       s.bosses++;
       toast(`💀 ${enemyFor(s.wave).name} DOWN! Grid power +2% (now +${s.bosses * 2}%)`, true);

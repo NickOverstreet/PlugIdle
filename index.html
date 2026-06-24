@@ -131,6 +131,15 @@
           <div class="ugrid" id="corelist"></div>
         </div>
 
+        <!-- World travel: the ??? core upgrade transforms into this block once bought.
+             Lives here on the More page, directly below Core Upgrades; gated by
+             state.wormhole in renderMoreGating(). Moved off the bottom tab bar. -->
+        <div class="block" id="worldswitchBlock" hidden>
+          <h3>🌀 WORLD TRAVEL</h3>
+          <p>You cracked the ??? open. Step through to the other side — both worlds keep running while you're away.</p>
+          <button class="worldswitch" id="worldBtn" aria-label="Travel to the Voltlands"><span class="ti">🌀</span><span class="tl">VOLTLANDS</span></button>
+        </div>
+
         <!-- Storm Reactor: the Voltlands prestige (gating wired per-world in JS) -->
         <div class="block" id="voltPrestigeBlock" hidden>
           <h3>⚡ STORM REACTOR</h3>
@@ -223,7 +232,6 @@
       <button class="tab" data-tab="arsenal" data-tworld="volt"><span class="ti">⚡</span><span class="tl">ARSENAL</span><i class="tdot" id="dotArsenal" hidden></i></button>
       <button class="tab" data-tab="goals" data-tworld="both"><span class="ti">🏆</span><span class="tl">GOALS</span></button>
       <button class="tab" data-tab="more" data-tworld="both"><span class="ti">♻️</span><span class="tl">MORE</span><i class="tdot" id="dotMore" hidden></i></button>
-      <button class="worldswitch" id="worldBtn" hidden aria-label="Travel to the Voltlands"><span class="ti">🌀</span><span class="tl">VOLTLANDS</span></button>
     </nav>
   </div>
 

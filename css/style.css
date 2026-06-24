@@ -467,6 +467,17 @@ body[data-world="volt"] .tab[data-tworld="grid"]{ display:none; }
 @keyframes wormpulse{ 0%,100%{ opacity:.85; } 50%{ opacity:1; } }
 body.noanim .worldswitch{ animation:none; }
 
+/* World switch moved off the tab bar into a dedicated More-page block (below Core
+   Upgrades). Override the tab-bar layout so it reads as a full-width portal button. */
+#worldswitchBlock .worldswitch{
+  width:100%; flex-direction:row; gap:10px; min-height:52px; padding:14px;
+  border:1px solid var(--magenta); border-radius:12px;
+  background:linear-gradient(rgba(255,99,214,.16), rgba(255,99,214,.04));
+}
+#worldswitchBlock .worldswitch::before{ display:none; }
+#worldswitchBlock .worldswitch .ti{ font-size:24px; }
+#worldswitchBlock .worldswitch .tl{ font-size:12px; letter-spacing:1px; }
+
 /* arena */
 .arena{ display:flex; flex-direction:column; align-items:center; padding:8px 0 4px; }
 .zone{

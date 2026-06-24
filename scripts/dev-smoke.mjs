@@ -84,7 +84,7 @@ const hook = `
     STORM_UPGRADES, buyStormUpgrade,
     autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
     ch, chDone, startChallenge, beginChallenge, checkChallenge, abandonChallenge, restoreChallengeBackup,
-    weaponCost, enemyHp, voltReward, weaponMultiplier, applyReincarnatePerks,
+    weaponCost, weaponCostGrowth, VOLT_COST_GROWTH, enemyHp, voltReward, weaponMultiplier, applyReincarnatePerks,
     weaponBuyCount, maxAffordableWeapon,
     renderMoreGating, syncSettingsUI, applyWorld, co,
     applyOffline, offlineEff, offlineCapMs,
@@ -467,12 +467,13 @@ check('migrate: new save has both challenge slots', (() => { const c = T.normali
   S().challenges.volt = '';
   check('challenge: cleared NUMB FINGERS restores zapPower', T.zapPower() > 0);
 
-  // POWER DRAIN rule: weapon cost growth steepens (1.18 vs 1.12) while active
+  // POWER DRAIN rule: weapon cost growth steepens (1.18 vs the 1.14 Volt base) while
+  // active. Measured over 12 buys so the growth gap dwarfs per-buy ceil() rounding.
   sR.weapons = {};
   const wg = T.WEAPONS[0];
-  const baseCost2 = T.weaponCost(wg, 2);
+  const baseCost2 = T.weaponCost(wg, 12);
   S().challenges.volt = 'powerdrain';
-  const drainCost2 = T.weaponCost(wg, 2);
+  const drainCost2 = T.weaponCost(wg, 12);
   S().challenges.volt = '';
   check('challenge: POWER DRAIN steepens weapon cost', drainCost2 > baseCost2);
 
@@ -887,6 +888,41 @@ check('brownout no longer unlocks auto-buyer', S().owned.usba === usbaBefore);
 check('fps: defaults to 30', T.normalizeState({}).settings.fps === 30);
 check('fps: clamps an invalid value to 30', T.normalizeState({ settings: { fps: 999 } }).settings.fps === 30);
 check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).settings.fps === 60);
+
+// Surge Grid — Phase 1: state + currency mint + pacing constant
+{
+  const d = T.defaultSlayer();
+  check('surge: defaultSlayer seeds charges at 0', d.surgeCharges === 0 && d.surgeChargesEarned === 0);
+  check('surge: defaultSlayer seeds empty nodes + branch', d.surgeNodes && typeof d.surgeNodes === 'object' && d.surgeBranch === '');
+  check('surge: VOLT_COST_GROWTH constant is 1.14', T.VOLT_COST_GROWTH === 1.14);
+  S().challenges.volt = '';
+  check('surge: weaponCostGrowth uses the 1.14 Volt base', T.weaponCostGrowth() === 1.14);
+  S().challenges.volt = 'powerdrain';
+  check('surge: POWER DRAIN still overrides growth to 1.18', T.weaponCostGrowth() === 1.18);
+  S().challenges.volt = '';
+  check('migrate: legacy save backfills surge fields',
+    (() => { const sl0 = T.normalizeState({ slayer: {} }).slayer; return sl0.surgeCharges === 0 && sl0.surgeChargesEarned === 0 && typeof sl0.surgeNodes === 'object' && sl0.surgeBranch === ''; })());
+  check('migrate: malformed surgeNodes coerced to object', typeof T.normalizeState({ slayer: { surgeNodes: 7 } }).slayer.surgeNodes === 'object');
+
+  // Mint: a normal kill is +1 charge, a boss kill +5; spendable + lifetime move together.
+  const sR = T.sl();
+  sR.surgeCharges = 0; sR.surgeChargesEarned = 0;
+  sR.wave = 3; sR.killsThisWave = 0;
+  T.spawnEnemy(); T.killEnemy();
+  check('surge: a normal kill mints +1 charge (spendable + lifetime)', sR.surgeCharges === 1 && sR.surgeChargesEarned === 1);
+  sR.wave = 10; sR.killsThisWave = 0;
+  T.spawnEnemy(); T.killEnemy();
+  check('surge: a boss kill mints +5 charges', sR.surgeCharges === 6 && sR.surgeChargesEarned === 6);
+
+  // Reincarnate is the free respec: spendable charges + node allocation reset, lifetime kept.
+  sR.surgeNodes = { surge_test: true }; sR.surgeBranch = 'surge_crit';
+  sR.runVolts = 1e12;   // ensure reincarnateGain() > 0
+  const earnedBefore = sR.surgeChargesEarned;
+  T.reincarnate();
+  check('surge: reincarnate resets spendable charges to 0', T.sl().surgeCharges === 0);
+  check('surge: reincarnate clears nodes + branch (free respec)', Object.keys(T.sl().surgeNodes).length === 0 && T.sl().surgeBranch === '');
+  check('surge: reincarnate KEEPS lifetime surgeChargesEarned', T.sl().surgeChargesEarned === earnedBefore);
+}
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
