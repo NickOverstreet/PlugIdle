@@ -153,6 +153,23 @@
     { id: 'autoarsenal', icon: '🛒', name: 'Auto-Arsenal',    cost: 18,  desc: 'Auto-buys weapons — cheapest first.' },
     { id: 'autotinker',  icon: '🛠️', name: 'Auto-Tinker',     cost: 22,  desc: 'Auto-buys zap upgrades the moment you can afford them.' },
     { id: 'stormfission',icon: '☢️', name: 'Storm Fission',   cost: 5e9, desc: 'Storm Shard gains ×5.' },
+    // ---- Voltlands expansion: 16 more storm upgrades (eff-based; some prereq-chained) ----
+    { id: 'livewire2',  icon: '🔌', name: 'Live Wire II',     cost: 30,   req: 'livewire',    eff: { tap: 2 },         desc: 'Tap-zap power ×2 more.' },
+    { id: 'conduction2',icon: '🧲', name: 'Conduction II',    cost: 35,   req: 'conduction',  eff: { zps: 2 },         desc: 'All ZPS ×2.' },
+    { id: 'overvolt2',  icon: '🔥', name: 'Overvoltage II',   cost: 40,   req: 'overvolt',    eff: { zps: 2 },         desc: 'All ZPS ×2 more.' },
+    { id: 'chaser2',    icon: '🌪️', name: 'Storm Chaser II',  cost: 30,   req: 'chaser',      eff: { shardGain: 1.5 }, desc: 'Storm Shard gains ×1.5 more.' },
+    { id: 'livewire3',  icon: '⚡', name: 'Live Wire III',    cost: 60,   req: 'livewire2',   eff: { tap: 2 },         desc: 'Tap-zap power ×2 more.' },
+    { id: 'conduction3',icon: '🧲', name: 'Conduction III',   cost: 70,   req: 'conduction2', eff: { zps: 2 },         desc: 'All ZPS ×2 more.' },
+    { id: 'overvolt3',  icon: '🔥', name: 'Overvoltage III',  cost: 80,   req: 'overvolt2',   eff: { zps: 2 },         desc: 'All ZPS ×2 more.' },
+    { id: 'chaser3',    icon: '🌪️', name: 'Storm Chaser III', cost: 60,   req: 'chaser2',     eff: { shardGain: 1.5 }, desc: 'Storm Shard gains ×1.5 more.' },
+    { id: 'galvanic',   icon: '🌫️', name: 'Galvanic Field',   cost: 50,                       eff: { zps: 1.5 },       desc: 'All ZPS ×1.5.' },
+    { id: 'dynamoheart',icon: '🫀', name: 'Dynamo Heart',     cost: 100,                      eff: { tap: 3 },         desc: 'Tap-zap power ×3.' },
+    { id: 'thunderhead',icon: '🌩️', name: 'Thunderhead',      cost: 120,                      eff: { zps: 3 },         desc: 'All ZPS ×3.' },
+    { id: 'maelstrom',  icon: '🌀', name: 'Maelstrom',        cost: 250,                      eff: { zps: 3 },         desc: 'All ZPS ×3.' },
+    { id: 'apexcharge', icon: '⛈️', name: 'Apex Charge',      cost: 300,                      eff: { zps: 3 },         desc: 'All ZPS ×3.' },
+    { id: 'stormfiss2', icon: '☢️', name: 'Storm Fission II',  cost: 1e10, req: 'stormfission',eff: { shardGain: 2 },   desc: 'Storm Shard gains ×2 more.' },
+    { id: 'eyestorm',   icon: '👁️', name: 'Eye of the Storm', cost: 5e10,                     eff: { zps: 5, tap: 5 }, desc: 'All ZPS ×5 and tap-zap ×5.' },
+    { id: 'tempestcore',icon: '🌪️', name: 'Tempest Core',     cost: 1e11,                     eff: { zps: 5 },         desc: 'All ZPS ×5.' },
     { id: 'w3teaser',    icon: '🌌', name: '???',             disabled: true, desc: 'Coming soon…' },
   ];
 
@@ -550,7 +567,12 @@
   // Per-shard ZPS bonus (lifetime shards), boosted by Resonant Core.
   function shardPer() { return su('resocore') ? 0.08 : 0.05; }
   // Storm Shard gain multiplier (mirror of prestigeGainMult).
-  function shardGainMult() { let m = 1; if (su('chaser')) m *= 1.5; if (su('stormfission')) m *= 5; return m; }
+  // Generic storm-upgrade effect accumulator for the eff-based expansion upgrades
+  // (the original hardcoded overvolt/livewire/conduction/chaser stay as-is).
+  function stormEffProduct(key, base) { let m = base; const o = (state.slayer && state.slayer.shardUpgrades) || {}; for (const u of STORM_UPGRADES) if (o[u.id] && u.eff && u.eff[key] != null) m *= u.eff[key]; return m; }
+  function stormZpsMult() { return stormEffProduct('zps', 1); }
+  function stormTapMult() { return stormEffProduct('tap', 1); }
+  function shardGainMult() { let m = 1; if (su('chaser')) m *= 1.5; if (su('stormfission')) m *= 5; return m * stormEffProduct('shardGain', 1); }
   // Per-core production bonus (lifetime cores), boosted by Core Resonance.
   function corePer() { return co('resonance') ? 0.08 : 0.05; }
   function coreClickMult() { return co('thumbs') ? 3 : 1; }
@@ -2278,14 +2300,14 @@
     // iapProdMult (Overclock +25% MTX) and buffMult('prod') (×2 ad/supporter
     // boost) both apply here too, so production purchases & ad boosts lift the
     // Voltlands exactly like they lift the Grid.
-    return sum * gridZpsBoost() * iapProdMult() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * surgeZpsMult() * cling;
+    return sum * gridZpsBoost() * iapProdMult() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * surgeZpsMult() * stormZpsMult() * cling;
   }
   function zapPower() {
     if (ch('volt') === 'numbfingers') return 0;   // NUMB FINGERS rule
     let p = 1;
     for (const u of ZAP_UPGRADES) if (sl().upgrades[u.id] && u.kind === 'zap') p *= u.mult;
     if (su('livewire')) p *= 3;   // Storm Upgrade: tap-zap power ×3
-    return p * gridZpsBoost() * achMult() * buffMult('click') * surgeTapMult();
+    return p * gridZpsBoost() * achMult() * buffMult('click') * surgeTapMult() * stormTapMult();
   }
   function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : VOLT_COST_GROWTH; }   // POWER DRAIN rule; base 1.14 paces World 2 ~0.8× the Grid
   function weaponCostDiscount() { return chDone('powerdrain') ? 0.97 : 1; }   // SURPLUS perk

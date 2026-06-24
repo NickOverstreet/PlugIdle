@@ -320,7 +320,7 @@ check('migrate: new save has both challenge slots', (() => { const c = T.normali
 // Stage 3 — Storm Upgrades shop: catalogue, effects, teaser is non-purchasable
 {
   const SU = T.STORM_UPGRADES;
-  check('content: 11 storm upgrades', SU.length === 11);
+  check('content: 27 storm upgrades', SU.length === 27);
   const teaser = SU[SU.length - 1];
   check('storm: w3teaser is last', teaser.id === 'w3teaser');
   check('storm: w3teaser is disabled', teaser.disabled === true);
@@ -990,6 +990,14 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
     T.SURGE_NODES.every((n) => !n.req || T.SURGE_NODES.some((m) => m.id === n.req)));
   check('content: Voltlands exceeds the Grid in generators', T.WEAPONS.length > T.CORDS.length);
   check('content: Voltlands exceeds the Grid in upgrades', T.ZAP_UPGRADES.length > T.UPGRADES.length);
+  check('content: storm upgrades (excl. teaser) exceed the core upgrades',
+    T.STORM_UPGRADES.filter((u) => !u.disabled).length > T.CORE_UPGRADES.length);
+  // new eff-based storm upgrades actually fold into the combat chains
+  { const sR = T.sl(); sR.weapons = { glove: 50 }; sR.shardUpgrades = {};
+    const z0 = T.totalZps();
+    sR.shardUpgrades = { thunderhead: true };   // eff { zps: 3 }
+    check('storm: eff upgrade lifts totalZps ×3', Math.abs(T.totalZps() - z0 * 3) < z0 * 1e-6);
+    sR.shardUpgrades = {}; sR.weapons = {}; }
 }
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
