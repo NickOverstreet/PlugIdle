@@ -225,6 +225,8 @@
     { id: 'suddendeath', icon: '💀', name: 'SUDDEN DEATH',  world: 'volt', rule: 'Bosses have ×3 HP.',                      goal: 1e5, reward: 'GIANT SLAYER — boss volt rewards ×2.' },
     { id: 'staticcling', icon: '🧲', name: 'STATIC CLING',  world: 'volt', rule: 'All ZPS halved.',                         goal: 5e5, reward: 'STATIC FIELD — auto tap-zaps (toggle in Settings).' },
     { id: 'powerdrain',  icon: '🪫', name: 'POWER DRAIN',   world: 'volt', rule: 'Weapon costs grow 18% per buy (not 12%).', goal: 2e6, reward: 'SURPLUS — all weapons cost 3% less.' },
+    { id: 'glasscannon', icon: '🔪', name: 'GLASS CANNON', world: 'volt', rule: 'Tap-zap ×5, but every enemy has ×2 HP.',   goal: 1e4, reward: 'OVERLOAD — tap-zap power ×2, forever.' },
+    { id: 'surgefamine', icon: '🥀', name: 'SURGE FAMINE', world: 'volt', rule: 'Kills mint no Surge Charges this run.',     goal: 5e4, reward: 'SURGE SURPLUS — every kill mints double Surge Charges, forever.' },
   ];
   // World-aware active-challenge accessor: defaults to the active world so existing
   // grid rule checks (`ch() === 'solo'`) keep working; pass 'volt' for tick-time
@@ -433,6 +435,14 @@
     { id: 'reinc1',   icon: '⚡', name: 'Storm Reborn',      desc: 'Reincarnate for your first Storm Shard.', cond: () => (state.slayer?.shardsEarned || 0) >= 1 },
     { id: 'shard10',  icon: '🌩️', name: 'Shard Collector',   desc: 'Earn 10 Storm Shards.',                   cond: () => (state.slayer?.shardsEarned || 0) >= 10, prog: () => [state.slayer?.shardsEarned || 0, 10] },
     { id: 'voltchal', icon: '🧪', name: 'Storm Scientist',   desc: 'Complete every Voltlands challenge.',      cond: () => CHALLENGES.filter((c) => c.world === 'volt' && (state.challengesDone || {})[c.id]).length >= CHALLENGES.filter((c) => c.world === 'volt').length, prog: () => [CHALLENGES.filter((c) => c.world === 'volt' && (state.challengesDone || {})[c.id]).length, CHALLENGES.filter((c) => c.world === 'volt').length] },
+    { id: 'surgenode1', icon: '🧬', name: 'Researcher',    desc: 'Buy your first Surge Grid node.',       cond: () => Object.keys((state.slayer && state.slayer.surgeNodes) || {}).length >= 1 },
+    { id: 'surgepath',  icon: '🔱', name: 'Pathfinder',    desc: 'Commit to a Surge Grid path.',          cond: () => !!(state.slayer && state.slayer.surgeBranch) },
+    { id: 'surge1kch',  icon: '⚡', name: 'Overcharged',   desc: 'Mint 1,000 lifetime Surge Charges.',    cond: () => (state.slayer?.surgeChargesEarned || 0) >= 1000, prog: () => [state.slayer?.surgeChargesEarned || 0, 1000] },
+    { id: 'wave100',    icon: '⛈️', name: 'Stormbreaker',  desc: 'Reach wave 100.',                       cond: () => (state.slayer?.wave || 0) >= 100, prog: () => [state.slayer?.wave || 0, 100] },
+    { id: 'wave250',    icon: '🌌', name: 'Voltlord',      desc: 'Reach wave 250.',                       cond: () => (state.slayer?.wave || 0) >= 250, prog: () => [state.slayer?.wave || 0, 250] },
+    { id: 'boss10',     icon: '💀', name: 'Boss Slayer',   desc: 'Defeat 10 bosses.',                     cond: () => (state.slayer?.bosses || 0) >= 10, prog: () => [state.slayer?.bosses || 0, 10] },
+    { id: 'boss50',     icon: '☠️', name: 'Apex Predator', desc: 'Defeat 50 bosses.',                     cond: () => (state.slayer?.bosses || 0) >= 50, prog: () => [state.slayer?.bosses || 0, 50] },
+    { id: 'shard100',   icon: '💠', name: 'Storm Master',  desc: 'Earn 100 lifetime Storm Shards.',       cond: () => (state.slayer?.shardsEarned || 0) >= 100, prog: () => [state.slayer?.shardsEarned || 0, 100] },
   ];
 
   /* ---------- State ---------- */
@@ -2250,7 +2260,8 @@
   function enemyHp(wave) {
     const boss = isBossWave(wave);
     const sudden = boss && ch('volt') === 'suddendeath' ? 3 : 1;   // SUDDEN DEATH rule
-    return 10 * Math.pow(1.22, wave - 1) * (boss ? 10 : 1) * sudden;
+    const glass = ch('volt') === 'glasscannon' ? 2 : 1;   // GLASS CANNON rule
+    return 10 * Math.pow(1.22, wave - 1) * (boss ? 10 : 1) * sudden * glass;
   }
   function voltReward(wave) {
     const boss = isBossWave(wave);
@@ -2307,6 +2318,8 @@
     let p = 1;
     for (const u of ZAP_UPGRADES) if (sl().upgrades[u.id] && u.kind === 'zap') p *= u.mult;
     if (su('livewire')) p *= 3;   // Storm Upgrade: tap-zap power ×3
+    if (ch('volt') === 'glasscannon') p *= 5;   // GLASS CANNON rule
+    if (chDone('glasscannon')) p *= 2;           // OVERLOAD perk
     return p * gridZpsBoost() * achMult() * buffMult('click') * surgeTapMult() * stormTapMult();
   }
   function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : VOLT_COST_GROWTH; }   // POWER DRAIN rule; base 1.14 paces World 2 ~0.8× the Grid
@@ -2355,7 +2368,9 @@
     s.killsThisWave++;
     // Surge Grid currency: combat mints Surge Charges (flat per kill, deliberately
     // un-inflated like AD Time Theorems) — bosses are worth 5×.
-    const surge = boss ? 5 : 1;
+    let surge = boss ? 5 : 1;
+    if (chDone('surgefamine')) surge *= 2;          // SURGE SURPLUS perk
+    if (ch('volt') === 'surgefamine') surge = 0;    // SURGE FAMINE rule: no charges this run
     s.surgeCharges += surge;
     s.surgeChargesEarned += surge;
     if (boss) {

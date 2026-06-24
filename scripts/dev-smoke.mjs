@@ -425,9 +425,9 @@ check('migrate: new save has both challenge slots', (() => { const c = T.normali
 // Stage 5 — per-world challenges: data, filtering, world-aware rules + perks
 {
   // content counts (6 grid + 6 volt = 12)
-  check('content: 12 challenges total', T.CHALLENGES.length === 12);
+  check('content: 14 challenges total', T.CHALLENGES.length === 14);
   check('content: 6 grid challenges', T.CHALLENGES.filter((c) => c.world === 'grid').length === 6);
-  check('content: 6 volt challenges', T.CHALLENGES.filter((c) => c.world === 'volt').length === 6);
+  check('content: 8 volt challenges', T.CHALLENGES.filter((c) => c.world === 'volt').length === 8);
   check('content: every challenge has a world', T.CHALLENGES.every((c) => c.world === 'grid' || c.world === 'volt'));
   // filtering: a volt-only set excludes the legacy grid ids
   const voltIds = T.CHALLENGES.filter((c) => c.world === 'volt').map((c) => c.id);
@@ -976,6 +976,29 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   check('surge: reincarnateGain scales with surgeShardMult', T.reincarnateGain() > g0);
 
   sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 0; sR.weapons = {}; sR.runVolts = 0;
+}
+
+// Voltlands expansion challenges — rule wiring + perks
+{
+  const sR = T.sl();
+  S().challenges = { grid: '', volt: '' };
+  const hp0 = T.enemyHp(5);
+  S().challenges.volt = 'glasscannon';
+  check('challenge: GLASS CANNON doubles enemy HP', Math.abs(T.enemyHp(5) - hp0 * 2) < hp0 * 1e-6);
+  S().challenges.volt = '';
+  // SURGE FAMINE: kills mint no Surge Charges
+  sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 3; sR.killsThisWave = 0;
+  S().challenges.volt = 'surgefamine';
+  T.spawnEnemy(); T.killEnemy();
+  check('challenge: SURGE FAMINE mints no Surge Charges', sR.surgeCharges === 0 && sR.surgeChargesEarned === 0);
+  S().challenges.volt = '';
+  // SURGE SURPLUS perk: a normal kill mints double
+  S().challengesDone = Object.assign({}, S().challengesDone, { surgefamine: true });
+  sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 3; sR.killsThisWave = 0;
+  T.spawnEnemy(); T.killEnemy();
+  check('perk: SURGE SURPLUS doubles a normal kill mint (=2)', sR.surgeCharges === 2 && sR.surgeChargesEarned === 2);
+  delete S().challengesDone.surgefamine;
+  sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 1;
 }
 
 // Content integrity — unique ids per catalog + valid cross-references
