@@ -81,7 +81,7 @@ const hook = `
     carryState, defaultState, normalizeState, defaultSlayer, applyZapDamage, spawnEnemy,
     autoBuyTick, autoBuyUpgrades, autoTapRate, autoTapGainPerSec, clickPowerFlat, clickPower, clickMult, tapWpsFrac, totalWps,
     reincarnate, reincarnateGain, shardMult, sl, su, killEnemy,
-    sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked,
+    sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked, saveSurgePreset, loadSurgePreset,
     surgeZpsMult, surgeTapMult, surgeAutoRate, surgeVoltMult, surgeShardMult, surgeCritChance, surgeCritMult,
     STORM_UPGRADES, buyStormUpgrade,
     autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
@@ -999,6 +999,30 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   check('perk: SURGE SURPLUS doubles a normal kill mint (=2)', sR.surgeCharges === 2 && sR.surgeChargesEarned === 2);
   delete S().challengesDone.surgefamine;
   sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 1;
+}
+
+// Surge build presets — save / load across runs
+{
+  const sR = T.sl();
+  sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 1000; sR.surgePresets = [null, null, null];
+  T.buySurgeNode(T.SURGE_NODES.find((n) => n.id === 'sg_root'));
+  T.buySurgeNode(T.SURGE_NODES.find((n) => n.id === 'sg_t2'));
+  T.saveSurgePreset(0);
+  check('preset: save captures the owned nodes', !!sR.surgePresets[0] && sR.surgePresets[0].nodes.includes('sg_root') && sR.surgePresets[0].nodes.includes('sg_t2'));
+  // wipe (as a respec would) then reload with plenty of charges
+  sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 1000;
+  T.loadSurgePreset(0);
+  check('preset: load rebuilds the saved nodes', T.sg('sg_root') && T.sg('sg_t2'));
+  // load with limited charges buys only what is affordable (sg_root=3, sg_t2=6)
+  sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 3;
+  T.loadSurgePreset(0);
+  check('preset: load buys only affordable nodes', T.sg('sg_root') && !T.sg('sg_t2'));
+  // loading an empty slot is a no-op
+  sR.surgeNodes = {}; sR.surgeCharges = 1000;
+  T.loadSurgePreset(2);
+  check('preset: loading an empty slot does nothing', Object.keys(sR.surgeNodes).length === 0);
+  check('migrate: surgePresets backfilled to a 3-slot array', Array.isArray(T.normalizeState({ slayer: {} }).slayer.surgePresets) && T.normalizeState({ slayer: {} }).slayer.surgePresets.length === 3);
+  sR.surgeNodes = {}; sR.surgeBranch = ''; sR.surgeCharges = 0; sR.surgePresets = [null, null, null];
 }
 
 // Upgrade semantics — multipliers must be multiplicative on the value they claim.

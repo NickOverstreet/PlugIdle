@@ -503,6 +503,7 @@
       surgeChargesEarned: 0, // lifetime Surge Charges ever minted; KEPT across reincarnation
       surgeNodes: {},        // surgeNodeId -> true; RESET on reincarnate (the free respec)
       surgeBranch: '',       // chosen mutually-exclusive branch; RESET on reincarnate
+      surgePresets: [null, null, null],   // 3 saved build templates; KEPT across reincarnation & prestige
     };
   }
 
@@ -556,6 +557,7 @@
     if (typeof s.slayer.surgeCharges !== 'number') s.slayer.surgeCharges = 0;
     if (typeof s.slayer.surgeChargesEarned !== 'number') s.slayer.surgeChargesEarned = 0;
     if (typeof s.slayer.surgeBranch !== 'string') s.slayer.surgeBranch = '';
+    if (!Array.isArray(s.slayer.surgePresets)) s.slayer.surgePresets = [null, null, null];
     // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
     // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
     // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
@@ -990,7 +992,7 @@
     buffBar: $('#buffBar'), floaters: $('#floaters'), surgeLayer: $('#surgeLayer'),
     dotUp: $('#dotUp'), dotMore: $('#dotMore'), dotArsenal: $('#dotArsenal'),
     cordlist: $('#cordlist'), uplist: $('#uplist'), goallist: $('#goallist'), goalcount: $('#goalcount'),
-    corelist: $('#corelist'), stormlist: $('#stormlist'), surgelist: $('#surgelist'), surgechargecount: $('#surgechargecount'),
+    corelist: $('#corelist'), stormlist: $('#stormlist'), surgelist: $('#surgelist'), surgechargecount: $('#surgechargecount'), surgePresets: $('#surgePresets'),
     statTotal: $('#statTotal'), statClicks: $('#statClicks'), statWps: $('#statWps'),
     statGens: $('#statGens'), statSurges: $('#statSurges'), statAch: $('#statAch'),
     statTime: $('#statTime'), statCores: $('#statCores'),
@@ -1455,6 +1457,34 @@
     toast('⚡ ' + n.name, true);
     renderSurgeTree();   // reflect the buy: reveal next nodes, lock the other paths
     checkAchievements();
+  }
+
+  // Surge build presets: save the current node allocation to one of 3 slots and
+  // re-buy it with one tap (e.g. after a free respec on reincarnation). Slots live
+  // in the slayer subtree, so they persist across reincarnation AND grid prestige.
+  function saveSurgePreset(i) {
+    if (i < 0 || i > 2 || !sl().surgePresets) return;
+    sl().surgePresets[i] = { branch: sl().surgeBranch, nodes: Object.keys(sl().surgeNodes) };
+    blip(700, 0.12, 'sawtooth', 0.05); buzz([0, 15, 30]);
+    toast('💾 Saved build to slot ' + 'ABC'[i], true);
+    renderSurgeTree();
+  }
+  function loadSurgePreset(i) {
+    const p = sl().surgePresets && sl().surgePresets[i];
+    if (!p) { toast('Slot ' + 'ABC'[i] + ' is empty'); blip(120, 0.06); return; }
+    let bought = 0;
+    // SURGE_NODES is in prereq order, so one pass buys prerequisites before dependents.
+    for (const n of SURGE_NODES) {
+      if (sg(n.id) || !p.nodes.includes(n.id) || !surgeNodeUnlocked(n) || (sl().surgeCharges || 0) < n.cost) continue;
+      sl().surgeCharges -= n.cost;
+      sl().surgeNodes[n.id] = true;
+      if (n.branch) sl().surgeBranch = n.branch;
+      bought++;
+    }
+    if (bought) checkAchievements();
+    blip(bought ? 700 : 120, bought ? 0.14 : 0.06, 'sawtooth', 0.05);
+    toast(bought ? ('📲 Built ' + bought + ' node' + (bought > 1 ? 's' : '') + ' from slot ' + 'ABC'[i]) : ('Slot ' + 'ABC'[i] + ': nothing affordable yet'), bought > 0);
+    renderSurgeTree();
   }
 
   /* ---------- Rendering ---------- */
@@ -3110,6 +3140,8 @@
   delegateTap(el.weaponlist, 'data-weapon', (id) => buyWeapon(WEAPONS.find((w) => w.id === id)));
   delegateTap(el.zuplist, 'data-zupgrade', (id) => buyZapUpgrade(ZAP_UPGRADES.find((u) => u.id === id)));
   delegateTap(el.surgelist, 'data-surge', (id) => buySurgeNode(SURGE_NODES.find((n) => n.id === id)));
+  delegateTap(el.surgePresets, 'data-surgesave', (i) => saveSurgePreset(+i));
+  delegateTap(el.surgePresets, 'data-surgeload', (i) => loadSurgePreset(+i));
   // iOS suppresses :active styling unless a touchstart listener exists.
   document.body.addEventListener('touchstart', () => {}, { passive: true });
 
