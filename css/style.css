@@ -105,7 +105,7 @@ body.noanim .buff-bar.animate .buff-track{ animation:none; }
 main{ flex:1; overflow:hidden; display:flex; }
 .panel{ display:none; width:100%; }
 .panel.active{ display:flex; flex-direction:column; flex:1; min-height:0; width:100%; padding:10px 10px 0; }
-#p-up.active, #p-goals.active, #p-more.active, #p-plug.active,
+#p-up.active, #p-goals.active, #p-more.active, #p-surge.active, #p-plug.active,
 #p-zap.active, #p-arsenal.active{ overflow-y:auto; padding-bottom:14px; -webkit-overflow-scrolling:touch; }
 /* #p-plug / #p-zap scroll as a whole (the big tap button scrolls away, the toolbar
    pins); the cord / weapon list is plain flow content, not its own scroll container.
