@@ -640,14 +640,19 @@ body.noanim .enemy-btn.zapped .enemy-emoji{ animation:none; }
     flex-direction: initial;          /* cancel the phone column flex */
     display: grid;
     grid-template-columns: 118px 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto 1fr;
     grid-template-areas:
       "rail header"
+      "rail notif"
       "rail main";
     box-shadow: none;                 /* drop the phone "device" frame glow */
   }
   .topbar { grid-area: header; padding: 16px 26px; }
   main    { grid-area: main; }
+  /* Streak / buff / toast banners share one slot at the top of the content column
+     (they're mutually exclusive — a toast collapses the buff pills). Without this
+     they auto-place into an implicit cell in the narrow rail and get cut off. */
+  #buffBar, #toast { grid-area: notif; }
 
   /* ---- Bottom tab bar -> left vertical rail ---- */
   .tabbar {
