@@ -710,9 +710,12 @@
   // softcapped ZPS multiplier — the volt analog of prestigeMult. Same softcap
   // shape as the Grid (linear to ×10, then sqrt-dampened).
   // STORM_THRESHOLD gates the first shard: reincarnateGain = cbrt(runVolts/THRESHOLD).
-  // At 2e3 the first shard landed at ~wave 10 (the first boss) — far too early; 1.3e5
-  // pushes it to ~wave 30, making shards a genuine deep-run reward.
-  const STORM_THRESHOLD = 1.3e5;
+  // Tuned to match the Grid's first prestige core: under symmetric active-play
+  // modeling the first core lands at ~1h54m, by which point a Voltlands run has
+  // banked ~4.6e7 runVolts (~wave 60). Earlier values arrived far too early vs cores
+  // (2e3 -> ~wave 10; 1.3e5 -> ~wave 30, a measured ~5x faster than the first core).
+  // 5e7 puts the first shard at the same play-time as the first core (slightly slower).
+  const STORM_THRESHOLD = 5e7;
   const STORM_SOFTCAP = 10;
   function shardMultFor(shardsN) {
     const raw = 1 + shardPer() * shardsN;
