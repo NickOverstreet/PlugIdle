@@ -3,11 +3,22 @@
 Walkthrough for the one-time App Store Connect forms for the **iOS launch**
 (spec §6.7 of `docs/superpowers/specs/2026-06-18-ios-app-store-launch-design.md`).
 
-The iOS v1.0 ships **in-app purchases only — no ads, no tracking** (rewarded AdMob
-is deferred to v1.1). That posture drives every answer below: App Privacy is
-"Data Not Collected", there is no ATT prompt, and export compliance is exempt.
-The six IAP products reuse the **same product-ID strings as Android** (see
-`store/play-console-checklist.md`) so the catalog never diverges.
+The iOS build ships **in-app purchases _and_ optional rewarded AdMob ads with
+App Tracking Transparency** — the same monetization as Android (`js/monetize.js`
+returns `adsAvailable: true` on both native platforms). That posture drives every
+answer below: App Privacy declares **AdMob data collection + Tracking = Yes**, the
+**ATT prompt fires** before ads initialize (`js/monetize.js:43`), and the binary
+stamps `GADApplicationIdentifier`, `NSUserTrackingUsageDescription`, and
+`SKAdNetworkItems` (`scripts/patch-ios-plist.sh`). The six IAP products reuse the
+**same product-ID strings as Android** (see `store/play-console-checklist.md`) so
+the catalog never diverges.
+
+> **Ads on iOS is a settled decision** (see `CLAUDE.md` → iOS section and
+> `privacy.html`), not a new choice. An earlier draft of this checklist described
+> an ads-free "IAP only / Data Not Collected" v1.0; that posture is obsolete and the
+> App Privacy / review-notes answers below supersede it. Filing "Data Not Collected"
+> against a binary that ships AdMob + ATT is a **false privacy label** and a near-certain
+> Apple rejection.
 
 > **Do these in order.** The Paid Apps agreement (step 3) is a hard prerequisite:
 > IAP products will not load in the app or pass review until it is **Active**.
@@ -21,7 +32,9 @@ Apple Developer → Certificates, Identifiers & Profiles → **Identifiers** →
 - Bundle ID: `com.ignyte.plugidle` (must match Capacitor `appId` / the value
   Codemagic produces — see `capacitor.config.json`). Once registered it can't change.
 - Capabilities: **In-App Purchase** is on by default for explicit App IDs — leave it.
-  Nothing else (no Push, no Sign in with Apple, no ATT entitlement at launch).
+  Nothing else to add here (no Push, no Sign in with Apple). AdMob and ATT need **no
+  App ID capability** — they ship via the `Info.plist` keys stamped by
+  `scripts/patch-ios-plist.sh`, not an entitlement.
 
 ## 2. Create the app record
 
@@ -96,14 +109,31 @@ money, but an explicit sandbox tester gives repeatable IAP runs.
 
 ASC → app → **App Privacy** → Get Started.
 
-- PlugIdle has **no server, no analytics SDK, no AdMob at launch**, and saves are
-  **device-local**. Apple-handled IAP payment data is **explicitly exempt** from
-  developer declaration. So the honest answer is **"No, we do not collect data from
-  this app."** → Save. This yields a **"Data Not Collected"** privacy label.
-- **Tracking:** None. There is **no ATT prompt** and **no `NSUserTrackingUsageDescription`**
-  (consistent with spec §6.5; AdMob/IDFA deferred to v1.1).
-- Keep this accurate: if any first-party crash/diagnostics reporting is ever added it
-  must be declared. At launch there is none, so "Data Not Collected" is correct.
+PlugIdle itself has no server, no first-party analytics, and **device-local saves** —
+but it **embeds Google AdMob for rewarded ads**, so the SDK collects data and the
+answer is **"Yes, we collect data from this app."** Match `privacy.html` (which already
+declares AdMob processing the advertising identifier, IP/coarse location, and
+ad-interaction data) and the Android Data Safety form. Apple-handled IAP payment data
+stays exempt from declaration; do **not** list it.
+
+Declare these **data types**, all attributed to the **AdMob SDK** (purpose:
+**Third-Party Advertising**; *not* linked to identity; **Used for Tracking**):
+
+| Data type | Apple category | Purpose | Tracking |
+|---|---|---|---|
+| Advertising identifier (IDFA) | Identifiers → Device ID | Third-Party Advertising | **Yes** |
+| Coarse location | Location → Coarse Location | Third-Party Advertising | **Yes** |
+| Advertising/marketing data | Usage Data → Advertising Data | Third-Party Advertising | **Yes** |
+| Product interaction | Usage Data → Product Interaction | Third-Party Advertising | **Yes** |
+| Crash/performance/diagnostics | Diagnostics | Third-Party Advertising | Yes (AdMob SDK diagnostics) |
+
+- **Tracking:** **Yes.** The app shows the **ATT prompt** (`js/monetize.js:43`,
+  `AdMob.requestTrackingAuthorization`) before AdMob initializes, and
+  `NSUserTrackingUsageDescription` is stamped into `Info.plist`
+  (`scripts/patch-ios-plist.sh`). On the App Privacy "Tracking" question answer **Yes**.
+- This must stay in lockstep with `privacy.html`, the Android Data Safety form, and the
+  iOS **App Review notes** (§10). If the AdMob integration is ever removed, revert all
+  four to "Data Not Collected" together — never just one.
 
 ## 7. Age rating (2026 questionnaire)
 
@@ -167,9 +197,14 @@ app — emphasize native, offline depth.
 > payment mechanisms. To test: open the in-game store, tap any product to trigger the
 > Apple purchase sheet (sandbox), and the entitlement is granted locally on success.
 >
-> The app has **no third-party tracking, no ads, and no analytics** at launch (App
-> Privacy: Data Not Collected; no ATT prompt). Orientation is portrait-locked;
-> export-compliance is exempt (`ITSAppUsesNonExemptEncryption = NO`).
+> **Ads & tracking (Guideline 5.1.2 / ATT):** The app shows **optional rewarded
+> AdMob ads** — the player taps a button to watch one in exchange for an in-game
+> reward; ads never interrupt play and are entirely opt-in. On first ad use the app
+> presents the **App Tracking Transparency** prompt; the full game is playable whether
+> the user allows or denies tracking. This matches the **App Privacy** declaration
+> (data collected for Third-Party Advertising; Tracking = Yes) and `privacy.html`.
+> There is no first-party analytics. Orientation is portrait-locked; export-compliance
+> is exempt (`ITSAppUsesNonExemptEncryption = NO`).
 
 ## 11. Export compliance
 
