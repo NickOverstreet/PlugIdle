@@ -91,6 +91,8 @@ const hook = `
     weaponBuyCount, maxAffordableWeapon,
     renderMoreGating, syncSettingsUI, applyWorld, co,
     applyOffline, offlineEff, offlineCapMs,
+    grantPurchase, grantBoost, markAdUse, adUsesLeft, iapProdMult, syncBoostBuff,
+    IAP_PRODUCTS, AD_LIMITS, BOOST_MS, buffMult, localDay,
   };
 })();`;
 if (!src.endsWith('})();\n')) throw new Error('unexpected game.js tail');
@@ -1143,6 +1145,84 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
     sR.shardUpgrades = { thunderhead: true };   // eff { zps: 3 }
     check('storm: eff upgrade lifts totalZps ×3', Math.abs(T.totalZps() - z0 * 3) < z0 * 1e-6);
     sR.shardUpgrades = {}; sR.weapons = {}; }
+}
+
+// Monetization — every IAP grant + both ad rewards actually apply their reward
+{
+  const s = S();
+  s.iap = {}; s.adDay = T.localDay(); s.adUses = {}; s.boostUntil = 0; s.supporterDay = '';
+  s.owned = { usba: 10 }; s.upgrades = {}; s.coreUpgrades = {}; s.challenges = { grid: '', volt: '' };
+
+  // catalog matches what both stores are told to create (6 SKUs, types intact)
+  check('mtx: catalog has the 6 store SKUs', T.IAP_PRODUCTS.length === 6 &&
+    ['supporter_pack','boost_production_25','starter_cores','timewarp_4h','timewarp_24h','theme_pack_phosphor'].every((id) => T.IAP_PRODUCTS.some((p) => p.id === id)));
+  check('mtx: only the two Time Warps are consumable', T.IAP_PRODUCTS.filter((p) => p.consumable).map((p) => p.id).sort().join() === 'timewarp_24h,timewarp_4h');
+
+  // --- IAP: starter_cores grants 3 cores, once (idempotent on Play restore re-fire) ---
+  s.cores = 0; s.coresEarned = 0;
+  T.grantPurchase('starter_cores');
+  check('mtx: starter_cores grants +3 cores', s.cores === 3 && s.coresEarned === 3 && s.iap.starter_cores === true);
+  T.grantPurchase('starter_cores');
+  check('mtx: starter_cores idempotent (no double-grant on restore)', s.cores === 3 && s.coresEarned === 3);
+
+  // --- IAP: Overclock +25% multiplies real production ---
+  check('mtx: iapProdMult is 1 before purchase', T.iapProdMult() === 1);
+  const baseW = T.totalWps();
+  T.grantPurchase('boost_production_25');
+  check('mtx: Overclock sets iapProdMult ×1.25', Math.abs(T.iapProdMult() - 1.25) < 1e-9 && s.iap.boost_production_25 === true);
+  check('mtx: Overclock actually lifts totalWps ×1.25', baseW > 0 && Math.abs(T.totalWps() - baseW * 1.25) < baseW * 1e-9);
+
+  // --- IAP: supporter + theme entitlement flags ---
+  T.grantPurchase('supporter_pack');   T.grantPurchase('theme_pack_phosphor');
+  check('mtx: supporter + theme entitlements set', s.iap.supporter_pack === true && s.iap.theme_pack_phosphor === true);
+
+  // --- IAP: Time Warp consumables grant N hours of production, re-grantable ---
+  s.iap.boost_production_25 = false;        // isolate the rate from the +25%
+  s.watts = 0; s.totalEarned = 0;
+  const rate = T.totalWps() / T.buffMult('prod');   // steady-state rate: Time Warp excludes transient buffs (boost/frenzy/streak)
+  T.grantPurchase('timewarp_4h');
+  check('mtx: timewarp_4h grants 4h of production', rate > 0 && Math.abs(s.watts - rate * 4 * 3600) < rate * 1e-6);
+  const after4 = s.watts;
+  T.grantPurchase('timewarp_4h');
+  check('mtx: timewarp consumable re-grants on repurchase', Math.abs(s.watts - (after4 + rate * 4 * 3600)) < rate * 1e-6);
+  s.watts = 0;
+  T.grantPurchase('timewarp_24h');
+  check('mtx: timewarp_24h grants 24h of production', Math.abs(s.watts - rate * 24 * 3600) < rate * 1e-6);
+
+  // --- REGRESSION (Finding B): a transient x2 boost must NOT inflate a paid Time Warp.
+  // Invariant: the warp payout is identical whether or not a boost is active. ---
+  s.boostUntil = 0; T.syncBoostBuff();          // ensure no boost active
+  s.watts = 0; T.grantPurchase('timewarp_24h');
+  const warpNoBoost = s.watts;
+  T.grantBoost('regression');                   // x2 transient boost now live
+  s.watts = 0; T.grantPurchase('timewarp_24h');
+  const warpBoosted = s.watts;
+  check('mtx: Time Warp payout is unchanged by an active x2 boost', warpNoBoost > 0 && Math.abs(warpBoosted - warpNoBoost) < warpNoBoost * 1e-6);
+  s.boostUntil = 0; T.syncBoostBuff();          // restore: clear boost for the buff tests below
+
+  // --- unknown SKU is a safe no-op ---
+  const cBefore = s.cores;
+  T.grantPurchase('not_a_real_sku');
+  check('mtx: unknown SKU is a no-op (no throw, no grant)', s.cores === cBefore);
+
+  // --- Ad reward: 2x boost buff ---
+  s.boostUntil = 0; T.syncBoostBuff();
+  const prod0 = T.buffMult('prod');
+  T.grantBoost('test');
+  check('mtx: ad boost opens a ~10min window', s.boostUntil > Date.now() && s.boostUntil <= Date.now() + T.BOOST_MS + 3000);
+  check('mtx: ad boost ×2 enters buffMult(prod)', Math.abs(T.buffMult('prod') - prod0 * 2) < prod0 * 1e-9);
+  const firstUntil = s.boostUntil;
+  T.grantBoost('test2');
+  check('mtx: stacking boosts extend duration (not multiplier)', Math.abs(s.boostUntil - (firstUntil + T.BOOST_MS)) < 3000);
+
+  // --- Ad caps: per-placement daily limits, independent, reset on a new day ---
+  s.adDay = T.localDay(); s.adUses = {};
+  check('mtx: boost ad cap starts full', T.adUsesLeft('boost') === T.AD_LIMITS.boost);
+  for (let i = 0; i < T.AD_LIMITS.boost; i++) T.markAdUse('boost');
+  check('mtx: boost ad cap exhausts after AD_LIMITS uses', T.adUsesLeft('boost') === 0);
+  check('mtx: surge ad cap is independent of boost', T.adUsesLeft('surge') === T.AD_LIMITS.surge);
+  s.adDay = 'an old day';
+  check('mtx: a new day resets the ad caps', T.adUsesLeft('boost') === T.AD_LIMITS.boost);
 }
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);

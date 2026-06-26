@@ -3005,7 +3005,10 @@
   }
 
   function grantTimewarp(hours) {
-    const earned = totalWps() * hours * 3600;
+    // Credit steady-state production only: a transient ×2 boost (ad or supporter)
+    // must not multiply hours of warped time. buffMult('prod') is timed-buffs-only,
+    // so divide it back out; permanent mults (prestige, IAP, achievements) stay in.
+    const earned = (totalWps() / buffMult('prod')) * hours * 3600;
     gainWatts(earned);
     toast(`⏩ TIME WARP! +${fmt(earned)} W (${hours}h)`, true);
     screenShake(1.2);
@@ -3108,14 +3111,16 @@
       return;
     }
     if (adUsesLeft(kind) <= 0) { toast('Come back tomorrow!'); return; }
+    // Don't make the player burn a daily use on a surge that can't spawn. Guard
+    // before the ad, and again after (an organic surge can arrive mid-ad), so
+    // markAdUse only runs when the reward is actually delivered.
+    if (kind === 'surge' && surgeActive) { toast('⚡ A surge is already on screen!'); return; }
     const ok = await window.Monetize.showRewarded();
     if (!ok) { toast('Ad not ready — try again in a moment'); return; }
+    if (kind === 'surge' && surgeActive) { toast('⚡ Surge already on screen — ad credit kept.'); return; }
     markAdUse(kind);
     if (kind === 'boost') grantBoost('📺 BOOST ×2 for 10 minutes!');
-    else if (kind === 'surge') {
-      if (surgeActive) toast('⚡ A surge is already on screen!');
-      else { spawnSurge(); toast('📺 SURGE INCOMING — catch it!', true); }
-    }
+    else if (kind === 'surge') { spawnSurge(); toast('📺 SURGE INCOMING — catch it!', true); }
     save();
     renderStore();
   }
