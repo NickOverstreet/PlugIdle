@@ -91,8 +91,9 @@ With rewarded AdMob ads, declare (per Google's published AdMob data-safety guida
 
 ## AdMob side (do in parallel)
 
-- Create the AdMob app + 3 rewarded ad units (offline-double, production-boost,
-  summon-surge). Use **test ad unit IDs** in all dev builds.
+- Create the AdMob app + **one shared rewarded ad unit per platform** (the code
+  uses a single rewarded unit for every placement — boost and surge both call the
+  same unit; see `js/monetize.js`). Use **test ad unit IDs** in all dev builds.
 - Link the AdMob app to the Play listing once it's published.
 - `app-ads.txt`: must be served at the **root** of the developer website domain.
   GitHub Pages project sites can't serve the domain root — create a
