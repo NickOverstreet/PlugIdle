@@ -1,0 +1,14 @@
+# app-ads.txt for PlugIdle — IAB spec: https://iabtechlab.com/app-ads-txt/
+#
+# DEPLOY AT THE DOMAIN ROOT:  https://nickoverstreet.github.io/app-ads.txt
+# GitHub *project* pages (…/PlugIdle/) cannot serve a domain root, so this must
+# live in a user/org pages repo: create  NickOverstreet/nickoverstreet.github.io
+# containing just this file. Both Google Play and Apple discover it via the store
+# listing's website domain (nickoverstreet.github.io) — the /PlugIdle/ path on the
+# listing URLs does not matter; the crawler always fetches {domain-root}/app-ads.txt.
+#
+# REQUIRED before launch: replace pub-XXXXXXXXXXXXXXXX with your real AdMob
+# publisher ID. AdMob console → Apps → app-ads.txt shows the exact line to paste.
+# The trailing f08c47fec0942fa0 is Google's fixed certification-authority ID —
+# do not change it. Crawling is slow (days), so deploy this early.
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

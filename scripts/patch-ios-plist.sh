@@ -80,13 +80,28 @@ echo "patch-ios-plist: set iPhone-only (TARGETED_DEVICE_FAMILY=1)"
 "$PB" -c "Set :NSUserTrackingUsageDescription Allow tracking so PlugIdle can show you more relevant ads. The full game is playable without it." "$PLIST" \
   || "$PB" -c "Add :NSUserTrackingUsageDescription string Allow tracking so PlugIdle can show you more relevant ads. The full game is playable without it." "$PLIST"
 
-# SKAdNetwork (ad attribution). Google's primary network only — rebuilt from
-# scratch so the result is deterministic. TODO(launch): add Google's full
-# SKAdNetworkItems list before production.
+# SKAdNetwork (ad attribution). Google's full published list for the Google
+# Mobile Ads SDK (developers.google.com/admob/ios/3p-skadnetworks), rebuilt from
+# scratch so the result is deterministic. Re-pull that list periodically — Google
+# adds networks over time. cstr6suwn9 (Google's own) stays first.
 "$PB" -c "Delete :SKAdNetworkItems" "$PLIST" 2>/dev/null || true
 "$PB" -c "Add :SKAdNetworkItems array" "$PLIST"
-"$PB" -c "Add :SKAdNetworkItems:0 dict" "$PLIST"
-"$PB" -c "Add :SKAdNetworkItems:0:SKAdNetworkIdentifier string cstr6suwn9.skadnetwork" "$PLIST"
+skadnetwork_i=0
+for id in \
+  cstr6suwn9 4fzdc2evr5 2fnua5tdw4 ydx93a7ass p78axxw29g \
+  v72qych5uu ludvb6z3bs cp8zw746q7 3sh42y64q3 c6k4g5qg8m \
+  s39g8k73mm wg4vff78zm 3qy4746246 f38h382jlk hs6bdukanm \
+  mlmmfzh3r3 v4nxqhlyqp wzmmz9fp6w su67r6k2v3 yclnxrl5pm \
+  t38b2kh725 7ug5zh24hu gta9lk7p23 vutu7akeur y5ghdn5j9k \
+  v9wttpbfk9 n38lu8286q 47vhws6wlr kbd757ywx3 9t245vhmpl \
+  a2p9lx4jpn 22mmun2rn5 44jx6755aq k674qkevps 4468km3ulz \
+  2u9pt9hc89 8s468mfl3y klf5c3l5u5 ppxm28t8ap kbmxgpxpgc \
+  uw77j35x4d 578prtvx9j 4dzt52r2t5 tl55sbb4fm c3frkrj4fj \
+  e5fvkxwrpn 8c4e2ghe7u 3rd42ekr43 97r2b46745 3qcr597p9d; do
+  "$PB" -c "Add :SKAdNetworkItems:$skadnetwork_i dict" "$PLIST"
+  "$PB" -c "Add :SKAdNetworkItems:$skadnetwork_i:SKAdNetworkIdentifier string ${id}.skadnetwork" "$PLIST"
+  skadnetwork_i=$((skadnetwork_i + 1))
+done
 
 # Sanity-check the bundle id matches capacitor.config.json appId. The value is
 # usually the $(PRODUCT_BUNDLE_IDENTIFIER) build-setting placeholder at this

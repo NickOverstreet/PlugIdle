@@ -98,4 +98,6 @@ With rewarded AdMob ads, declare (per Google's published AdMob data-safety guida
   GitHub Pages project sites can't serve the domain root — create a
   `NickOverstreet/nickoverstreet.github.io` repo containing just `app-ads.txt`
   (AdMob shows the exact line to use under Apps → app-ads.txt), and set the
-  Play listing website to `https://nickoverstreet.github.io/`.
+  Play listing website to `https://nickoverstreet.github.io/`. A ready-to-deploy
+  template is staged at `store/app-ads.txt` — copy it into that repo and replace
+  the placeholder publisher ID with the real one from the AdMob console.
