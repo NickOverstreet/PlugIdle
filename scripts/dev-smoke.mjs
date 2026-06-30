@@ -1041,15 +1041,17 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
     (() => { const sl0 = T.normalizeState({ slayer: {} }).slayer; return sl0.surgeCharges === 0 && sl0.surgeChargesEarned === 0 && typeof sl0.surgeNodes === 'object' && sl0.surgeBranch === ''; })());
   check('migrate: malformed surgeNodes coerced to object', typeof T.normalizeState({ slayer: { surgeNodes: 7 } }).slayer.surgeNodes === 'object');
 
-  // Mint: a normal kill is +1 charge, a boss kill +5; spendable + lifetime move together.
+  // Mint: deliberately slow — a normal kill is +0.1 charge, a boss kill +0.5 (10× slower
+  // than the raw kill count); spendable + lifetime move together. fmtInt floors the display.
   const sR = T.sl();
   sR.surgeCharges = 0; sR.surgeChargesEarned = 0;
   sR.wave = 3; sR.killsThisWave = 0;
   T.spawnEnemy(); T.killEnemy();
-  check('surge: a normal kill mints +1 charge (spendable + lifetime)', sR.surgeCharges === 1 && sR.surgeChargesEarned === 1);
+  check('surge: a normal kill mints +0.1 charge (10× slower; spendable + lifetime)',
+    Math.abs(sR.surgeCharges - 0.1) < 1e-9 && Math.abs(sR.surgeChargesEarned - 0.1) < 1e-9);
   sR.wave = 10; sR.killsThisWave = 0;
   T.spawnEnemy(); T.killEnemy();
-  check('surge: a boss kill mints +5 charges', sR.surgeCharges === 6 && sR.surgeChargesEarned === 6);
+  check('surge: a boss kill mints +0.5 charges', Math.abs(sR.surgeCharges - 0.6) < 1e-9 && Math.abs(sR.surgeChargesEarned - 0.6) < 1e-9);
 
   // Reincarnate is the free respec: spendable charges + node allocation reset, lifetime kept.
   sR.surgeNodes = { surge_test: true }; sR.surgeBranch = 'surge_crit';
@@ -1131,7 +1133,7 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   S().challengesDone = Object.assign({}, S().challengesDone, { surgefamine: true });
   sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 3; sR.killsThisWave = 0;
   T.spawnEnemy(); T.killEnemy();
-  check('perk: SURGE SURPLUS doubles a normal kill mint (=2)', sR.surgeCharges === 2 && sR.surgeChargesEarned === 2);
+  check('perk: SURGE SURPLUS doubles a normal kill mint (=0.2)', Math.abs(sR.surgeCharges - 0.2) < 1e-9 && Math.abs(sR.surgeChargesEarned - 0.2) < 1e-9);
   delete S().challengesDone.surgefamine;
   sR.surgeCharges = 0; sR.surgeChargesEarned = 0; sR.wave = 1;
 }

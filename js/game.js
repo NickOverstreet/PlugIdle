@@ -136,7 +136,7 @@
   ];
 
   /* ---------- Content: storm upgrades (Voltlands prestige shop) ----------
-     Bought with Storm Shards (⚡). Mirrors CORE_UPGRADES — shards are spent,
+     Bought with Storm Shards (💠). Mirrors CORE_UPGRADES — shards are spent,
      but the per-shard ZPS bonus is based on shards ever EARNED, so it never
      drops. Costs reuse the proven Core Upgrade ladder against a comparably
      paced shard income. The auto* entries just set ownership here; their
@@ -514,7 +514,7 @@
       weapons: {},       // weaponId -> count
       upgrades: {},      // zapUpgradeId -> true
       runVolts: 0,       // volts earned this reincarnation — drives shard gain
-      shards: 0,         // spendable Storm Shards ⚡
+      shards: 0,         // spendable Storm Shards 💠
       shardsEarned: 0,   // lifetime shards — drives the permanent ZPS multiplier
       shardUpgrades: {}, // stormUpgradeId -> true (persists across reincarnation)
       // ---- Surge Grid (branching combat research tree) ----
@@ -1788,7 +1788,7 @@
     // when it grows and honors the scientific-notation setting.
     if (volt) {
       el.coresline.textContent = (sl().shardsEarned || 0) > 0
-        ? `⚡ ${fmt(sl().shards || 0)} · +${Math.round((shardMult() - 1) * 100)}%` : '';
+        ? `💠 ${fmt(sl().shards || 0)} · +${Math.round((shardMult() - 1) * 100)}%` : '';
     } else {
       el.coresline.textContent = (state.coresEarned || 0) > 0
         ? `◆ ${fmt(state.cores)} · +${lifetimeBonusPct()}%` : '';
@@ -2081,7 +2081,7 @@
     blip(220, 0.3, 'sawtooth', 0.06);
     buzz([0, 40, 60, 40, 60, 80]);
     screenShake(1.5);
-    toast(`⚡ Reincarnated. +${gain} shards`, true);
+    toast(`💠 Reincarnated. +${gain} shards`, true);
     renderAll();
   }
   function confirmReincarnate() {
@@ -2091,7 +2091,7 @@
     showModal(`
       <h2 class="danger">⚡ REINCARNATE?</h2>
       <p class="dim">Reset volts, weapons &amp; zap upgrades.<br>Shards, storm upgrades &amp; kills are kept.${(state.challenges && state.challenges.volt) ? '<br><b>Abandons the active challenge!</b>' : ''}</p>
-      <p class="big">+${fmt(gain)} ⚡ Shards</p>
+      <p class="big">+${fmt(gain)} 💠 Shards</p>
       <p>New bonus: <b style="color:var(--green)">+${newPct}%</b></p>
       <div class="row2" style="margin-top:14px">
         <button class="bigbtn" id="mYes">CONFIRM</button>
@@ -2430,8 +2430,10 @@
     s.kills++;
     s.killsThisWave++;
     // Surge Grid currency: combat mints Surge Charges (flat per kill, deliberately
-    // un-inflated like AD Time Theorems) — bosses are worth 5×.
-    let surge = boss ? 5 : 1;
+    // un-inflated like AD Time Theorems) — bosses are worth 5×. Minted at 1/10th of a
+    // whole charge per kill so the Surge Grid paces ~10× slower than the raw kill
+    // count; fmtInt floors the fractional balance, so counts still read as integers.
+    let surge = boss ? 0.5 : 0.1;
     if (chDone('surgefamine')) surge *= 2;          // SURGE SURPLUS perk
     if (ch('volt') === 'surgefamine') surge = 0;    // SURGE FAMINE rule: no charges this run
     s.surgeCharges += surge;
