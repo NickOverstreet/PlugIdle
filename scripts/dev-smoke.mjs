@@ -866,6 +866,26 @@ check('brownout no longer unlocks auto-buyer', S().owned.usba === usbaBefore);
   const got = sR3.volts;
   check('offline: volt earnings convert damage→volts via HP/reward', Math.abs(got - expected) < expected * 1e-6);
   check('offline: volt earnings stay below the naive ZPS×time overcount', got > 0 && got < naive * 0.999);
+
+  // Welcome-back dialog is tuned to the player's primary currency: past the
+  // wormhole (and with volts actually earned), Volts lead ABOVE Watts and render
+  // bigger. Pre-fix the dialog always led with Watts at a fixed size.
+  const wb = document.querySelector('#mbox').innerHTML;
+  const vAt = wb.indexOf(' V</p>'), wAt = wb.indexOf(' W</p>');
+  const big = wb.indexOf('font-size:34px'), small = wb.indexOf('font-size:20px');
+  check('welcome-back: Volts lead above the demoted Watts past the wormhole', vAt > -1 && wAt > -1 && vAt < wAt);
+  check('welcome-back: the leading Volts line is the bigger one', big > -1 && small > -1 && big < vAt && vAt < small && small < wAt);
+}
+
+// Control: before the wormhole, Watts stay the headline — no Volts line, no demotion.
+{
+  S().wormhole = false;
+  S().owned = { usba: 10 }; S().watts = 0;
+  S().lastSeen = Date.now() - 2 * 3600 * 1000;
+  T.applyOffline();
+  const wb2 = document.querySelector('#mbox').innerHTML;
+  check('welcome-back: Watts stay primary before the wormhole', wb2.includes(' W</p>') && !wb2.includes(' V</p>'));
+  check('welcome-back: pre-wormhole Watts line keeps the default size (not demoted)', !wb2.includes('font-size:20px'));
 }
 
 // rate invariance (regression lock for the dt-scaled volt kill cap): one coarse

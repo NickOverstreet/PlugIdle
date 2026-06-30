@@ -2919,26 +2919,33 @@
     // have far more HP than the volts they drop (≈1.25× too high now, and was up
     // to ~30× deep in before the reward curve was fixed). Capacitor Bank raises the
     // Voltlands offline cap +24h independently of the Grid's (Battery Backup) cap.
-    let voltLine = '';
+    let voltsEarned = 0;
     if (state.wormhole) {
       const voltAway = Math.min(now - (state.lastSeen || now), offlineCapMs() + (su('capbank') ? 24 * 3600000 : 0));
       const w = sl().wave;
       const voltRate = totalZps() * (voltReward(w) / enemyHp(w));   // volts/sec = kills/sec × reward
-      const voltsEarned = voltRate * (voltAway / 1000) * eff;
+      voltsEarned = voltRate * (voltAway / 1000) * eff;
       if (voltsEarned > 0) {
         sl().volts += voltsEarned;
         sl().totalVolts += voltsEarned;
         sl().runVolts += voltsEarned;
-        voltLine = `<p class="big" style="font-size:22px">+${fmt(voltsEarned)} V</p>`;
       }
     }
     const h = Math.floor(away / 3600000), m = Math.floor((away % 3600000) / 60000);
+    // Once the Voltlands are unlocked and actually earned offline, Volts are the
+    // player's primary currency — lead with them (bigger) and demote Watts beneath.
+    // Before the wormhole (or if nothing was zapped while away) Watts stay headline.
+    const wattAmt = `+${fmt(earned)} W`;
+    const amounts = voltsEarned > 0
+      ? `<p class="big" style="font-size:34px">+${fmt(voltsEarned)} V</p>`
+        + `<p class="big" style="font-size:20px;opacity:.85">${wattAmt}</p>`
+      : `<p class="big">${wattAmt}</p>`;
     const adBtn = window.Monetize?.adsAvailable?.()
       ? `<button class="smbtn" id="wbDouble" style="margin-top:8px;width:100%">📺 WATCH AD · DOUBLE IT</button>` : '';
     showModal(`
       <h2>⚡ WELCOME BACK</h2>
       <p class="dim">Your cords ran for<br><b style="color:var(--cyan)">${h}h ${m}m</b> (${Math.round(eff * 100)}% rate)</p>
-      <p class="big">+${fmt(earned)} W</p>${voltLine}
+      ${amounts}
       <button class="bigbtn" id="wbOk" style="margin-top:12px">COLLECT</button>${adBtn}`);
     document.getElementById('wbOk').addEventListener('click', hideModal);
     const dbl = document.getElementById('wbDouble');
