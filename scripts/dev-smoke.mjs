@@ -80,6 +80,7 @@ const hook = `
     totalZps, zapPower, bossWattsMult, gridZpsBoost, prestigeGain, prestigeMult,
     carryState, defaultState, normalizeState, defaultSlayer, applyZapDamage, spawnEnemy,
     autoBuyTick, autoBuyUpgrades, autoTapRate, autoTapGainPerSec, clickPowerFlat, clickPower, clickMult, tapWpsFrac, totalWps,
+    maxAffordable, cordCost,
     reincarnate, reincarnateGain, shardMult, sl, su, killEnemy,
     sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked, saveSurgePreset, loadSurgePreset, dischargeReady, fireDischarge,
     surgeZpsMult, surgeTapMult, surgeAutoRate, surgeVoltMult, surgeShardMult, surgeCritChance, surgeCritMult,
@@ -767,6 +768,111 @@ const offBefore = tally();
 T.autoBuyTick();
 check('autobuy: toggle off stops buying', tally() === offBefore);
 S().settings.world.grid.autobuyOn = true;
+
+// Efficiency revamp: with a CONSTRAINED bank (can't buy everything — the case that
+// matters for ongoing play and partial offline drains), the efficiency chooser must
+// turn the same spend into meaningfully MORE W/s than the old cheapest-first pass,
+// which sank the bank into low-value tiers. (Drained to exhaustion both converge, so
+// the test deliberately uses a bank too small to buy everything.)
+{
+  const s = S();
+  s.challenges = { grid: '', volt: '' };
+  s.coreUpgrades = { autobuy: true };
+  s.settings.world.grid.autobuyOn = true;
+  s.upgrades = {};                       // no per-cord upgrades → clean comparison
+  const startOwned = { usba: 80, jack: 55, hdmi: 30, eth: 15, usbc: 8, power: 3, thndr: 1 };
+  const BANK = 1e7;                      // constrained: far less than "buy everything" costs
+  const setup = () => { s.owned = Object.assign({}, startOwned); s.watts = BANK; };
+
+  // new efficiency buyer → run to exhaustion
+  setup();
+  let prev = -1, guard = 0;
+  while (s.watts !== prev && guard++ < 5000) { prev = s.watts; T.autoBuyTick(); }
+  const wpsNew = T.totalWps();
+  const spentNew = BANK - s.watts;
+
+  // old cheapest-first replica → run to exhaustion, same start + bank
+  setup();
+  prev = -1; guard = 0;
+  const cheapestPass = () => {
+    let did = false;
+    for (let i = 0; i < T.CORDS.length; i++) {
+      const c = T.CORDS[i];
+      if (c.wps <= 0 && !c.coreGain) continue;
+      const owned = s.owned[c.id] || 0;
+      const prevOwned = i === 0 ? 1 : (s.owned[T.CORDS[i - 1].id] || 0);
+      if (!(owned > 0 || prevOwned > 0)) continue;
+      const k = Math.min(T.maxAffordable(c), 25);
+      if (k <= 0) continue;
+      const cost = T.cordCost(c, k);
+      if (s.watts < cost) continue;
+      s.watts -= cost; s.owned[c.id] = (s.owned[c.id] || 0) + k; did = true;
+    }
+    return did;
+  };
+  while (cheapestPass() && guard++ < 5000) {}
+  const wpsOld = T.totalWps();
+
+  check('auto-buy: efficiency chooser beats cheapest-first on a constrained bank (>5% W/s)', wpsNew > wpsOld * 1.05);
+  check('auto-buy: efficiency chooser deploys most of the bank', spentNew > BANK * 0.5);
+}
+
+// Regression lock: on a BIG bank drained to exhaustion the auto-buyer must never
+// UNDERPERFORM cheapest-first. The ×10-every-100 milestones are non-convex, so a
+// pure efficiency greedy regressed badly here (it skips the low-marginal climb to
+// the deep jackpots); the cheapest-first mop-up pass is what keeps parity.
+{
+  const s = S();
+  s.challenges = { grid: '', volt: '' };
+  s.coreUpgrades = { autobuy: true };
+  s.settings.world.grid.autobuyOn = true;
+  s.upgrades = {};
+  const startOwned = { usba: 80, jack: 55, hdmi: 30, eth: 15, usbc: 8, power: 3, thndr: 1 };
+  const BANK = 1e15;                     // big: both reach the deep milestones, so they should tie
+  const setup = () => { s.owned = Object.assign({}, startOwned); s.watts = BANK; };
+
+  setup();
+  let prev = -1, guard = 0;
+  while (s.watts !== prev && guard++ < 8000) { prev = s.watts; T.autoBuyTick(); }
+  const wpsNew = T.totalWps();
+
+  setup();
+  guard = 0;
+  const cheapestPass = () => {
+    let did = false;
+    for (let i = 0; i < T.CORDS.length; i++) {
+      const c = T.CORDS[i];
+      if (c.wps <= 0 && !c.coreGain) continue;
+      const owned = s.owned[c.id] || 0;
+      const prevOwned = i === 0 ? 1 : (s.owned[T.CORDS[i - 1].id] || 0);
+      if (!(owned > 0 || prevOwned > 0)) continue;
+      const k = Math.min(T.maxAffordable(c), 25);
+      if (k <= 0) continue;
+      const cost = T.cordCost(c, k);
+      if (s.watts < cost) continue;
+      s.watts -= cost; s.owned[c.id] = (s.owned[c.id] || 0) + k; did = true;
+    }
+    return did;
+  };
+  while (cheapestPass() && guard++ < 20000) {}
+  const wpsOld = T.totalWps();
+
+  check('auto-buy: never worse than cheapest-first on a big drained bank', wpsNew >= wpsOld * 0.99);
+}
+
+// Milestone awareness: one unit short of a ×2 breakpoint is the highest-efficiency
+// buy, so the chooser completes it rather than spending the bank elsewhere.
+{
+  const s = S();
+  s.challenges = { grid: '', volt: '' };
+  s.coreUpgrades = { autobuy: true };
+  s.settings.world.grid.autobuyOn = true;
+  s.upgrades = {};
+  s.owned = { usba: 24, jack: 1 };   // usba one short of its 25-owned ×2; jack just unlocked
+  s.watts = 300;                     // affords the usba milestone-completing unit, little else
+  T.autoBuyTick();
+  check('auto-buy: completes a near ownership milestone first', (s.owned.usba || 0) >= 25);
+}
 
 // Auto-Upgrader core upgrade: buys all unlocked affordable upgrades at once
 S().coreUpgrades.autoupg = true;

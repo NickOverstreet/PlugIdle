@@ -3455,13 +3455,16 @@
     return co('autobuy') && state.settings.world.grid.autobuyOn;
   }
 
-  // AUTO-BUYER: buys the CHEAPEST cords first. Each tick it makes a single pass
-  // up the list (cheapest → most expensive), grabbing a batch of every unlocked,
-  // affordable cord, so spare watts cascade up to pricier tiers — including the
-  // Ouroboros Cord (core-gain), which sits last so it only soaks up spare watts
-  // after the producing cords. Silent — no sounds/toasts; milestones stay manual.
-  const AUTO_BUY_PER_CORD = 25;     // cords per tier, per tick
+  // AUTO-BUYER: spends the bank on whichever tier yields the most extra output
+  // per cost (marginal efficiency = 1/payback), snapping each buy to the next
+  // ownership milestone so a near-complete ×2/×10 breakpoint gets finished first.
+  // This replaced a naive cheapest-first pass that sank a returning player's whole
+  // offline bank into low-value tiers. Silent — no sounds/toasts; milestones stay
+  // celebrated only on manual buys. Shared with the Voltlands arsenal via
+  // autoBuyGreedy (same exponential-cost / milestone shape — world-template parity).
+  const AUTO_BUY_PER_CORD = 25;     // core-gain (Ouroboros) tail batch, per tick
   const AUTO_ZAP_RATE = 5;          // Auto-Zapper: tap-zaps per second
+  const AUTO_BUY_MAX_STEPS = 64;    // greedy chunks per tick — bounded so ticks stay fast; a huge bank deploys over a few ticks
   function autoBuyAllowed(cord, i) {
     if (cord.wps <= 0 && !cord.coreGain) return false;        // skip non-producing cords, but allow Ouroboros (core-gain)
     if (ch('grid') === 'solo' && cord.id !== 'usba') return false;   // SOLO CIRCUIT: USB-A only
@@ -3469,12 +3472,97 @@
     const prevOwned = i === 0 ? 1 : (state.owned[CORDS[i - 1].id] || 0);
     return owned > 0 || prevOwned > 0;                         // unlocked
   }
-  function autoBuyTick() {
-    if (!autoBuyActive()) return;
+
+  // Greedy marginal-efficiency chooser, shared by Grid cords and Voltlands weapons
+  // (both have the same exponential cost / per-25 milestone shape). cfg supplies the
+  // world's accessors. Each step it ranks every eligible tier by the efficiency of
+  // its NEXT SINGLE unit (Δoutput / that unit's cost), buys a milestone-sized batch
+  // of the winner for speed, and repeats up to AUTO_BUY_MAX_STEPS.
+  //   • Ranking on the single next unit — NOT a milestone-sized chunk average — is
+  //     what makes this beat the old cheapest-first pass on a constrained bank
+  //     (+4–19% W/s in sims). Averaging a high tier over its 25-unit milestone block
+  //     hid its efficient first unit behind 24 expensive ones, so the bank never
+  //     reached the high-output tiers; ranking the single unit keeps it visible.
+  //   • A unit that crosses a ×2/×10 milestone carries that whole-stack jump in
+  //     dOut1, so a near-complete milestone naturally ranks highest and gets finished.
+  //   • The global production scalar (prestige/ach/IAP/buffs) is omitted from unitBase
+  //     because it multiplies every tier equally and so cancels out of the ranking.
+  // Returns true if it bought anything.
+  function autoBuyGreedy(cfg) {
+    const items = cfg.items;
+    // Per-tier base output (per-unit, milestone term removed) is stable across the
+    // whole tick — the milestone cancels and the upgrade multipliers don't change as
+    // we buy — so precompute it once to hoist the upgrade scan out of the inner loop.
+    const unit = [];
+    let anyProducer = false;
+    for (let i = 0; i < items.length; i++) {
+      unit[i] = cfg.unitBase(items[i]);
+      if (unit[i] > 0) anyProducer = true;
+    }
+    if (!anyProducer) return false;
     let bought = false;
-    for (let i = 0; i < CORDS.length; i++) {                   // cheapest first
+    for (let step = 0; step < AUTO_BUY_MAX_STEPS; step++) {
+      let bestI = -1, bestEff = 0;
+      for (let i = 0; i < items.length; i++) {
+        if (unit[i] <= 0) continue;                 // non-producing tiers (e.g. core-gain) handled elsewhere
+        if (!cfg.allowed(items[i], i)) continue;    // re-checked each step so a tier unlocked mid-drain is reachable THIS tick
+        const owned = cfg.owned(items[i]);
+        if (cfg.maxAff(items[i]) < 1) continue;     // can't afford even one
+        const dOut1 = unit[i] * ((owned + 1) * cordMilestoneMult(owned + 1) - owned * cordMilestoneMult(owned));
+        if (dOut1 <= 0) continue;
+        const eff = dOut1 / cfg.cost(items[i], 1);  // marginal efficiency of the next unit (= 1 / its payback)
+        if (eff > bestEff) { bestEff = eff; bestI = i; }
+      }
+      if (bestI < 0) break;                         // nothing affordable & productive this pass
+      // Buy a batch of the winner — snapped to its next milestone for speed — but
+      // never more than the bank affords (maxAff is a conservative under-estimate,
+      // so trim if a rounding edge pushes the exact cost over).
+      const it = items[bestI];
+      const owned = cfg.owned(it);
+      let k = Math.min(cfg.maxAff(it), (Math.floor(owned / CORD_MILESTONE) + 1) * CORD_MILESTONE - owned);
+      let cost = cfg.cost(it, k);
+      while (k > 1 && cost > cfg.bank()) { k--; cost = cfg.cost(it, k); }
+      if (k < 1 || cost > cfg.bank()) break;
+      cfg.spend(cost);
+      cfg.addOwned(it, k);
+      bought = true;
+    }
+    return bought;
+  }
+
+  // Cheapest-first mop-up: after the efficiency prefix has taken the high-value
+  // buys, sweep one pass buying a batch of every affordable tier cheapest-first.
+  // This is what reaches the deep ×10-every-100 milestone "jackpots" on cheap
+  // tiers that single-unit marginal greedy skips — those milestones are non-convex,
+  // so greedy alone underperforms a full sweep on a big offline bank. Prefix +
+  // mop-up together are strictly ≥ the old cheapest-first everywhere: they tie on a
+  // fully-drained bank and beat it +4–19% on a constrained one. Returns true if it
+  // bought anything.
+  function autoBuyCheapestPass(cfg) {
+    const items = cfg.items;
+    let bought = false;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (!cfg.allowed(it, i)) continue;
+      const k = Math.min(cfg.maxAff(it), AUTO_BUY_PER_CORD);
+      if (k < 1) continue;
+      const cost = cfg.cost(it, k);
+      if (cost > cfg.bank()) continue;
+      cfg.spend(cost);
+      cfg.addOwned(it, k);
+      bought = true;
+    }
+    return bought;
+  }
+
+  // Core-gain cords (Ouroboros) produce no W/s, so neither pass buys them (the cord
+  // cfg's `allowed` excludes them); buy them last with leftover watts, exactly as
+  // the old cheapest-first pass did (Ouroboros sat last in the list).
+  function autoBuyCoreGainTail() {
+    let bought = false;
+    for (let i = 0; i < CORDS.length; i++) {
       const cord = CORDS[i];
-      if (!autoBuyAllowed(cord, i)) continue;                  // unlocked, producing, SOLO rule
+      if (!cord.coreGain || !autoBuyAllowed(cord, i)) continue;
       const k = Math.min(maxAffordable(cord), AUTO_BUY_PER_CORD);
       if (k <= 0) continue;
       const cost = cordCost(cord, k);
@@ -3483,7 +3571,26 @@
       state.owned[cord.id] = (state.owned[cord.id] || 0) + k;
       bought = true;
     }
-    if (bought) lastSig = '';   // force the shop's affordability re-render
+    return bought;
+  }
+
+  function autoBuyTick() {
+    if (!autoBuyActive()) return;
+    const cfg = {
+      items: CORDS,
+      allowed: (c, i) => autoBuyAllowed(c, i) && !c.coreGain,   // producers only; core-gain handled by the tail
+      owned: (c) => state.owned[c.id] || 0,
+      addOwned: (c, k) => { state.owned[c.id] = (state.owned[c.id] || 0) + k; },
+      bank: () => state.watts,
+      spend: (cost) => { state.watts -= cost; },
+      maxAff: maxAffordable,
+      cost: cordCost,
+      unitBase: (c) => c.wps * (cordMultiplier(c.id) / cordMilestoneMult(state.owned[c.id] || 0)),
+    };
+    const a = autoBuyGreedy(cfg);            // efficiency prefix: prioritise value (wins on constrained banks)
+    const b = autoBuyCheapestPass(cfg);      // cheapest mop-up: capture deep milestones / fully drain
+    const t = autoBuyCoreGainTail();
+    if (a || b || t) lastSig = '';           // force the shop's affordability re-render
   }
 
   // AUTO-UPGRADER (core upgrade): every tick, buy every unlocked, affordable
@@ -3503,10 +3610,10 @@
     if (bought) lastSig = '';   // force the shop's affordability re-render
   }
 
-  // AUTO-ARSENAL (Storm Upgrade): buys the CHEAPEST weapons first, spending
-  // volts, mirroring the cord Auto-Buyer. Single pass up WEAPONS (cheapest →
-  // priciest), a batch of every unlocked, affordable weapon, so spare volts
-  // cascade up to pricier tiers. Silent. Stage 5 adds the BARE KNUCKLES rule.
+  // AUTO-ARSENAL (Storm Upgrade): mirrors the Grid Auto-Buyer — spends volts on
+  // whichever weapon tier gives the most ZPS per cost, snapping to the next
+  // ownership milestone (the shared autoBuyGreedy chooser — world-template parity).
+  // Silent. BARE KNUCKLES restricts it to gloves.
   function maxAffordableWeapon(w) {
     const owned = sl().weapons[w.id] || 0;
     const r = weaponCostGrowth();   // challenge-aware (POWER DRAIN steepens it), mirroring grid maxAffordable
@@ -3523,19 +3630,20 @@
   }
   function autoBuyWeaponsTick() {
     if (!su('autoarsenal') || !state.settings.world.volt.autobuyOn) return;
-    let bought = false;
-    for (let i = 0; i < WEAPONS.length; i++) {                 // cheapest first
-      const w = WEAPONS[i];
-      if (!autoBuyWeaponAllowed(w, i)) continue;
-      const k = Math.min(maxAffordableWeapon(w), AUTO_BUY_PER_CORD);
-      if (k <= 0) continue;
-      const cost = weaponCost(w, k);
-      if (sl().volts < cost) continue;
-      sl().volts -= cost;
-      sl().weapons[w.id] = (sl().weapons[w.id] || 0) + k;
-      bought = true;
-    }
-    if (bought) lastSig = '';   // force the arsenal's affordability re-render
+    const cfg = {
+      items: WEAPONS,
+      allowed: autoBuyWeaponAllowed,
+      owned: (w) => sl().weapons[w.id] || 0,
+      addOwned: (w, k) => { sl().weapons[w.id] = (sl().weapons[w.id] || 0) + k; },
+      bank: () => sl().volts,
+      spend: (cost) => { sl().volts -= cost; },
+      maxAff: maxAffordableWeapon,
+      cost: weaponCost,
+      unitBase: (w) => w.zps * (weaponMultiplier(w.id) / cordMilestoneMult(sl().weapons[w.id] || 0)),
+    };
+    const a = autoBuyGreedy(cfg);            // efficiency prefix
+    const b = autoBuyCheapestPass(cfg);      // cheapest mop-up (deep milestones / full drain)
+    if (a || b) lastSig = '';   // force the arsenal's affordability re-render
   }
 
   // AUTO-TINKER (Storm Upgrade): buys every unlocked, affordable zap upgrade,
