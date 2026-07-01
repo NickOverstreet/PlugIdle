@@ -60,6 +60,10 @@ parity checklist — world 2 drifted out of parity (missing bulk-buy bar, tap-ea
 full rebuilds) precisely because this contract wasn't written down.
 
 ## Workflow notes
+- **Always do work on a branch, never commit directly to `main`.** When the work
+  is finished and verified, push/merge it to `main`. If merging produces
+  conflicting code, review the conflict and make the necessary changes — or, if
+  the right resolution is unclear, ask for input — and then push/merge to `main`.
 - Active dev branch: `claude/idle-game-ui-cleanup-oeg7ur`; changes are
   fast-forward merged to `main`. Pushing to `main` auto-deploys the web PWA via
   `.github/workflows/deploy-pages.yml`.

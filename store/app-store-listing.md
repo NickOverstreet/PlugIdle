@@ -1,10 +1,17 @@
 # App Store Listing — PlugIdle (iOS)
 
 Copy-paste source for the App Store Connect listing. Mirrors the Play listing in
-`store/listing.md`, with Google-specific wording removed: the iOS v1.0 ships **IAP
-only — no ads** (rewarded AdMob is deferred to v1.1), so the "rewarded ad" line is
-dropped and the no-dark-patterns promise leads with **no forced ads / no pay-to-win**.
-Character limits noted per field.
+`store/listing.md`. The iOS build ships **in-app purchases _and_ optional rewarded
+AdMob ads with App Tracking Transparency** — the same monetization posture as
+Android (`js/monetize.js` returns `adsAvailable: true` on both native platforms).
+So the copy frames ads as **opt-in only** and never claims "ad-free"; the
+no-dark-patterns promise is **no _forced_ ads / no pay-to-win**. Character limits
+noted per field. Content counts are verified against `js/game.js`.
+
+> **Do not claim the app is ad-free.** Ads on iOS is a settled decision (see
+> `CLAUDE.md` → iOS, `privacy.html`, and `store/app-store-connect-checklist.md`).
+> The App Privacy questionnaire must declare AdMob data collection + **Tracking =
+> Yes**; a "no ads" listing would contradict that label and risk rejection.
 
 ## App name (30 chars max)
 
@@ -18,89 +25,70 @@ PlugIdle - Idle Cord Clicker
 Chill retro idle clicker
 ```
 
-## Promotional text (170 chars max)
+## Promotional text (170 chars max) — 136
 
 ```
-Plug in cords, earn watts, prestige! A chill retro CRT idle clicker. No forced ads, no pay-to-win — everything in the game is reachable for free.
+Plug in. Power up. Prestige. A cozy retro CRT idle clicker — no forced ads, no pay-to-win, and every single thing is reachable for free.
 ```
 
-## Description (4000 chars max)
+## Description (4000 chars max) — 3155
 
 ```
-Tap the socket. Plug in a cord. Feel the watts flow. ⚡
+Plug in. Power up. Prestige.
 
-PlugIdle is a chill retro idle game about plugging in every type of cord
-imaginable — from the humble USB-A cable (always upside down) all the way to
-the reality-bending Omega Cord. Buy cord generators that plug themselves in,
-stack upgrades, catch power surges, and recycle your whole empire for
-permanent prestige bonuses.
+There's a stupidly deep satisfaction in shoving a cord into a socket and watching the watts pour out. PlugIdle is built entirely around that feeling - a cozy retro idle game dressed up like an old CRT terminal, all phosphor green and quiet scanline hum. Tap to plug. Buy machines to plug for you. Walk away. Come back richer.
 
-It looks like a CRT terminal, plays like a pocket power plant, and respects
-your time AND your wallet.
+THE LOOP
+Tap a socket to plug cords by hand for watts. Then buy cord generators that auto-plug while you do literally anything else - yes, even while the app is closed. Stack upgrades, catch the timed power surges as they crackle past, and when your grid is humming, recycle the whole thing to prestige for permanent boosts. Number goes up. Brain goes brrr.
 
-🔌 27 CORD GENERATORS
-Start with USB cables and audio jacks. End with quantum links, wormhole
-jacks, and cosmic strings — and discover what plugs in BEYOND the final
-plug. Every cord plugs itself in and earns watts per second — even while
-you're away.
+27 CORD GENERATORS
+From a humble USB-A (always upside down) all the way up to the reality-bending Omega Cord, the Genesis Patch, and a final "Ouroboros" cord. Every cord plugs itself in and earns watts per second - even while you're away.
 
-⬆️ 46 UPGRADES + SYNERGIES
-Boost your tap power, double individual cords, multiply everything at once,
-and unlock synergies where one cord's fleet supercharges another.
+46 UPGRADES + SYNERGIES
+Boost tap power, double individual cords, multiply everything at once, and unlock sneaky synergies where one cord's fleet supercharges another.
 
-⚡ POWER SURGES & CHAINS
-A spark appears — tap it fast! Overloads, Production Frenzies (×7), and
-Click Frenzies (×10) reward you for being there at the right moment. Chain
-catches for bigger payouts, and ride the rare GRID STORM.
+POWER SURGES
+A spark crackles past - tap it fast! Production Frenzies and Click Frenzies reward being there at the right moment, chain your catches for bigger payouts, and ride the rare GRID STORM.
 
-🧪 6 CHALLENGE RUNS
-Production halved. Tapping disabled. USB-A only. Beat a twisted run to earn
-a PERMANENT perk — auto-buying, cheaper cords, faster surges, and more.
+6 CHALLENGE RUNS
+Production halved. Tapping disabled. USB-A only. Beat a twisted run and keep a PERMANENT perk - auto-buying, cheaper cords, faster surges, and more.
 
-♻️ PRESTIGE THAT FEELS GOOD
-Melt your operation down into Prestige Cores for a permanent production
-bonus, then climb back faster than ever. Spend cores on permanent upgrades —
-bigger taps, longer offline earnings, auto-tapping, and more. Your bonus
-never goes down.
+23 CORE UPGRADES
+Melt your operation into Prestige Cores for a permanent production bonus, then climb back faster. Spend cores on 23 permanent upgrades - bigger taps, longer offline cap, auto-tap, auto-buy, faster surges. Your bonus never goes down.
 
-🏆 58 ACHIEVEMENTS = REAL POWER
-Every achievement permanently adds +1% production (the Grid Bonus), kept
-forever across prestiges. And a daily check-in streak that FORGIVES a
-missed day instead of punishing you.
+69 ACHIEVEMENTS = REAL POWER
+Every achievement permanently adds +1% production to your Grid Bonus, kept forever across prestiges. Plus a daily check-in streak with a generous 48-hour forgiveness window, so one missed day won't wipe your run.
 
-🌀 AND THEN THERE'S "???"
-At the bottom of the core shop sits a corrupted upgrade. [DATA CORRUPTED]
-Do not plug in. (Plug it in.)
+TRULY IDLE
+Your cords keep earning while you're gone (capped, so it stays fair) and greet you with a tidy "welcome back" report when you return. No connection needed. Your save lives locally - export a code to move progress to another phone. No account, no login, no nonsense.
 
-🌙 TRUE OFFLINE PLAY
-No connection needed. Your cords keep working while you sleep, and a
-"welcome back" report shows what you earned. Saves live on your device, with
-export codes so you can move progress between devices.
+AND THEN THERE'S ???
+At the very bottom of the prestige shop sits something... corrupted. [DATA CORRUPTED]. We're not going to tell you what happens when you plug it in. Some grids are better left discovered.
 
-🚫 NO DARK PATTERNS
-• No forced ads — ever. No banners, no interstitials, nothing that nags.
-• No energy bars, no timers that punish you for living your life.
-• No pay-to-win. Optional purchases are conveniences and cosmetics; every
-  single thing in the game is reachable for free.
+FAIR BY DESIGN
+Every single thing in PlugIdle is reachable for free. There are 6 optional in-app purchases - a production boost, a couple of time-skips, a cosmetic theme pack, and a tip jar - but they're conveniences, never pay-to-win.
 
-Perfect for fans of idle games, incremental games, clicker games, and anyone
-who has ever felt the deep satisfaction of a plug sliding into a socket.
+ABOUT ADS
+No forced ads. No banners. No interstitials popping up mid-tap. Ads here are 100% optional and opt-in: if you want a quick in-game bonus, you tap a button to watch one rewarded ad - and that's the only time you'll see one. (Before ads run, iOS will ask your tracking preference via the standard App Tracking Transparency prompt.)
 
-Plug in. Power up. Prestige. 🔌⚡
+Cozy numbers. Satisfying cords. A grid that runs while you live your life.
+
+Plug in. Power up. Prestige.
 ```
 
-## Keywords (100 chars max, comma-separated)
+## Keywords (100 chars max, comma-separated, NO spaces) — 98
 
 ```
-idle,clicker,incremental,cords,retro,CRT,offline,prestige,casual,tap
+incremental,tapper,tycoon,prestige,offline,watt,upgrade,electric,simulator,casual,cozy,grid,unlock
 ```
+
+Omits words already indexed via the name/subtitle (idle, cord, clicker, chill,
+retro) and avoids "free"/category words, so the 100-char budget isn't wasted.
 
 ## What's New (version notes)
 
 ```
-First App Store release of PlugIdle. The full idle game — 27 cords, 46
-upgrades, 6 challenges, 58 achievements, prestige, and the hidden Voltlands —
-running natively and fully offline.
+The full PlugIdle idle game, native and fully offline: 27 cords, 46 upgrades, 6 challenge runs, 23 prestige upgrades, 69 achievements, prestige, power surges, and a secret waiting at the bottom of the core shop. Optional rewarded ads and in-app purchases — everything is still reachable for free.
 ```
 
 ## URLs & contact
@@ -108,7 +96,7 @@ running natively and fully offline.
 - **Support URL:** https://nickoverstreet.github.io/PlugIdle/
 - **Marketing URL:** https://nickoverstreet.github.io/PlugIdle/
 - **Privacy Policy URL:** https://nickoverstreet.github.io/PlugIdle/privacy.html
-- **Copyright:** © 2026 Nick Overstreet
+- **Copyright:** `2026 Nick Overstreet` (App Store Connect prepends the © automatically)
 - **Contact email:** nickcoverstreet@gmail.com
 
 ## Categorization
@@ -116,29 +104,61 @@ running natively and fully offline.
 - **Primary category:** Games → Casual
 - **Secondary category (optional):** Games → Simulation
 
+## Routing App Coverage File
+
+**Leave blank — not applicable.** This field is only for Navigation-category apps
+that provide point-to-point transit routing (you upload a `.geojson` coverage map).
+PlugIdle has no routing or maps, so nothing is uploaded.
+
 ## Screenshots
 
-iPhone, **portrait**. Apple's current required size is **6.9″ (1320 × 2868 px)**;
-**6.7″ (1290 × 2796 px)** is still accepted. Dimensions must be pixel-exact. No iPad
-screenshots at launch (iPhone-only marketing — universal binary). Reuse the shot list
-from `store/listing.md`:
+Portrait, pixel-exact, PNG, no alpha. Generated into `store/screenshots/` from a
+seeded mid-game save (42T watts, ◆30 cores, +275% Grid Bonus, +345-core prestige
+offer); the hidden second world stays hidden (its tabs aren't shown).
 
-1. **Plug tab** mid-game: socket + a healthy list of cord generators with affordable buys lit up.
-2. **A power surge on screen** (the spark) or an active ×7 Frenzy buff bar — the action moment.
-3. **Upgrades tab** with several affordable upgrades glowing.
-4. **Recycle Plant** (More tab) showing a juicy "+N ◆ Cores" prestige offer.
-5. **Achievements tab** with a good mix of unlocked goals.
-6. (after the IAP UI is final) **Power Store** section — reinforces "optional purchases only".
+| Display | Pixels (portrait) | Folder |
+|---|---|---|
+| iPhone 6.9″ | 1320 × 2868 | `store/screenshots/iphone-6.9/` |
+| iPhone 6.7″ | 1290 × 2796 | `store/screenshots/iphone-6.7/` |
+| iPhone 6.5″ | 1242 × 2688 | `store/screenshots/iphone-6.5/` |
+| iPad 13″ | 2048 × 2732 | `store/screenshots/ipad-13/` |
 
-Tip: load a mid-game save first (or import one) so numbers look alive; a fresh save
-reads as empty.
+Apple's **current required** iPhone size is **6.9″**; **6.7″** is still accepted, and
+**6.5″** uploads to its own slot. Upload the 6.9″ set as primary; smaller iPhone sizes
+auto-scale. The iPad 13″ set fills the slot for **iPad** (the app renders a wide
+tablet layout, not a stretched phone column).
+
+Shot list (same five per size):
+
+1. `01-plug.png` — Plug tab: socket, watts, bulk-buy bar, cord ladder with milestones.
+2. `02-cords.png` — Plug tab scrolled through the cord generators.
+3. `03-upgrades.png` — Upgrades grid (owned + buyable, with synergies).
+4. `04-recycle.png` — Recycle Plant prestige offer + Core Upgrades shop.
+5. `05-goals.png` — Achievements (shows 31/69 unlocked).
+
+Note: the IAP "Power Store" and ad buttons only render in the native build, so they
+don't appear in these web-captured shots (Apple doesn't require a store screenshot).
+
+## App Review notes
+
+See `store/app-store-connect-checklist.md` §10 and `store/screenshots/LISTING.md`.
+The notes pre-empt Guideline 4.2 (fully native + offline — verify via Airplane Mode),
+confirm 3.1.1 (6 IAPs, Apple-only), and cover 5.1.2 / ATT (opt-in rewarded ads +
+tracking prompt). Set **"Sign-in not required."**
 
 ## Notes vs. the Play listing
 
-- **No "Watch a rewarded ad…" copy.** iOS v1.0 has no ads; the AdMob SDK is excluded
-  from the iOS build (spec §6.3). The "NO DARK PATTERNS" block leads with no forced
-  ads / no pay-to-win instead of the Android rewarded-ad framing.
+- **Same monetization on both stores now.** iOS ships the same six IAPs **and**
+  optional rewarded ads as Android (`js/monetize.js` → `adsAvailable: true` on both).
+  The earlier "iOS v1.0 = IAP only, no ads" posture is **obsolete**; the "ABOUT ADS"
+  block frames ads as opt-in and the App Privacy form must declare Tracking = Yes.
 - **App icon:** the 1024×1024 marketing icon is generated into the iOS asset catalog
-  by `@capacitor/assets` from `assets/icon.png` (no separate upload needed in ASC if
-  the build carries the marketing icon).
-- **IAP** mirrors Android (same six product IDs); see `store/app-store-connect-checklist.md`.
+  by `@capacitor/assets` from `assets/icon.png` (no separate ASC upload needed if the
+  build carries the marketing icon).
+- **IAP** mirrors Android (same six product IDs); see
+  `store/app-store-connect-checklist.md`.
+- **Content counts** are verified against `js/game.js`: 27 cords, 46 upgrades, 23 core
+  upgrades, 6 visible Grid challenge runs, 69 achievements, 6 IAPs. (The hidden second
+  world adds more challenges/content — kept out of the public copy on purpose.)
+```
+
