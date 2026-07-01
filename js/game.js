@@ -509,6 +509,7 @@
       wave: 1,
       killsThisWave: 0,
       kills: 0,          // lifetime kills
+      zaps: 0,           // hand + auto tap-zaps this run — drives zap milestones (RESET on reincarnate)
       bosses: 0,         // lifetime boss kills (volt->grid synergy)
       hp: 0, maxHp: 0,   // current enemy
       weapons: {},       // weaponId -> count
@@ -579,6 +580,7 @@
     if (typeof s.slayer.surgeBranch !== 'string') s.slayer.surgeBranch = '';
     if (!Array.isArray(s.slayer.surgePresets)) s.slayer.surgePresets = [null, null, null];
     if (typeof s.slayer.dischargeCd !== 'number') s.slayer.dischargeCd = 0;
+    if (typeof s.slayer.zaps !== 'number') s.slayer.zaps = 0;   // zap-milestone counter
     // v2 prestige curve (sqrt -> cbrt): re-baseline coresEarned so "deserved at
     // the same lifetime earnings" is preserved (old n = sqrt(E/1e9) => new
     // potential = cbrt(E/1e9) = n^(2/3)). Spendable cores are left untouched.
@@ -797,19 +799,31 @@
     return sum * prestigeMult() * PROD_MULT * coreProdMult() * iapProdMult() * achMult() * buffMult('prod') * challengePenalty * bossWattsMult() * trialGridBoost();
   }
 
-  // ---- Tap power: keep hand-plugging relevant for the whole game ----
-  // Tap milestones: every threshold of lifetime hand-plugs grants ×1.5 tap power.
+  // ---- Tap / zap power: keep hand-tapping relevant for the whole game ----
+  // Milestones: every TAP_MILESTONES threshold of hand-taps grants a permanent-
+  // for-the-run boost — ×1.5 tap power (Grid) / ×1.25 tap-zap power (Voltlands).
   const TAP_MILESTONES = [100, 500, 2500, 10000, 50000, 250000, 1e6, 5e6];
-  function tapMilestonesPassed() {
+  const TAP_MILESTONE_MULT = 1.5;    // Grid: ×1.5 per milestone
+  const ZAP_MILESTONE_MULT = 1.25;   // Voltlands: leaner ×1.25 per milestone (same thresholds)
+  // Shared milestone math over TAP_MILESTONES, parameterized by count + per-step base.
+  function milestonesPassed(count) {
     let n = 0;
-    for (const t of TAP_MILESTONES) if ((state.clicks || 0) >= t) n++;
+    for (const t of TAP_MILESTONES) if ((count || 0) >= t) n++;
     return n;
   }
-  function tapMilestoneMult() { return Math.pow(1.5, tapMilestonesPassed()); }
-  function nextTapMilestone() {
-    for (const t of TAP_MILESTONES) if ((state.clicks || 0) < t) return t;
+  function milestoneMult(count, base) { return Math.pow(base, milestonesPassed(count)); }
+  function nextMilestone(count) {
+    for (const t of TAP_MILESTONES) if ((count || 0) < t) return t;
     return null;
   }
+  // Each world applies the shared math to its own counter (Grid hand-plugs vs
+  // Voltlands tap-zaps); the Voltlands boost is deliberately leaner.
+  function tapMilestonesPassed() { return milestonesPassed(state.clicks); }
+  function tapMilestoneMult() { return milestoneMult(state.clicks, TAP_MILESTONE_MULT); }
+  function nextTapMilestone() { return nextMilestone(state.clicks); }
+  function zapMilestonesPassed() { return milestonesPassed(sl().zaps); }
+  function zapMilestoneMult() { return milestoneMult(sl().zaps, ZAP_MILESTONE_MULT); }
+  function nextZapMilestone() { return nextMilestone(sl().zaps); }
   // Taps also earn a % of your current W/s (so they scale with production forever).
   function tapWpsFrac() {
     let f = 0;
@@ -1343,18 +1357,29 @@
   /* ---------- Core actions ---------- */
   // Credit `n` taps (manual or from the Auto-Tapper) and celebrate any tap
   // milestone crossed in the process — so auto-taps count toward milestones too.
-  function awardClicks(n) {
-    if (n <= 0) return;
-    const before = state.clicks;
-    state.clicks += n;
+  // Shared: celebrate any TAP_MILESTONES threshold crossed between before→after.
+  function celebrateMilestones(before, after, makeMsg) {
     for (const t of TAP_MILESTONES) {
-      if (t > before && t <= state.clicks) {
-        toast(`👆 TAP MILESTONE! Tap power ×1.5 (now ×${fmt(tapMilestoneMult())})`, true);
+      if (t > before && t <= after) {
+        toast(makeMsg(), true);
         blip(990, 0.18, 'sawtooth', 0.05);
         buzz([0, 25, 40, 25]);
         screenShake(1);
       }
     }
+  }
+  function awardClicks(n) {
+    if (n <= 0) return;
+    const before = state.clicks;
+    state.clicks += n;
+    celebrateMilestones(before, state.clicks, () => `👆 TAP MILESTONE! Tap power ×1.5 (now ×${fmt(tapMilestoneMult())})`);
+  }
+  // Voltlands analog of awardClicks: credit hand + auto tap-zaps toward zap milestones.
+  function awardZaps(n) {
+    if (n <= 0) return;
+    const before = sl().zaps;
+    sl().zaps += n;
+    celebrateMilestones(before, sl().zaps, () => `⚡ ZAP MILESTONE! Tap-zap power ×1.25 (now ×${fmt(zapMilestoneMult())})`);
   }
 
   function plug() {
@@ -2066,6 +2091,7 @@
     s.killsThisWave = 0;
     s.weapons = {};
     s.upgrades = {};
+    s.zaps = 0;   // zap milestones are per-run, like Grid tap milestones reset on prestige
     // Surge Grid: the run boundary IS the free respec — wipe spent charges and the
     // node allocation; lifetime surgeChargesEarned is kept (drives permanent bonuses).
     s.surgeCharges = 0;
@@ -2112,6 +2138,7 @@
     s.killsThisWave = 0;
     s.weapons = {};
     s.upgrades = {};
+    s.zaps = 0;
     applyReincarnatePerks();
     spawnEnemy();
   }
@@ -2141,6 +2168,7 @@
       s.killsThisWave = b.killsThisWave || 0;
       s.weapons = b.weapons || {};
       s.upgrades = b.upgrades || {};
+      s.zaps = b.zaps || 0;
       applyReincarnatePerks();
       spawnEnemy();
     }
@@ -2158,7 +2186,7 @@
       const s = sl();
       const snap = {
         volts: s.volts, runVolts: s.runVolts, wave: s.wave, killsThisWave: s.killsThisWave,
-        weapons: { ...s.weapons }, upgrades: { ...s.upgrades },
+        weapons: { ...s.weapons }, upgrades: { ...s.upgrades }, zaps: s.zaps,
       };
       state.challenges.volt = c.id;
       resetSlayerRun();
@@ -2383,7 +2411,7 @@
     if (su('livewire')) p *= 3;   // Storm Upgrade: tap-zap power ×3
     if (ch('volt') === 'glasscannon') p *= 5;   // GLASS CANNON rule
     if (chDone('glasscannon')) p *= 2;           // OVERLOAD perk
-    return p * gridZpsBoost() * achMult() * buffMult('click') * surgeTapMult() * stormTapMult();
+    return p * gridZpsBoost() * achMult() * buffMult('click') * surgeTapMult() * stormTapMult() * zapMilestoneMult();
   }
   function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : VOLT_COST_GROWTH; }   // POWER DRAIN rule; base 1.14 paces World 2 ~0.8× the Grid
   function weaponCostDiscount() { return chDone('powerdrain') ? 0.97 : 1; }   // SURPLUS perk
@@ -2487,6 +2515,7 @@
     if (!silent) { blip(1400, 0.25, 'sawtooth', 0.07); buzz([0, 60, 80, 60, 100]); screenShake(2); toast('⚡ DISCHARGE!', true); }
     renderSlayerLite();
   }
+  let zapAutoAccum = 0;   // fractional auto-zaps carried between ticks (feeds zap milestones)
   function slayerTick(dt) {
     if (!state.wormhole) return;
     const zps = totalZps();
@@ -2499,7 +2528,11 @@
     // Settings toggle. Granted by the Auto-Zapper Storm Upgrade OR the STATIC
     // CLING perk (STATIC FIELD). Silent — no floats/sound, just damage.
     if ((su('autozap') || chDone('staticcling')) && state.settings.world.volt.autoclickOn) {
-      applyZapDamage(zapPower() * AUTO_ZAP_RATE * surgeAutoRate() * dt, cap);
+      const rate = AUTO_ZAP_RATE * surgeAutoRate();   // auto tap-zaps per second
+      applyZapDamage(zapPower() * rate * dt, cap);
+      zapAutoAccum += rate * dt;                       // auto-zaps count toward milestones too
+      const whole = Math.floor(zapAutoAccum);
+      if (whole > 0) { zapAutoAccum -= whole; awardZaps(whole); }
     }
     // DISCHARGE: cooldown ticks down; Auto-Discharge fires it the moment it's ready.
     if (su('discharge') && (sl().dischargeCd || 0) > 0) sl().dischargeCd = Math.max(0, sl().dischargeCd - dt);
@@ -2514,6 +2547,7 @@
     const critOn = zu('z_crit') || sl().surgeBranch === 'crit';
     if (critOn && Math.random() < surgeCritChance()) { dmg *= surgeCritMult(); crit = true; }
     applyZapDamage(dmg);
+    awardZaps(1);   // hand tap-zap counts toward zap milestones
     if (state.settings.floats) {
       const anchor = tapAnchor();   // the visible zap control (big button, compact bar, or mini bar)
       const r = anchor.getBoundingClientRect();
@@ -2829,8 +2863,13 @@
     const pct = s.maxHp > 0 ? Math.max(0, (s.hp / s.maxHp) * 100) : 0;
     el.hpFill.style.width = pct + '%';
     el.hpText.textContent = `${fmt(Math.max(0, s.hp))} / ${fmt(s.maxHp)} HP`;
-    if (el.zapinfo) el.zapinfo.textContent =
-      `⚡${fmt(zapPower())} / zap · grid boost ×${gridZpsBoost().toFixed(2)}`;
+    if (el.zapinfo) {
+      const parts = [`⚡${fmt(zapPower())} / zap`, `grid boost ×${gridZpsBoost().toFixed(2)}`];
+      if (zapMilestonesPassed() > 0) parts.push(`milestone ×${fmt(zapMilestoneMult())}`);
+      const nz = nextZapMilestone();
+      if (nz) parts.push(`next ×1.25 @ ${fmtInt(nz)} zaps (${fmtInt(sl().zaps)})`);
+      el.zapinfo.textContent = parts.join(' · ');
+    }
     el.enemyBtn.classList.toggle('boss', boss);
     if (el.dischargeBtn) {
       const unlocked = su('discharge');

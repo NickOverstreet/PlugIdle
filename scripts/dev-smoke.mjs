@@ -85,7 +85,8 @@ const hook = `
     sg, SURGE_NODES, buySurgeNode, surgeNodeUnlocked, saveSurgePreset, loadSurgePreset, dischargeReady, fireDischarge,
     surgeZpsMult, surgeTapMult, surgeAutoRate, surgeVoltMult, surgeShardMult, surgeCritChance, surgeCritMult,
     STORM_UPGRADES, buyStormUpgrade,
-    autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE,
+    autoBuyWeaponsTick, autoBuyZapUpgrades, slayerTick, AUTO_ZAP_RATE, resetSlayerRun,
+    awardZaps, zapMilestoneMult, zapMilestonesPassed, nextZapMilestone, milestoneMult, milestonesPassed,
     ch, chDone, startChallenge, beginChallenge, checkChallenge, abandonChallenge, restoreChallengeBackup,
     chTier, chMaxTier, chGoalFor, chFullyDone, trialGridBoost,
     weaponCost, weaponCostGrowth, VOLT_COST_GROWTH, enemyHp, voltReward, weaponMultiplier, applyReincarnatePerks,
@@ -1351,6 +1352,37 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   check('mtx: surge ad cap is independent of boost', T.adUsesLeft('surge') === T.AD_LIMITS.surge);
   s.adDay = 'an old day';
   check('mtx: a new day resets the ad caps', T.adUsesLeft('boost') === T.AD_LIMITS.boost);
+}
+
+// zap milestones — Voltlands analog of Grid tap milestones (shared thresholds +
+// math; leaner ×1.25 per step vs the Grid's ×1.5), reset per-run like Grid clicks.
+{
+  const sR = T.sl();
+  S().wormhole = true; S().world = 'volt';
+  S().challenges = { grid: '', volt: '' }; S().challengeBackup = { grid: null, volt: null };
+  // shared math over both bases
+  check('zapmilestone: milestoneMult(0,1.25) = 1', T.milestoneMult(0, 1.25) === 1);
+  check('zapmilestone: milestoneMult(100,1.25) = 1.25', Math.abs(T.milestoneMult(100, 1.25) - 1.25) < 1e-9);
+  check('zapmilestone: milestoneMult(100,1.5) = 1.5 (grid base)', Math.abs(T.milestoneMult(100, 1.5) - 1.5) < 1e-9);
+  // zapPower gains exactly ×1.25 crossing the first milestone (only sl().zaps changes)
+  sR.zaps = 0; const zp0 = T.zapPower();
+  sR.zaps = 100; const zp1 = T.zapPower();
+  check('zapmilestone: zapPower ×1.25 after crossing 100 zaps', zp0 > 0 && Math.abs(zp1 - zp0 * 1.25) < zp0 * 1e-9);
+  // awardZaps increments the counter and tracks milestones
+  sR.zaps = 0; T.awardZaps(100);
+  check('zapmilestone: awardZaps increments the counter', sR.zaps === 100);
+  check('zapmilestone: milestonesPassed = 1 at 100 zaps', T.zapMilestonesPassed() === 1);
+  check('zapmilestone: nextZapMilestone = 500', T.nextZapMilestone() === 500);
+  // per-run reset parity: reincarnate + resetSlayerRun clear zaps; a grid reset keeps them
+  sR.zaps = 500; sR.runVolts = 1e12;   // ensure reincarnateGain() > 0
+  T.reincarnate();
+  check('zapmilestone: reincarnate resets zaps to 0', T.sl().zaps === 0);
+  T.sl().zaps = 500; T.resetSlayerRun();
+  check('zapmilestone: resetSlayerRun resets zaps to 0', T.sl().zaps === 0);
+  T.sl().zaps = 777;
+  T.beginChallenge(T.CHALLENGES.find((c) => (c.world || 'grid') === 'grid'));
+  check('zapmilestone: grid reset leaves volt zaps intact', T.sl().zaps === 777);
+  S().challenges = { grid: '', volt: '' }; S().challengeBackup = { grid: null, volt: null };
 }
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);

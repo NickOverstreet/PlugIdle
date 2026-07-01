@@ -112,7 +112,7 @@ These are deliberate balance, documented so they aren't mistaken for drift:
 | Aspect | Grid | Voltlands | Why |
 |---|---|---|---|
 | Passive production | `totalWps()` × `coreProdMult()` | `totalZps()` × `gridZpsBoost()` × `overvolt` × `shardMult()` (no `coreProdMult`) | Each world has its own prestige/synergy scalers |
-| Tap/click power | `clickPower()` scales with prestige, `PROD_MULT`, tap milestones | `zapPower()` scales only with `gridZpsBoost()` (cross-world synergy) | Volt taps are deliberately leaner |
+| Tap/click power | `clickPower()` scales with prestige, `PROD_MULT`, tap milestones (×1.5/step) | `zapPower()` scales with `gridZpsBoost()`, surge/storm mults, and zap milestones (leaner ×1.25/step) | Both share `TAP_MILESTONES` + `milestoneMult(count, base)`; only the per-step base differs — Voltlands is deliberately leaner |
 | Prestige gain basis | cube-root of lifetime `totalEarned` | cube-root of per-run `runVolts` | Different pacing per world |
 
 If a future request is "rebalance," that's a separate, explicit decision — UI/
