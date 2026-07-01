@@ -413,6 +413,10 @@ check('migrate: new save has both challenge slots', (() => { const c = T.normali
   const killsBefore = sR.kills;
   for (let i = 0; i < 50; i++) T.slayerTick(1);   // many seconds of auto-zaps
   check('auto-zapper: kills advance when on', sR.kills > killsBefore);
+  S().settings.floats = true;                        // the pulse respects the animations toggle (off since L119)
+  T.slayerTick(1);                                   // one more auto-zap, now with animations on
+  check('auto-zapper: fires the enemy zap-flash animation (parity with auto-tapper)', document.getElementById('enemyBtn').classList.contains('zapped'));
+  S().settings.floats = false;                       // restore the harness default
   S().settings.world.volt.autoclickOn = false;
   sR.wave = 1; sR.killsThisWave = 0;
   T.spawnEnemy();

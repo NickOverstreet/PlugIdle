@@ -117,7 +117,7 @@
     { id: 'megasurge', icon: '⚡', name: 'Mega Surges',        cost: 4,  desc: 'Surge Overload payouts ×2.' },
     { id: 'recycler',  icon: '♻️', name: "Recycler's Edge",    cost: 6,  desc: 'Prestige core gains ×1.5.' },
     { id: 'resonance', icon: '💠', name: 'Core Resonance',     cost: 8,  desc: 'Each core gives +8% instead of +5%.' },
-    { id: 'nightshift',icon: '🌙', name: 'Night Shift',        cost: 10, desc: 'Offline efficiency 50% → 75%.' },
+    { id: 'nightshift',icon: '🌙', name: 'Night Shift',        cost: 10, desc: 'Offline efficiency 10% → 50%.' },
     { id: 'overdrive', icon: '🔥', name: 'Reactor Overdrive',  cost: 12, desc: 'All production ×2.' },
     { id: 'autotap',    icon: '🤖', name: 'Auto-Tapper',       cost: 15,  desc: 'Auto-plugs 5×/sec, free forever.' },
     // Auto-Tapper ladder — each unlocks once the previous is owned.
@@ -617,7 +617,7 @@
   function clickMult() { let p = 1; for (const u of UPGRADES) if (state.upgrades[u.id] && u.kind === 'click') p *= u.mult; return p * coreClickMult(); }
   function coreProdMult() { let m = 1; if (co('phantom')) m *= 1.5; if (co('overdrive')) m *= 2; return m; }
   function offlineCapMs() { return (24 + (co('battery') ? 24 : 0)) * 3600000; }
-  function offlineEff() { return co('nightshift') ? 0.75 : 0.5; }
+  function offlineEff() { return co('nightshift') ? 0.5 : 0.1; }
 
   /* ---------- Offline-cap reminder notification (opt-in, native only) ---------- */
   // One local notification fired when offline earnings reach the cap — scheduled
@@ -834,6 +834,8 @@
 
   // Flat tap power — everything except the "% of W/s" share. Scales with click
   // & global upgrades, prestige and tap milestones, but NOT directly with W/s.
+  // Base is 1 — deliberately excludes the global PROD_MULT that idle income uses,
+  // so a fresh tap is worth 1 (not 1.6); the "% of W/s" share carries it later.
   function clickPowerFlat() {
     if (ch('grid') === 'unplugged') return 0;   // UNPLUGGED challenge rule
     let p = 1;
@@ -845,7 +847,7 @@
     for (const u of UPGRADES) {
       if (state.upgrades[u.id] && u.kind === 'global') glob *= u.mult;
     }
-    return p * glob * prestigeMult() * PROD_MULT * coreClickMult() * tapMilestoneMult();
+    return p * glob * prestigeMult() * coreClickMult() * tapMilestoneMult();
   }
   function clickPower() {
     if (ch('grid') === 'unplugged') return 0;   // UNPLUGGED challenge rule
@@ -1136,6 +1138,16 @@
     btn.classList.remove('autotap-fire');
     void btn.offsetWidth;          // force reflow so the animation can replay
     btn.classList.add('autotap-fire');
+  }
+  // World-2 mirror of pulseAutoTap: replay the enemy zap-flash each time the
+  // Auto-Zapper fires, so it's as visibly "working" as the Grid Auto-Tapper.
+  function pulseAutoZap() {
+    if (!state.settings.floats || reduceMotion()) return;
+    const btn = el.enemyBtn;
+    if (!btn) return;
+    btn.classList.remove('zapped');
+    void btn.offsetWidth;          // force reflow so the animation can replay
+    btn.classList.add('zapped');
   }
   function spawnFloater(amount) {
     if (!state.settings.floats) return;
@@ -2532,7 +2544,9 @@
       applyZapDamage(zapPower() * rate * dt, cap);
       zapAutoAccum += rate * dt;                       // auto-zaps count toward milestones too
       const whole = Math.floor(zapAutoAccum);
-      if (whole > 0) { zapAutoAccum -= whole; awardZaps(whole); }
+      // Flash the enemy as each whole auto-zap lands (~5/s at the 10Hz tick) —
+      // the Voltlands mirror of the Grid Auto-Tapper's per-fire socket pulse.
+      if (whole > 0) { zapAutoAccum -= whole; awardZaps(whole); pulseAutoZap(); }
     }
     // DISCHARGE: cooldown ticks down; Auto-Discharge fires it the moment it's ready.
     if (su('discharge') && (sl().dischargeCd || 0) > 0) sl().dischargeCd = Math.max(0, sl().dischargeCd - dt);
