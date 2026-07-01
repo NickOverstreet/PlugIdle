@@ -141,10 +141,11 @@ check('combat: boss achievement', !!S().achievements.boss1);
 check('synergy: bossWattsMult > 1', T.bossWattsMult() > 1);
 check('combat: wave advanced past 10', S().slayer.wave >= 11);
 
-// balance: volt income should track the grid's pace. reward/HP ratio must be FLAT
-// across waves (no compounding decay) and sit a touch under World 1 (~0.9× per ZPS).
+// balance: volt income must stay FLAT across waves (no compounding decay). Base 1.3
+// sets reward/HP at ~0.13× per ZPS — the deliberate ~5× World-2 slowdown vs the old
+// 0.8 (base 8); ZPS-scaling zaps + the Auto-Zapper are what keep active play worth it.
 const voltRatio = (w) => T.voltReward(w) / T.enemyHp(w);
-check('balance: volt reward/HP ratio ~0.8 (a bit under grid)', Math.abs(voltRatio(3) - 0.8) < 1e-6);
+check('balance: volt reward/HP ratio ~0.13 (5x slower than the old 0.8)', Math.abs(voltRatio(3) - 0.13) < 1e-9);
 check('balance: volt income ratio flat across waves (no decay)', Math.abs(voltRatio(3) - voltRatio(53)) < 1e-6);
 
 // weapon purchase
@@ -1250,11 +1251,33 @@ check('fps: keeps a valid 60', T.normalizeState({ settings: { fps: 60 } }).setti
   const wpsA = T.totalWps();          // only USB-A owned, so its x2 doubles total
   S().upgrades = { u_usba: true };
   check('upgrade: a cord x2 doubles that cord output', Math.abs(T.totalWps() - wpsA * 2) < wpsA * 1e-6);
-  // Voltlands 'zap' upgrade multiplies the WHOLE tap-zap (no additive term to dilute it).
+  // Voltlands 'zap' upgrade multiplies the flat tap-zap; the Z/s share is 0 here
+  // (no zapzps upgrade owned), so a x2 doubles the whole zapPower.
   { const sR = T.sl(); sR.upgrades = {}; const zp0 = T.zapPower();
     sR.upgrades = { z_zap1: true };   // Rubber Gloves Off: tap-zap x2
     check('zap: a tap-zap x2 upgrade doubles zapPower', Math.abs(T.zapPower() - zp0 * 2) < zp0 * 1e-6);
     sR.upgrades = {}; }
+  // Voltlands ZPS-scaling zaps (mirror of the Grid's tapwps): a 'zapzps' upgrade
+  // makes each zap ALSO deal frac × current Z/s — so tapping keeps pace with DPS
+  // instead of decaying to a flat pittance as ZPS balloons.
+  {
+    const sR = T.sl();
+    check('content: zz1/zz2/zz3 exist as zapzps upgrades',
+      ['zz1', 'zz2', 'zz3'].every((id) => T.ZAP_UPGRADES.some((u) => u.id === id && u.kind === 'zapzps')));
+    sR.upgrades = {}; sR.shardUpgrades = {}; S().buffs = []; S().challenges = { grid: '', volt: '' };
+    sR.weapons = { glove: 50, tongs: 50, welder: 50 };    // nonzero Z/s
+    const zps = T.totalZps();
+    const zapFlat = T.zapPower();                          // no zapzps owned -> flat only
+    const zz1 = T.ZAP_UPGRADES.find((u) => u.id === 'zz1');
+    sR.upgrades = { zz1: true };                           // +1.5% of Z/s per zap
+    check('zap: a zapzps upgrade adds frac × Z/s to each zap',
+      zps > 0 && Math.abs((T.zapPower() - zapFlat) - zz1.frac * zps) < zz1.frac * zps * 1e-9);
+    const share1 = T.zapPower() - zapFlat;
+    sR.weapons = { glove: 100, tongs: 100, welder: 100 };  // more Z/s -> bigger share
+    const share2 = T.zapPower() - zapFlat;
+    check('zap: the Z/s share scales tapping with production', share2 > share1 * 1.5);
+    sR.upgrades = {}; sR.weapons = {}; sR.shardUpgrades = {};
+  }
   S().owned = {}; S().upgrades = {}; S().coreUpgrades = {};
 }
 

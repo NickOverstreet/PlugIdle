@@ -305,6 +305,11 @@
     { id: 'z_glob2', icon: '🌀', name: 'Ion Storm',         cost: 3e6,   kind: 'zglobal', mult: 2, desc: 'All weapons x2.' },
     { id: 'z_ladder',icon: '🪜', name: 'Extension Rungs',   cost: 8e6,   kind: 'weapon', weapon: 'ladder', mult: 2, req: { weapon: 'ladder', n: 5 }, desc: "Jacob's Ladder zaps x2." },
     { id: 'z_zap3',  icon: '🔨', name: 'Mjolnir Grip',      cost: 5e7,   kind: 'zap', mult: 5, desc: 'Tap-zap power x5.' },
+    // ---- Zap-scaling upgrades (Voltlands mirror of the Grid's tapwps line): each
+    // tap-zap also deals a % of your Z/s, so tapping keeps pace with your DPS. ----
+    { id: 'zz1', icon: '🔁', name: 'Feedback Loop',      cost: 5e4,  kind: 'zapzps', frac: 0.015, req: { weapon: 'ladder',  n: 1 }, desc: 'Each zap also deals 1.5% of your Z/s.' },
+    { id: 'zz2', icon: '🔋', name: 'Capacitive Strike',  cost: 5e7,  kind: 'zapzps', frac: 0.02,  req: { weapon: 'railgun', n: 1 }, desc: 'Each zap deals +2% of your Z/s.' },
+    { id: 'zz3', icon: '📡', name: 'Resonant Discharge', cost: 5e11, kind: 'zapzps', frac: 0.015, req: { weapon: 'lance',   n: 1 }, desc: 'Each zap deals +1.5% of your Z/s.' },
     { id: 'z_glob3', icon: '🧲', name: 'Superconductors',   cost: 1e8,   kind: 'zglobal', mult: 3, desc: 'All weapons x3.' },
     // ---- Voltlands expansion: weapon doublers (one per weapon) + more globals/taps ----
     { id: 'z_cannon',  icon: '🧨', name: 'Recoil Damper',        cost: 5.6e7, kind: 'weapon', weapon: 'cannon',  mult: 2, req: { weapon: 'cannon',  n: 5 }, desc: 'Capacitor Cannon zaps ×2.' },
@@ -2370,11 +2375,12 @@
     const boss = isBossWave(wave);
     const slayerBonus = boss && chDone('suddendeath') ? 2 : 1;     // GIANT SLAYER perk
     // Reward tracks enemy HP growth (both 1.22^wave) so volt income per ZPS is
-    // FLAT across waves instead of decaying — that decay (old 1.19 reward vs 1.22
-    // HP) is what made the Voltlands crawl the deeper you pushed. The base of 8
-    // (vs HP base 10) puts a normal wave's volts/sec at ~0.8× the grid's watts/sec
-    // for the same production, so World 2 runs a bit slower than World 1, not 10×+.
-    return 8 * Math.pow(1.22, wave - 1) * (boss ? 12 : 1) * slayerBonus * surgeVoltMult();
+    // FLAT across waves instead of decaying. Base 1.3 (vs HP base 10) sets a
+    // normal wave's volts/sec at ~0.13× the same-production grid watts/sec —
+    // ~5× slower than the old base of 8 (the deliberate World-2 slowdown). Cost
+    // growth was too weak a lever to carry it; income is the clean, uniform dial.
+    // The full-share Auto-Zapper's +25% ZPS nets this back to ~5× once it's owned.
+    return 1.3 * Math.pow(1.22, wave - 1) * (boss ? 12 : 1) * slayerBonus * surgeVoltMult();
   }
 
   // ---- cross-world synergy ----
@@ -2416,6 +2422,13 @@
     // Voltlands exactly like they lift the Grid.
     return sum * gridZpsBoost() * iapProdMult() * achMult() * buffMult('prod') * shardMult() * (su('overvolt') ? 2 : 1) * surgeZpsMult() * stormZpsMult() * cling;
   }
+  // Zaps also deal a % of your current Z/s (the Voltlands mirror of tapWpsFrac),
+  // so tapping scales with your DPS forever instead of staying a flat pittance.
+  function zapZpsFrac() {
+    let f = 0;
+    for (const u of ZAP_UPGRADES) if (sl().upgrades[u.id] && u.kind === 'zapzps') f += u.frac;
+    return f;
+  }
   function zapPower() {
     if (ch('volt') === 'numbfingers') return 0;   // NUMB FINGERS rule
     let p = 1;
@@ -2423,7 +2436,14 @@
     if (su('livewire')) p *= 3;   // Storm Upgrade: tap-zap power ×3
     if (ch('volt') === 'glasscannon') p *= 5;   // GLASS CANNON rule
     if (chDone('glasscannon')) p *= 2;           // OVERLOAD perk
-    return p * gridZpsBoost() * achMult() * buffMult('click') * surgeTapMult() * stormTapMult() * zapMilestoneMult();
+    // Flat tap-zap power — everything except the "% of Z/s" share. Mirrors the
+    // Grid's clickPower shape: (flat + share) × click buffs.
+    const flat = p * gridZpsBoost() * achMult() * surgeTapMult() * stormTapMult() * zapMilestoneMult();
+    // The "% of Z/s" share (zapZpsFrac upgrades). Deliberately NOT scaled by the
+    // flat zap mults/milestones, so the full-share Auto-Zapper stays a predictable
+    // +N% of ZPS — leaner than the Grid, where clickMult amplifies its W/s share.
+    const fromZps = zapZpsFrac() * totalZps();
+    return (flat + fromZps) * buffMult('click');
   }
   function weaponCostGrowth() { return ch('volt') === 'powerdrain' ? 1.18 : VOLT_COST_GROWTH; }   // POWER DRAIN rule; base 1.14 paces World 2 ~0.8× the Grid
   function weaponCostDiscount() { return chDone('powerdrain') ? 0.97 : 1; }   // SURPLUS perk
@@ -2880,6 +2900,7 @@
     if (el.zapinfo) {
       const parts = [`⚡${fmt(zapPower())} / zap`, `grid boost ×${gridZpsBoost().toFixed(2)}`];
       if (zapMilestonesPassed() > 0) parts.push(`milestone ×${fmt(zapMilestoneMult())}`);
+      if (zapZpsFrac() > 0) parts.push(`+${Math.round(zapZpsFrac() * 100)}% Z/s per zap`);
       const nz = nextZapMilestone();
       if (nz) parts.push(`next ×1.25 @ ${fmtInt(nz)} zaps (${fmtInt(sl().zaps)})`);
       el.zapinfo.textContent = parts.join(' · ');

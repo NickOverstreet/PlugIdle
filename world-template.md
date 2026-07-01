@@ -112,7 +112,8 @@ These are deliberate balance, documented so they aren't mistaken for drift:
 | Aspect | Grid | Voltlands | Why |
 |---|---|---|---|
 | Passive production | `totalWps()` × `coreProdMult()` | `totalZps()` × `gridZpsBoost()` × `overvolt` × `shardMult()` (no `coreProdMult`) | Each world has its own prestige/synergy scalers |
-| Tap/click power | `clickPower()` scales with prestige, `PROD_MULT`, tap milestones (×1.5/step) | `zapPower()` scales with `gridZpsBoost()`, surge/storm mults, and zap milestones (leaner ×1.25/step) | Both share `TAP_MILESTONES` + `milestoneMult(count, base)`; only the per-step base differs — Voltlands is deliberately leaner |
+| Tap/click power | `clickPower()` = flat (`clickPowerFlat`, base **1** — no `PROD_MULT`; ×prestige, tap milestones ×1.5/step) **+ `tapWpsFrac()`·`totalWps()`** (% of W/s) | `zapPower()` = flat (`gridZpsBoost`, surge/storm, zap milestones ×1.25/step) **+ `zapZpsFrac()`·`totalZps()`** (% of Z/s — the leaner mirror) | Both share `TAP_MILESTONES`; each adds a %-of-per-second share so tapping never decays as production grows. Voltlands is deliberately leaner (×1.25 vs ×1.5/step; ~5% vs ~10% share). |
+| Income basis | watts accrue directly from production | combat: kills × `voltReward` (base **1.3** → ~0.13× reward/HP per ZPS) | Voltlands earns by killing waves; base 1.3 is the deliberate ~5× World-2 slowdown (income lever — `VOLT_COST_GROWTH` is too weak to pace it). |
 | Prestige gain basis | cube-root of lifetime `totalEarned` | cube-root of per-run `runVolts` | Different pacing per world |
 
 If a future request is "rebalance," that's a separate, explicit decision — UI/
